@@ -1,0 +1,642 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Reports" %}{% endblock %}
+
+{% block page_title %}{% trans "Reports" %}{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'analytics:dashboard' %}">{% trans "Analytics" %}</a></li>
+<li class="breadcrumb-item active" aria-current="page">{% trans "Reports" %}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="page-actions">
+    <div class="btn-group" role="group">
+        <a href="{% url 'analytics:generate_report' 'default' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> {% trans "Generate Report" %}
+        </a>
+        <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+            <span class="visually-hidden">{% trans "Toggle Dropdown" %}</span>
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'analytics:report_list' %}?status=completed">
+                <i class="bi bi-check-circle me-2"></i> {% trans "Completed Reports" %}
+            </a></li>
+            <li><a class="dropdown-item" href="{% url 'analytics:report_list' %}?status=pending">
+                <i class="bi bi-clock me-2"></i> {% trans "Pending Reports" %}
+            </a></li>
+            <li><a class="dropdown-item" href="{% url 'analytics:report_list' %}?status=failed">
+                <i class="bi bi-exclamation-triangle me-2"></i> {% trans "Failed Reports" %}
+            </a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .reports-filter-card {
+        background: var(--bs-card-bg);
+        border-radius: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--bs-border-color);
+    }
+    
+    .filter-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        background: var(--bs-light);
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+    
+    .filter-body {
+        padding: 1.25rem;
+    }
+    
+    .report-card {
+        background: var(--bs-card-bg);
+        border-radius: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1rem;
+        border: 1px solid var(--bs-border-color);
+        transition: all 0.2s ease;
+    }
+    
+    .report-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .report-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--bs-border-color-translucent);
+    }
+    
+    .report-body {
+        padding: 1.25rem;
+    }
+    
+    .report-footer {
+        padding: 0.75rem 1.25rem;
+        border-top: 1px solid var(--bs-border-color-translucent);
+        background: var(--bs-light-bg-subtle);
+        border-radius: 0 0 0.5rem 0.5rem;
+    }
+    
+    .report-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .report-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--bs-body-color);
+    }
+    
+    .report-meta {
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-action {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .stats-card {
+        text-align: center;
+        padding: 1.5rem 1rem;
+        background: var(--bs-card-bg);
+        border-radius: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid var(--bs-border-color);
+        margin-bottom: 1.5rem;
+    }
+    
+    .stats-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: var(--bs-secondary);
+    }
+    
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.5;
+    }
+    
+    .format-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        background: var(--bs-light);
+        color: var(--bs-secondary);
+        font-weight: 500;
+    }
+    
+    .pagination-container {
+        background: var(--bs-card-bg);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 1.5rem;
+        border: 1px solid var(--bs-border-color);
+    }
+    
+    .quick-filters {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    
+    .quick-filter-btn {
+        padding: 0.375rem 0.75rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        background: var(--bs-card-bg);
+        color: var(--bs-body-color);
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-filter-btn:hover,
+    .quick-filter-btn.active {
+        background: var(--bs-primary);
+        color: white;
+        border-color: var(--bs-primary);
+    }
+    
+    .generation-info {
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+    }
+    
+    .access-stats {
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Statistics Overview -->
+    <div class="col-12">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-primary">{{ total_reports }}</div>
+                    <div class="stats-label">{% trans "Total Reports" %}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-success">{{ page_obj.paginator.count }}</div>
+                    <div class="stats-label">{% trans "Filtered Results" %}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-info">
+                        {{ completed_reports_count|default:"0" }}
+                    </div>
+                    <div class="stats-label">{% trans "Completed" %}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-value text-warning">
+                        {{ pending_reports_count|default:"0" }}
+                    </div>
+                    <div class="stats-label">{% trans "In Progress" %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="col-12">
+        <div class="reports-filter-card">
+            <div class="filter-header">
+                <h6 class="mb-0">{% trans "Filter Reports" %}</h6>
+            </div>
+            <div class="filter-body">
+                <form method="get" id="reports-filter-form">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                {{ form.name.label }}
+                            </label>
+                            {{ form.name }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.report_type.id_for_label }}" class="form-label">
+                                {{ form.report_type.label }}
+                            </label>
+                            {{ form.report_type }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.category.id_for_label }}" class="form-label">
+                                {{ form.category.label }}
+                            </label>
+                            {{ form.category }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.academic_session.id_for_label }}" class="form-label">
+                                {{ form.academic_session.label }}
+                            </label>
+                            {{ form.academic_session }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.status.id_for_label }}" class="form-label">
+                                {{ form.status.label }}
+                            </label>
+                            {{ form.status }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.date_range.id_for_label }}" class="form-label">
+                                {{ form.date_range.label }}
+                            </label>
+                            {{ form.date_range }}
+                        </div>
+                        
+                        <!-- Date range fields (conditionally shown) -->
+                        <div class="col-md-6" id="start-date-field" style="display: none;">
+                            <label for="{{ form.start_date.id_for_label }}" class="form-label">
+                                {{ form.start_date.label }}
+                            </label>
+                            {{ form.start_date }}
+                        </div>
+                        <div class="col-md-6" id="end-date-field" style="display: none;">
+                            <label for="{{ form.end_date.id_for_label }}" class="form-label">
+                                {{ form.end_date.label }}
+                            </label>
+                            {{ form.end_date }}
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{% url 'analytics:report_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise me-1"></i> {% trans "Reset Filters" %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel me-1"></i> {% trans "Apply Filters" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Filters -->
+    <div class="col-12">
+        <div class="quick-filters">
+            <a href="{% url 'analytics:report_list' %}" class="quick-filter-btn {% if not request.GET.status %}active{% endif %}">
+                {% trans "All Reports" %}
+            </a>
+            <a href="?status=completed" class="quick-filter-btn {% if request.GET.status == 'completed' %}active{% endif %}">
+                <i class="bi bi-check-circle me-1"></i> {% trans "Completed" %}
+            </a>
+            <a href="?status=pending" class="quick-filter-btn {% if request.GET.status == 'pending' %}active{% endif %}">
+                <i class="bi bi-clock me-1"></i> {% trans "Pending" %}
+            </a>
+            <a href="?status=generating" class="quick-filter-btn {% if request.GET.status == 'generating' %}active{% endif %}">
+                <i class="bi bi-gear me-1"></i> {% trans "Generating" %}
+            </a>
+            <a href="?status=failed" class="quick-filter-btn {% if request.GET.status == 'failed' %}active{% endif %}">
+                <i class="bi bi-exclamation-triangle me-1"></i> {% trans "Failed" %}
+            </a>
+            <a href="?date_range=today" class="quick-filter-btn {% if request.GET.date_range == 'today' %}active{% endif %}">
+                <i class="bi bi-calendar-day me-1"></i> {% trans "Today" %}
+            </a>
+            <a href="?date_range=week" class="quick-filter-btn {% if request.GET.date_range == 'week' %}active{% endif %}">
+                <i class="bi bi-calendar-week me-1"></i> {% trans "This Week" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Reports List -->
+    <div class="col-12">
+        {% if page_obj %}
+            {% for report in page_obj %}
+            <div class="report-card">
+                <div class="report-header">
+                    <div class="d-flex align-items-center">
+                        <div class="report-icon 
+                            {% if report.status == 'completed' %}bg-success bg-opacity-10 text-success
+                            {% elif report.status == 'failed' %}bg-danger bg-opacity-10 text-danger
+                            {% elif report.status == 'generating' %}bg-warning bg-opacity-10 text-warning
+                            {% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}">
+                            <i class="bi 
+                                {% if report.format == 'pdf' %}bi-file-earmark-pdf
+                                {% elif report.format == 'excel' %}bi-file-earmark-spreadsheet
+                                {% elif report.format == 'csv' %}bi-file-earmark-text
+                                {% else %}bi-file-earmark-text{% endif %}">
+                            </i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="report-title">{{ report.name }}</div>
+                            <div class="report-meta">
+                                {{ report.report_type.name }} • 
+                                {{ report.academic_session.name }} •
+                                {{ report.created_at|date:"M d, Y H:i" }}
+                                {% if report.generated_by %}
+                                • {% trans "By" %} {{ report.generated_by.get_full_name|default:report.generated_by.email }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="ms-3">
+                            <span class="status-badge 
+                                {% if report.status == 'completed' %}bg-success
+                                {% elif report.status == 'failed' %}bg-danger
+                                {% elif report.status == 'generating' %}bg-warning
+                                {% else %}bg-secondary{% endif %}">
+                                {{ report.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="report-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            {% if report.summary %}
+                            <p class="mb-2">{{ report.summary|truncatewords:30 }}</p>
+                            {% endif %}
+                            
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <span class="format-badge">
+                                    <i class="bi 
+                                        {% if report.format == 'pdf' %}bi-file-earmark-pdf
+                                        {% elif report.format == 'excel' %}bi-file-earmark-spreadsheet
+                                        {% elif report.format == 'csv' %}bi-file-earmark-text
+                                        {% else %}bi-file-earmark-text{% endif %} me-1">
+                                    </i>
+                                    {{ report.get_format_display }}
+                                </span>
+                                
+                                {% if report.generation_duration %}
+                                <span class="format-badge">
+                                    <i class="bi bi-clock me-1"></i>
+                                    {{ report.generation_duration|floatformat:2 }}s
+                                </span>
+                                {% endif %}
+                                
+                                {% if report.access_count > 0 %}
+                                <span class="format-badge">
+                                    <i class="bi bi-eye me-1"></i>
+                                    {{ report.access_count }} {% trans "views" %}
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if report.parameters %}
+                            <div class="generation-info">
+                                <small class="text-muted">
+                                    <i class="bi bi-gear me-1"></i>
+                                    {% trans "Parameters:" %} {{ report.parameters|length }} {% trans "configured" %}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="access-stats text-md-end">
+                                {% if report.last_accessed_at %}
+                                <div class="mb-1">
+                                    <small>{% trans "Last accessed:" %} {{ report.last_accessed_at|timesince }} {% trans "ago" %}</small>
+                                </div>
+                                {% endif %}
+                                
+                                {% if report.expires_at %}
+                                <div>
+                                    <small class="{% if report.is_expired %}text-danger{% else %}text-warning{% endif %}">
+                                        <i class="bi bi-clock me-1"></i>
+                                        {% if report.is_expired %}
+                                        {% trans "Expired" %}
+                                        {% else %}
+                                        {% trans "Expires" %} {{ report.expires_at|timeuntil }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="report-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="action-buttons">
+                            <a href="{% url 'analytics:report_detail' report.id %}" class="btn btn-outline-primary btn-action">
+                                <i class="bi bi-eye me-1"></i> {% trans "View" %}
+                            </a>
+                            
+                            {% if report.status == 'completed' and report.file %}
+                            <a href="{% url 'analytics:download_report' report.id %}" class="btn btn-outline-success btn-action">
+                                <i class="bi bi-download me-1"></i> {% trans "Download" %}
+                            </a>
+                            {% endif %}
+                            
+                            {% if report.status == 'failed' or report.status == 'expired' %}
+                            <button class="btn btn-outline-warning btn-action" onclick="regenerateReport('{{ report.id }}')">
+                                <i class="bi bi-arrow-repeat me-1"></i> {% trans "Regenerate" %}
+                            </button>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="text-muted">
+                            <small>ID: {{ report.id|slice:":8" }}...</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="pagination-container">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">
+                            {% blocktrans with start=page_obj.start_index end=page_obj.end_index total=page_obj.paginator.count %}
+                            Showing {{ start }} to {{ end }} of {{ total }} reports
+                            {% endblocktrans %}
+                        </small>
+                    </div>
+                    
+                    <nav aria-label="{% trans 'Report pagination' %}">
+                        <ul class="pagination mb-0">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="bi bi-chevron-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="bi bi-chevron-double-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+            {% endif %}
+            
+        {% else %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <h4>{% trans "No Reports Found" %}</h4>
+                <p class="mb-4">{% trans "No reports match your current filters. Try adjusting your search criteria or generate a new report." %}</p>
+                <a href="{% url 'analytics:generate_report' 'default' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> {% trans "Generate Your First Report" %}
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show/hide date range fields based on selection
+        const dateRangeSelect = document.getElementById('{{ form.date_range.id_for_label }}');
+        const startDateField = document.getElementById('start-date-field');
+        const endDateField = document.getElementById('end-date-field');
+        
+        function toggleDateFields() {
+            if (dateRangeSelect.value === 'custom') {
+                startDateField.style.display = 'block';
+                endDateField.style.display = 'block';
+            } else {
+                startDateField.style.display = 'none';
+                endDateField.style.display = 'none';
+            }
+        }
+        
+        dateRangeSelect.addEventListener('change', toggleDateFields);
+        toggleDateFields(); // Initial check
+        
+        // Auto-submit form when quick filters are used (except for custom date range)
+        document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                if (this.getAttribute('href').includes('date_range=custom')) {
+                    e.preventDefault();
+                    dateRangeSelect.value = 'custom';
+                    toggleDateFields();
+                    dateRangeSelect.focus();
+                }
+            });
+        });
+        
+        // Report regeneration function
+        window.regenerateReport = function(reportId) {
+            if (confirm('{% trans "Are you sure you want to regenerate this report? This will create a new report with the same parameters." %}')) {
+                // Show loading state
+                BaseApp.showLoading();
+                
+                // In a real implementation, this would make an API call to regenerate the report
+                setTimeout(function() {
+                    BaseApp.hideLoading();
+                    BaseApp.showToast('{% trans "Report regeneration initiated" %}', 'success');
+                    
+                    // Refresh the page after a short delay to show the new report status
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 2000);
+                }, 1500);
+            }
+        };
+        
+        // Auto-refresh for generating reports
+        function checkGeneratingReports() {
+            const generatingReports = document.querySelectorAll('.status-badge.bg-warning');
+            if (generatingReports.length > 0) {
+                // Refresh the page every 10 seconds if there are generating reports
+                setTimeout(function() {
+                    window.location.reload();
+                }, 10000);
+            }
+        }
+        
+        checkGeneratingReports();
+        
+        // Export filtered results
+        document.getElementById('export-results')?.addEventListener('click', function() {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('export', 'true');
+            
+            BaseApp.showToast('{% trans "Exporting filtered results..." %}', 'info');
+            window.open(currentUrl.toString(), '_blank');
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,809 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Generate Report" %}{% endblock %}
+
+{% block page_title %}{% trans "Generate Report" %}{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'analytics:dashboard' %}">{% trans "Analytics" %}</a></li>
+<li class="breadcrumb-item"><a href="{% url 'analytics:report_list' %}">{% trans "Reports" %}</a></li>
+<li class="breadcrumb-item active" aria-current="page">{% trans "Generate Report" %}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="page-actions">
+    <a href="{% url 'analytics:report_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> {% trans "Back to Reports" %}
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .generation-card {
+        background: var(--bs-card-bg);
+        border-radius: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--bs-border-color);
+    }
+    
+    .generation-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        background: var(--bs-light);
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+    
+    .generation-body {
+        padding: 1.5rem;
+    }
+    
+    .generation-footer {
+        padding: 1.25rem 1.5rem;
+        border-top: 1px solid var(--bs-border-color);
+        background: var(--bs-light-bg-subtle);
+        border-radius: 0 0 0.5rem 0.5rem;
+    }
+    
+    .report-type-card {
+        background: var(--bs-light-bg-subtle);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border-left: 4px solid var(--bs-primary);
+    }
+    
+    .type-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+        font-size: 1.25rem;
+    }
+    
+    .parameter-section {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    
+    .parameter-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
+    .section-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--bs-primary);
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-title i {
+        margin-right: 0.5rem;
+    }
+    
+    .parameter-group {
+        background: var(--bs-light-bg-subtle);
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    .parameter-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    .parameter-card {
+        background: var(--bs-card-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .parameter-card:hover {
+        border-color: var(--bs-primary);
+        box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
+    }
+    
+    .parameter-card:last-child {
+        margin-bottom: 0;
+    }
+    
+    .parameter-header {
+        display: flex;
+        justify-content: between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+    
+    .parameter-label {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--bs-body-color);
+    }
+    
+    .parameter-required {
+        color: var(--bs-danger);
+        margin-left: 0.25rem;
+    }
+    
+    .parameter-help {
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .preview-sidebar {
+        background: var(--bs-light-bg-subtle);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        position: sticky;
+        top: 2rem;
+    }
+    
+    .preview-card {
+        background: var(--bs-card-bg);
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--bs-border-color);
+    }
+    
+    .preview-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--bs-primary);
+    }
+    
+    .preview-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--bs-border-color-translucent);
+    }
+    
+    .preview-item:last-child {
+        border-bottom: none;
+    }
+    
+    .preview-label {
+        font-weight: 500;
+        color: var(--bs-body-color);
+    }
+    
+    .preview-value {
+        color: var(--bs-secondary);
+        text-align: right;
+        max-width: 60%;
+        word-break: break-word;
+    }
+    
+    .format-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    
+    .format-option {
+        border: 2px solid var(--bs-border-color);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: var(--bs-card-bg);
+    }
+    
+    .format-option:hover {
+        border-color: var(--bs-primary);
+        transform: translateY(-2px);
+    }
+    
+    .format-option.selected {
+        border-color: var(--bs-primary);
+        background: var(--bs-primary-bg-subtle);
+    }
+    
+    .format-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .format-name {
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+    
+    .advanced-toggle {
+        background: none;
+        border: none;
+        color: var(--bs-primary);
+        padding: 0;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        margin-top: 0.5rem;
+    }
+    
+    .advanced-toggle:hover {
+        color: var(--bs-primary-dark);
+    }
+    
+    .advanced-section {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--bs-border-color);
+    }
+    
+    .validation-error {
+        color: var(--bs-danger);
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .validation-error i {
+        margin-right: 0.25rem;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.5rem;
+        z-index: 10;
+    }
+    
+    .spinner {
+        width: 2rem;
+        height: 2rem;
+        border: 3px solid transparent;
+        border-top: 3px solid var(--bs-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .parameter-description {
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+    }
+    
+    .example-text {
+        font-size: 0.75rem;
+        color: var(--bs-secondary);
+        font-style: italic;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Main Form -->
+    <div class="col-lg-8">
+        <div class="generation-card">
+            <div class="generation-header">
+                <h4 class="mb-2">{% trans "Generate New Report" %}</h4>
+                <p class="text-muted mb-0">
+                    {% trans "Configure the parameters for your" %} <strong>{{ report_type.name }}</strong> {% trans "report" %}
+                </p>
+            </div>
+            
+            <div class="generation-body">
+                <!-- Report Type Information -->
+                <div class="report-type-card">
+                    <div class="d-flex align-items-start">
+                        <div class="type-icon bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-file-earmark-text"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="mb-1">{{ report_type.name }}</h5>
+                            <p class="text-muted mb-2">{{ report_type.description }}</p>
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-light text-dark">
+                                    <i class="bi bi-tag me-1"></i>
+                                    {{ report_type.get_category_display }}
+                                </span>
+                                <span class="badge bg-light text-dark">
+                                    <i class="bi bi-database me-1"></i>
+                                    {{ report_type.data_source }}
+                                </span>
+                                {% if report_type.is_standard %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    {% trans "Standard Report" %}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" id="report-generation-form" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information Section -->
+                    <div class="parameter-section">
+                        <h5 class="section-title">
+                            <i class="bi bi-info-circle"></i>
+                            {% trans "Basic Information" %}
+                        </h5>
+                        
+                        <div class="parameter-group">
+                            <!-- Report Name -->
+                            <div class="mb-3">
+                                <label for="report_name" class="form-label parameter-label">
+                                    {% trans "Report Name" %} <span class="parameter-required">*</span>
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="report_name" 
+                                       name="report_name"
+                                       value="{{ report_type.name }} - {{ current_date }}"
+                                       required
+                                       oninput="updatePreview('name', this.value)">
+                                <div class="parameter-help">
+                                    {% trans "Give your report a descriptive name to easily identify it later" %}
+                                </div>
+                            </div>
+                            
+                            <!-- Academic Session -->
+                            <div class="mb-3">
+                                <label for="academic_session" class="form-label parameter-label">
+                                    {% trans "Academic Session" %} <span class="parameter-required">*</span>
+                                </label>
+                                <select class="form-select" id="academic_session" name="academic_session" required onchange="updatePreview('session', this.options[this.selectedIndex].text)">
+                                    <option value="">{% trans "Select Academic Session" %}</option>
+                                    {% for session in form.academic_session.field.queryset %}
+                                    <option value="{{ session.id }}" {% if session.is_current %}selected{% endif %}>
+                                        {{ session.name }} {% if session.is_current %}({% trans "Current" %}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="parameter-help">
+                                    {% trans "Select the academic session for this report" %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Report Parameters Section -->
+                    {% if form.fields %}
+                    <div class="parameter-section">
+                        <h5 class="section-title">
+                            <i class="bi bi-gear"></i>
+                            {% trans "Report Parameters" %}
+                        </h5>
+                        
+                        <div class="parameter-group">
+                            {% for field in form %}
+                            {% if field.name != 'academic_session' %}
+                            <div class="parameter-card">
+                                <div class="parameter-header">
+                                    <div class="flex-grow-1">
+                                        <label for="{{ field.id_for_label }}" class="form-label parameter-label">
+                                            {{ field.label }}
+                                            {% if field.field.required %}<span class="parameter-required">*</span>{% endif %}
+                                        </label>
+                                        {% if field.help_text %}
+                                        <div class="parameter-description">{{ field.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="parameter-control">
+                                    {{ field }}
+                                    {% if field.errors %}
+                                    <div class="validation-error">
+                                        <i class="bi bi-exclamation-circle"></i>
+                                        {{ field.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if field.field.widget.input_type == 'text' and 'date' in field.name %}
+                                <div class="example-text">
+                                    {% trans "Example:" %} {{ current_date|date:"Y-m-d" }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="parameter-section">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            {% trans "This report type doesn't require any additional parameters." %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Output Settings Section -->
+                    <div class="parameter-section">
+                        <h5 class="section-title">
+                            <i class="bi bi-download"></i>
+                            {% trans "Output Settings" %}
+                        </h5>
+                        
+                        <div class="parameter-group">
+                            <!-- Format Selection -->
+                            <div class="mb-3">
+                                <label class="form-label parameter-label">
+                                    {% trans "Output Format" %} <span class="parameter-required">*</span>
+                                </label>
+                                <div class="format-options">
+                                    <div class="format-option selected" data-format="pdf" onclick="selectFormat('pdf')">
+                                        <span class="format-icon text-danger">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                        </span>
+                                        <span class="format-name">PDF</span>
+                                    </div>
+                                    <div class="format-option" data-format="excel" onclick="selectFormat('excel')">
+                                        <span class="format-icon text-success">
+                                            <i class="bi bi-file-earmark-spreadsheet"></i>
+                                        </span>
+                                        <span class="format-name">Excel</span>
+                                    </div>
+                                    <div class="format-option" data-format="csv" onclick="selectFormat('csv')">
+                                        <span class="format-icon text-primary">
+                                            <i class="bi bi-file-earmark-text"></i>
+                                        </span>
+                                        <span class="format-name">CSV</span>
+                                    </div>
+                                    <div class="format-option" data-format="html" onclick="selectFormat('html')">
+                                        <span class="format-icon text-info">
+                                            <i class="bi bi-file-earmark-code"></i>
+                                        </span>
+                                        <span class="format-name">HTML</span>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="format" id="format" value="pdf" required>
+                            </div>
+                            
+                            <!-- Advanced Options -->
+                            <button type="button" class="advanced-toggle" onclick="toggleAdvancedOptions()">
+                                <i class="bi bi-gear me-1"></i>
+                                {% trans "Advanced Options" %}
+                                <i class="bi bi-chevron-down ms-1" id="advanced-chevron"></i>
+                            </button>
+                            
+                            <div class="advanced-section" id="advanced-options" style="display: none;">
+                                <!-- Expiration Settings -->
+                                <div class="mb-3">
+                                    <label for="expiration_days" class="form-label parameter-label">
+                                        {% trans "Report Expiration" %}
+                                    </label>
+                                    <select class="form-select" id="expiration_days" name="expiration_days" onchange="updatePreview('expiration', this.value)">
+                                        <option value="7">{% trans "1 Week" %}</option>
+                                        <option value="30" selected>{% trans "1 Month" %}</option>
+                                        <option value="90">{% trans "3 Months" %}</option>
+                                        <option value="365">{% trans "1 Year" %}</option>
+                                        <option value="0">{% trans "Never Expire" %}</option>
+                                    </select>
+                                    <div class="parameter-help">
+                                        {% trans "Automatically delete the report after this period" %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Email Notification -->
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="email_notification" name="email_notification" checked onchange="updatePreview('email', this.checked)">
+                                    <label class="form-check-label" for="email_notification">
+                                        {% trans "Send email notification when report is ready" %}
+                                    </label>
+                                </div>
+                                
+                                <!-- Include Summary -->
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="include_summary" name="include_summary" checked onchange="updatePreview('summary', this.checked)">
+                                    <label class="form-check-label" for="include_summary">
+                                        {% trans "Include executive summary in report" %}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="generation-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <button type="button" class="btn btn-outline-secondary" onclick="previewReport()">
+                            <i class="bi bi-eye me-1"></i> {% trans "Preview" %}
+                        </button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'analytics:report_list' %}" class="btn btn-outline-secondary">
+                            {% trans "Cancel" %}
+                        </a>
+                        <button type="submit" form="report-generation-form" class="btn btn-primary" id="generate-btn">
+                            <i class="bi bi-lightning me-1"></i> {% trans "Generate Report" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Preview Sidebar -->
+    <div class="col-lg-4">
+        <div class="preview-sidebar">
+            <h5 class="preview-title">{% trans "Report Preview" %}</h5>
+            
+            <div class="preview-card">
+                <div class="preview-item">
+                    <span class="preview-label">{% trans "Report Type" %}</span>
+                    <span class="preview-value">{{ report_type.name }}</span>
+                </div>
+                <div class="preview-item">
+                    <span class="preview-label">{% trans "Report Name" %}</span>
+                    <span class="preview-value" id="preview-name">{{ report_type.name }} - {{ current_date }}</span>
+                </div>
+                <div class="preview-item">
+                    <span class="preview-label">{% trans "Academic Session" %}</span>
+                    <span class="preview-value" id="preview-session">
+                        {% with current_session=form.academic_session.field.queryset.current %}
+                        {{ current_session.name|default:"Not selected" }}
+                        {% endwith %}
+                    </span>
+                </div>
+                <div class="preview-item">
+                    <span class="preview-label">{% trans "Format" %}</span>
+                    <span class="preview-value" id="preview-format">PDF</span>
+                </div>
+                <div class="preview-item">
+                    <span class="preview-label">{% trans "Expiration" %}</span>
+                    <span class="preview-value" id="preview-expiration">{% trans "1 Month" %}</span>
+                </div>
+                <div class="preview-item">
+                    <span class="preview-label">{% trans "Email Notification" %}</span>
+                    <span class="preview-value" id="preview-email">{% trans "Yes" %}</span>
+                </div>
+                <div class="preview-item">
+                    <span class="preview-label">{% trans "Include Summary" %}</span>
+                    <span class="preview-value" id="preview-summary">{% trans "Yes" %}</span>
+                </div>
+            </div>
+            
+            <div class="preview-card">
+                <h6 class="preview-title">{% trans "Estimated Generation Time" %}</h6>
+                <div class="text-center py-3">
+                    <div class="display-6 text-primary mb-2" id="estimated-time">15-30s</div>
+                    <small class="text-muted">{% trans "Based on report complexity and current system load" %}</small>
+                </div>
+            </div>
+            
+            <div class="preview-card">
+                <h6 class="preview-title">{% trans "Recent Similar Reports" %}</h6>
+                {% if similar_reports %}
+                <div class="list-group list-group-flush">
+                    {% for similar in similar_reports %}
+                    <a href="{% url 'analytics:report_detail' similar.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ similar.name|truncatewords:4 }}</h6>
+                            <small>{{ similar.created_at|timesince }}</small>
+                        </div>
+                        <p class="mb-1 text-muted small">{{ similar.academic_session.name }}</p>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">{% trans "No recent similar reports found" %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">{% trans "Report Preview" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center py-5">
+                    <div class="preview-icon text-muted" style="font-size: 4rem;">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <h5 class="mt-3">{% trans "Preview Not Available" %}</h5>
+                    <p class="text-muted">
+                        {% trans "Report preview is only available after generation. Generate the report to see the actual content." %}
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Close" %}</button>
+                <button type="submit" form="report-generation-form" class="btn btn-primary">
+                    <i class="bi bi-lightning me-1"></i> {% trans "Generate Report" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize form validation
+        const form = document.getElementById('report-generation-form');
+        const generateBtn = document.getElementById('generate-btn');
+        
+        form.addEventListener('submit', function(e) {
+            if (!validateForm()) {
+                e.preventDefault();
+                showFormErrors();
+            } else {
+                // Show loading state
+                generateBtn.disabled = true;
+                generateBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> {% trans "Generating..." %}';
+                
+                // Add loading overlay
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.className = 'loading-overlay';
+                loadingOverlay.innerHTML = '<div class="spinner"></div>';
+                document.querySelector('.generation-card').style.position = 'relative';
+                document.querySelector('.generation-card').appendChild(loadingOverlay);
+            }
+        });
+        
+        // Initialize parameter fields
+        initializeParameterFields();
+    });
+    
+    function validateForm() {
+        let isValid = true;
+        const requiredFields = form.querySelectorAll('[required]');
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        return isValid;
+    }
+    
+    function showFormErrors() {
+        BaseApp.showToast('{% trans "Please fill in all required fields" %}', 'error');
+        
+        // Scroll to first error
+        const firstError = form.querySelector('.is-invalid');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstError.focus();
+        }
+    }
+    
+    function initializeParameterFields() {
+        // Add real-time validation
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.hasAttribute('required') && !this.value.trim()) {
+                    this.classList.add('is-invalid');
+                } else {
+                    this.classList.remove('is-invalid');
+                }
+            });
+            
+            // Update preview on change
+            input.addEventListener('input', function() {
+                updatePreview(this.name, this.value);
+            });
+        });
+    }
+    
+    function selectFormat(format) {
+        // Update format selection
+        document.querySelectorAll('.format-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        document.querySelector(`[data-format="${format}"]`).classList.add('selected');
+        document.getElementById('format').value = format;
+        
+        // Update preview
+        const formatNames = {
+            'pdf': 'PDF',
+            'excel': 'Excel',
+            'csv': 'CSV',
+            'html': 'HTML'
+        };
+        updatePreview('format', formatNames[format]);
+        
+        // Update estimated time based on format
+        const estimatedTimes = {
+            'pdf': '15-30s',
+            'excel': '10-20s',
+            'csv': '5-15s',
+            'html': '5-10s'
+        };
+        document.getElementById('estimated-time').textContent = estimatedTimes[format];
+    }
+    
+    function toggleAdvancedOptions() {
+        const advancedSection = document.getElementById('advanced-options');
+        const chevron = document.getElementById('advanced-chevron');
+        
+        if (advancedSection.style.display === 'none') {
+            advancedSection.style.display = 'block';
+            chevron.className = 'bi bi-chevron-up ms-1';
+        } else {
+            advancedSection.style.display = 'none';
+            chevron.className = 'bi bi-chevron-down ms-1';
+        }
+    }
+    
+    function updatePreview(field, value) {
+        const previewElement = document.getElementById(`preview-${field}`);
+        if (previewElement) {
+            if (field === 'email' || field === 'summary') {
+                previewElement.textContent = value ? '{% trans "Yes" %}' : '{% trans "No" %}';
+            } else if (field === 'expiration') {
+                const expirationTexts = {
+                    '7': '{% trans "1 Week" %}',
+                    '30': '{% trans "1 Month" %}',
+                    '90': '{% trans "3 Months" %}',
+                    '365': '{% trans "1 Year" %}',
+                    '0': '{% trans "Never" %}'
+                };
+                previewElement.textContent = expirationTexts[value] || value;
+            } else {
+                previewElement.textContent = value || '{% trans "Not set" %}';
+            }
+        }
+    }
+    
+    function previewReport() {
+        const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+        previewModal.show();
+    }
+    
+    // Auto-generate report name based on parameters
+    function generateReportName() {
+        const baseName = '{{ report_type.name }}';
+        const date = new Date().toLocaleDateString();
+        return `${baseName} - ${date}`;
+    }
+    
+    // Initialize with current date
+    document.getElementById('report_name').value = generateReportName();
+</script>
+{% endblock %}

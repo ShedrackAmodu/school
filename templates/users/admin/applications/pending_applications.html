@@ -1,0 +1,890 @@
+<!-- templates/users/admin/pending_applications.html -->
+{% extends 'base/base.html' %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Table-specific styles */
+    .applications-table-container {
+        background: var(--bs-body-bg);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .applications-table {
+        width: 100%;
+        margin-bottom: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .applications-table thead th {
+        background-color: var(--bs-light);
+        border-bottom: 2px solid var(--bs-border-color);
+        padding: 1rem 0.75rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+        vertical-align: middle;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    [data-bs-theme="dark"] .applications-table thead th {
+        background-color: var(--bs-dark);
+    }
+    
+    .applications-table tbody tr {
+        border-bottom: 1px solid var(--bs-border-color);
+        transition: all 0.15s ease;
+    }
+    
+    .applications-table tbody tr:hover {
+        background-color: var(--bs-light-bg-subtle);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    [data-bs-theme="dark"] .applications-table tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .applications-table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-top: 1px solid var(--bs-border-color);
+    }
+    
+    /* Improved column widths for better balance */
+    .col-applicant {
+        width: 28%;
+        min-width: 200px;
+    }
+    
+    .col-details {
+        width: 18%;
+        min-width: 150px;
+    }
+    
+    .col-contact {
+        width: 18%;
+        min-width: 150px;
+    }
+    
+    .col-status {
+        width: 14%;
+        min-width: 120px;
+    }
+    
+    .col-actions {
+        width: 22%;
+        min-width: 180px;
+    }
+    
+    /* Application info cells */
+    .applicant-info {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .applicant-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: white;
+        flex-shrink: 0;
+        font-size: 0.875rem;
+    }
+    
+    .student-avatar {
+        background-color: var(--bs-primary);
+    }
+    
+    .staff-avatar {
+        background-color: var(--bs-success);
+    }
+    
+    .applicant-details {
+        flex: 1;
+        min-width: 0; /* Prevent overflow */
+    }
+    
+    .applicant-name {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--bs-body-color);
+        font-size: 0.9rem;
+        line-height: 1.2;
+    }
+    
+    .applicant-meta {
+        font-size: 0.75rem;
+        color: var(--bs-secondary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .applicant-tags {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+    }
+    
+    .tag {
+        padding: 0.125rem 0.5rem;
+        background: var(--bs-secondary-bg);
+        border-radius: 50rem;
+        font-size: 0.6875rem;
+        color: var(--bs-secondary);
+        border: 1px solid var(--bs-border-color);
+        white-space: nowrap;
+    }
+    
+    /* Status badges */
+    .status-badge {
+        padding: 0.35rem 0.65rem;
+        border-radius: 50rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid;
+        white-space: nowrap;
+        display: inline-block;
+        text-align: center;
+        min-width: 100px;
+    }
+    
+    .status-pending { 
+        background: var(--bs-warning-bg-subtle); 
+        color: var(--bs-warning-text);
+        border-color: var(--bs-warning-border-subtle);
+    }
+    
+    .status-under-review {
+        background: var(--bs-info-bg-subtle);
+        color: var(--bs-info-text);
+        border-color: var(--bs-info-border-subtle);
+    }
+
+    .status-interview_scheduled {
+        background: var(--bs-warning-bg-subtle);
+        color: var(--bs-warning-text);
+        border-color: var(--bs-warning-border-subtle);
+    }
+    
+    /* Action buttons */
+    .action-buttons {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    
+    .action-buttons .btn {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.75rem;
+        border-radius: 0.375rem;
+        min-width: 70px;
+    }
+    
+    /* Improved action button colors and hierarchy */
+    .btn-view {
+        background: var(--bs-primary-bg-subtle);
+        border-color: var(--bs-primary-border-subtle);
+        color: var(--bs-primary);
+    }
+    
+    .btn-approve {
+        background: var(--bs-success-bg-subtle);
+        border-color: var(--bs-success-border-subtle);
+        color: var(--bs-success);
+    }
+    
+    .btn-review {
+        background: var(--bs-warning-bg-subtle);
+        border-color: var(--bs-warning-border-subtle);
+        color: var(--bs-warning);
+    }
+    
+    .btn-interview {
+        background: var(--bs-info-bg-subtle);
+        border-color: var(--bs-info-border-subtle);
+        color: var(--bs-info);
+    }
+    
+    .btn-reject {
+        background: var(--bs-danger-bg-subtle);
+        border-color: var(--bs-danger-border-subtle);
+        color: var(--bs-danger);
+    }
+    
+    /* Expandable row details */
+    .details-row {
+        background-color: var(--bs-light-bg-subtle);
+    }
+    
+    [data-bs-theme="dark"] .details-row {
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+    
+    .details-content {
+        padding: 1.5rem;
+        border-top: 1px solid var(--bs-border-color);
+    }
+    
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+    }
+    
+    .detail-group {
+        padding: 1.25rem;
+        background: var(--bs-body-bg);
+        border-radius: 8px;
+        border: 1px solid var(--bs-border-color);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .detail-group h6 {
+        margin-bottom: 0.75rem;
+        color: var(--bs-secondary);
+        font-weight: 600;
+        font-size: 0.875rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        padding-bottom: 0.5rem;
+    }
+    
+    /* Tabs and controls */
+    .application-tabs .nav-link {
+        border: none;
+        color: var(--bs-secondary);
+        font-weight: 500;
+        padding: 1rem 1.5rem;
+        border-radius: 0;
+        transition: all 0.2s ease;
+    }
+    
+    .application-tabs .nav-link:hover {
+        color: var(--bs-primary);
+        background-color: var(--bs-light);
+    }
+    
+    .application-tabs .nav-link.active {
+        color: var(--bs-primary);
+        background-color: transparent;
+        border-bottom: 3px solid var(--bs-primary);
+    }
+    
+    .application-count {
+        font-size: 0.75rem;
+    }
+    
+    .quick-actions {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .search-box {
+        flex: 1;
+        min-width: 250px;
+        max-width: 400px;
+    }
+    
+    .action-buttons-top {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--bs-secondary);
+    }
+    
+    .empty-state .bi {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Table header improvements */
+    .table-header-group {
+        background: var(--bs-light-bg-subtle);
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--bs-secondary);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 1200px) {
+        .col-applicant { width: 26%; }
+        .col-details { width: 17%; }
+        .col-contact { width: 17%; }
+        .col-status { width: 16%; }
+        .col-actions { width: 24%; }
+    }
+    
+    @media (max-width: 992px) {
+        .applications-table-container {
+            overflow-x: auto;
+        }
+        
+        .applications-table {
+            min-width: 900px;
+        }
+        
+        .quick-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .search-box {
+            max-width: 100%;
+        }
+        
+        .action-buttons-top {
+            justify-content: flex-end;
+        }
+        
+        .col-applicant { width: 25%; }
+        .col-details { width: 16%; }
+        .col-contact { width: 16%; }
+        .col-status { width: 15%; }
+        .col-actions { width: 28%; }
+    }
+    
+    @media (max-width: 768px) {
+        .applicant-info {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .applicant-avatar {
+            align-self: flex-start;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .action-buttons .btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .details-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .applications-table tbody td {
+            padding: 0.75rem 0.5rem;
+        }
+        
+        .status-badge {
+            min-width: 80px;
+            padding: 0.25rem 0.5rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .applicant-tags {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .tag {
+            margin-bottom: 0.25rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">{% trans "Pending Applications" %}</h1>
+        <div class="action-buttons-top">
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-filter me-1"></i> {% trans "Filter" %}
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item filter-option" href="#" data-filter="all">{% trans "All Applications" %}</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item filter-option" href="#" data-filter="pending">{% trans "Pending Only" %}</a></li>
+                    <li><a class="dropdown-item filter-option" href="#" data-filter="under_review">{% trans "Under Review" %}</a></li>
+                </ul>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-download me-1"></i> {% trans "Export" %}
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                    <li><a class="dropdown-item export-option" href="#" data-format="csv">{% trans "Export to CSV" %}</a></li>
+                    <li><a class="dropdown-item export-option" href="#" data-format="excel">{% trans "Export to Excel" %}</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs application-tabs" id="applicationTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="student-tab" data-bs-toggle="tab" data-bs-target="#student" type="button" role="tab">
+                <i class="bi bi-person-video3 me-1"></i> {% trans "Student Applications" %} 
+                <span class="badge bg-primary rounded-pill application-count">{{ student_applications.count }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="staff-tab" data-bs-toggle="tab" data-bs-target="#staff" type="button" role="tab">
+                <i class="bi bi-briefcase me-1"></i> {% trans "Staff Applications" %} 
+                <span class="badge bg-success rounded-pill application-count">{{ staff_applications.count }}</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-3" id="applicationTabsContent">
+        <!-- Student Applications Tab -->
+        <div class="tab-pane fade show active" id="student" role="tabpanel">
+            <div class="quick-actions">
+                <div class="search-box">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="student-search" placeholder="{% trans 'Search student applications...' %}">
+                    </div>
+                </div>
+                <div class="text-muted small" id="student-results-count">
+                    {{ student_applications.count }} {% trans "applications" %}
+                </div>
+            </div>
+            
+            {% if student_applications %}
+                <div class="applications-table-container">
+                    <table class="table applications-table">
+                        <thead>
+                            <tr>
+                                <th class="col-applicant">{% trans "Applicant" %}</th>
+                                <th class="col-details">{% trans "Application Details" %}</th>
+                                <th class="col-contact">{% trans "Contact Info" %}</th>
+                                <th class="col-status">{% trans "Status" %}</th>
+                                <th class="col-actions">{% trans "Actions" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-applications-list">
+                            {% for application in student_applications %}
+                            <tr class="application-row" data-status="{{ application.application_status }}" data-search="{{ application.full_name|lower }} {{ application.application_number|lower }} {{ application.email|lower }} {{ application.grade_applying_for|lower }}">
+                                <td class="col-applicant">
+                                    <div class="applicant-info">
+                                        <div class="applicant-avatar student-avatar">
+                                            {{ application.full_name|slice:":1" }}
+                                        </div>
+                                        <div class="applicant-details">
+                                            <div class="applicant-name">{{ application.full_name }}</div>
+                                            <div class="applicant-meta">
+                                                <div>{% trans "Applied:" %} {{ application.application_date|date:"M j, Y" }}</div>
+                                            </div>
+                                            <div class="applicant-tags">
+                                                <span class="tag">{{ application.get_gender_display }}</span>
+                                                <span class="tag">{{ application.age }} {% trans "years" %}</span>
+                                                <span class="tag">{{ application.nationality }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="col-details">
+                                    <div><strong>{% trans "App #:" %}</strong> {{ application.application_number }}</div>
+                                    <div><strong>{% trans "Grade:" %}</strong> {{ application.get_grade_applying_for_display }}</div>
+                                </td>
+                                <td class="col-contact">
+                                    <div class="small text-truncate" title="{{ application.email }}">{{ application.email }}</div>
+                                    <div class="small">{{ application.phone }}</div>
+                                </td>
+                                <td class="col-status">
+                                    <span class="status-badge status-{{ application.application_status }}">
+                                        {{ application.get_application_status_display }}
+                                    </span>
+                                </td>
+                                <td class="col-actions">
+                                    <div class="action-buttons">
+                                        <a href="{% url 'users:student_application_detail' application.id %}" class="btn btn-view btn-sm">
+                                            <i class="bi bi-eye me-1"></i> {% trans "View" %}
+                                        </a>
+                                        {% if application.application_status == 'pending' or application.application_status == 'under_review' %}
+                                            <form method="post" action="{% url 'users:approve_application' application.id 'student' %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-approve btn-sm" onclick="return confirm('{% trans "Are you sure you want to approve this application?" %}')">
+                                                    <i class="bi bi-check-lg me-1"></i> {% trans "Approve" %}
+                                                </button>
+                                            </form>
+                                            <button type="button" class="btn btn-review btn-sm" data-bs-toggle="modal" data-bs-target="#reviewStudentModal{{ application.id }}">
+                                                <i class="bi bi-pencil me-1"></i> {% trans "Review" %}
+                                            </button>
+                                            <button type="button" class="btn btn-reject btn-sm" data-bs-toggle="modal" data-bs-target="#rejectStudentModal{{ application.id }}">
+                                                <i class="bi bi-x-lg me-1"></i> {% trans "Reject" %}
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-person-x"></i>
+                    <h3>{% trans "No Pending Student Applications" %}</h3>
+                    <p>{% trans "There are no student applications waiting for review at this time." %}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Staff Applications Tab -->
+        <div class="tab-pane fade" id="staff" role="tabpanel">
+            <div class="quick-actions">
+                <div class="search-box">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="staff-search" placeholder="{% trans 'Search staff applications...' %}">
+                    </div>
+                </div>
+                <div class="text-muted small" id="staff-results-count">
+                    {{ staff_applications.count }} {% trans "applications" %}
+                </div>
+            </div>
+            
+            {% if staff_applications %}
+                <div class="applications-table-container">
+                    <table class="table applications-table">
+                        <thead>
+                            <tr>
+                                <th class="col-applicant">{% trans "Applicant" %}</th>
+                                <th class="col-details">{% trans "Application Details" %}</th>
+                                <th class="col-contact">{% trans "Contact Info" %}</th>
+                                <th class="col-status">{% trans "Status" %}</th>
+                                <th class="col-actions">{% trans "Actions" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staff-applications-list">
+                            {% for application in staff_applications %}
+                            <tr class="application-row" data-status="{{ application.application_status }}" data-search="{{ application.full_name|lower }} {{ application.application_number|lower }} {{ application.email|lower }} {{ application.position_applied_for.name|lower }}">
+                                <td class="col-applicant">
+                                    <div class="applicant-info">
+                                        <div class="applicant-avatar staff-avatar">
+                                            {{ application.full_name|slice:":1" }}
+                                        </div>
+                                        <div class="applicant-details">
+                                            <div class="applicant-name">{{ application.full_name }}</div>
+                                            <div class="applicant-meta">
+                                                <div>{% trans "Applied:" %} {{ application.application_date|date:"M j, Y" }}</div>
+                                            </div>
+                                            <div class="applicant-tags">
+                                                <span class="tag">{{ application.get_gender_display }}</span>
+                                                <span class="tag">{{ application.years_of_experience }} {% trans "yrs exp" %}</span>
+                                                <span class="tag">{{ application.get_position_type_display }}</span>
+                                                {% if application.expected_salary %}
+                                                <span class="tag">${{ application.expected_salary }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="col-details">
+                                    <div><strong>{% trans "App #:" %}</strong> {{ application.application_number }}</div>
+                                    <div><strong>{% trans "Position:" %}</strong> {{ application.position_applied_for.name }}</div>
+                                </td>
+                                <td class="col-contact">
+                                    <div class="small text-truncate" title="{{ application.email }}">{{ application.email }}</div>
+                                    <div class="small">{{ application.phone }}</div>
+                                </td>
+                                <td class="col-status">
+                                    <span class="status-badge status-{{ application.application_status }}">
+                                        {{ application.get_application_status_display }}
+                                    </span>
+                                </td>
+                                <td class="col-actions">
+                                    <div class="action-buttons">
+                                        <button type="button" class="btn btn-view btn-sm view-details" data-app-id="{{ application.id }}">
+                                            <i class="bi bi-eye me-1"></i> {% trans "View" %}
+                                        </button>
+                                        <form method="post" action="{% url 'users:approve_application' application.id 'staff' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-approve btn-sm" onclick="return confirm('{% trans "Are you sure you want to approve this application?" %}')">
+                                                <i class="bi bi-check-lg me-1"></i> {% trans "Approve" %}
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-interview btn-sm" data-bs-toggle="modal" data-bs-target="#interviewModal{{ application.id }}">
+                                            <i class="bi bi-calendar-event me-1"></i> {% trans "Interview" %}
+                                        </button>
+                                        <button type="button" class="btn btn-reject btn-sm" data-bs-toggle="modal" data-bs-target="#rejectStaffModal{{ application.id }}">
+                                            <i class="bi bi-x-lg me-1"></i> {% trans "Reject" %}
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <!-- Details row (hidden by default) -->
+                            <tr class="details-row" id="details-{{ application.id }}" style="display: none;">
+                                <td colspan="5">
+                                    <div class="details-content">
+                                        <div class="details-grid">
+                                            <div class="detail-group">
+                                                <h6><i class="bi bi-person me-1"></i> {% trans "Personal Information" %}</h6>
+                                                <div class="mb-1"><strong>{% trans "Email:" %}</strong> {{ application.email }}</div>
+                                                <div class="mb-1"><strong>{% trans "Phone:" %}</strong> {{ application.phone }}</div>
+                                                <div class="mb-1"><strong>{% trans "Date of Birth:" %}</strong> {{ application.date_of_birth|date:"M j, Y" }}</div>
+                                                <div><strong>{% trans "Nationality:" %}</strong> {{ application.nationality }}</div>
+                                            </div>
+                                            <div class="detail-group">
+                                                <h6><i class="bi bi-mortarboard me-1"></i> {% trans "Education" %}</h6>
+                                                <div class="mb-1"><strong>{% trans "Qualification:" %}</strong> {{ application.highest_qualification }}</div>
+                                                <div class="mb-1"><strong>{% trans "Institution:" %}</strong> {{ application.institution }}</div>
+                                                <div><strong>{% trans "Year Graduated:" %}</strong> {{ application.year_graduated }}</div>
+                                            </div>
+                                            <div class="detail-group">
+                                                <h6><i class="bi bi-briefcase me-1"></i> {% trans "Experience" %}</h6>
+                                                <div class="mb-1"><strong>{% trans "Previous Employer:" %}</strong> {{ application.previous_employer|default:"Not specified" }}</div>
+                                                <div class="mb-1"><strong>{% trans "Previous Position:" %}</strong> {{ application.previous_position|default:"Not specified" }}</div>
+                                                <div><strong>{% trans "Years of Experience:" %}</strong> {{ application.years_of_experience }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-briefcase"></i>
+                    <h3>{% trans "No Pending Staff Applications" %}</h3>
+                    <p>{% trans "There are no staff applications waiting for review at this time." %}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Interview Modal -->
+{% for application in staff_applications %}
+<div class="modal fade" id="interviewModal{{ application.id }}" tabindex="-1" aria-labelledby="interviewModalLabel{{ application.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="interviewModalLabel{{ application.id }}">{% trans "Schedule Interview" %} - {{ application.full_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'users:schedule_interview' application.id %}" id="interviewForm{{ application.id }}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="interview_date{{ application.id }}" class="form-label">{% trans "Interview Date & Time" %}</label>
+                        <input type="datetime-local" class="form-control" id="interview_date{{ application.id }}" name="interview_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="interview_notes{{ application.id }}" class="form-label">{% trans "Interview Notes" %}</label>
+                        <textarea class="form-control" id="interview_notes{{ application.id }}" name="review_notes" rows="3" placeholder="{% trans 'Optional notes about the interview arrangement...' %}"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                    <button type="submit" class="btn btn-info">{% trans "Schedule Interview" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectStaffModal{{ application.id }}" tabindex="-1" aria-labelledby="rejectStaffModalLabel{{ application.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectStaffModalLabel{{ application.id }}">{% trans "Reject Application" %} - {{ application.full_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'users:reject_application' application.id 'staff' %}" id="rejectForm{{ application.id }}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="reject_notes{{ application.id }}" class="form-label">{% trans "Rejection Reason" %}</label>
+                        <textarea class="form-control" id="reject_notes{{ application.id }}" name="review_notes" rows="4" placeholder="{% trans 'Please provide a reason for rejection...' %}" required></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        {% trans "This action cannot be undone. The applicant will be notified via email." %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                    <button type="submit" class="btn btn-danger">{% trans "Reject Application" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Bootstrap components
+        const applicationTabs = document.getElementById('applicationTabs');
+        if (applicationTabs) {
+            const tab = new bootstrap.Tab(applicationTabs.querySelector('.nav-link.active'));
+        }
+        
+        // Initialize all modals
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(function(modal) {
+            new bootstrap.Modal(modal);
+        });
+
+        // View details functionality
+        const viewDetailButtons = document.querySelectorAll('.view-details');
+        viewDetailButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const appId = this.getAttribute('data-app-id');
+                const detailsRow = document.getElementById(`details-${appId}`);
+                
+                if (detailsRow.style.display === 'none') {
+                    detailsRow.style.display = 'table-row';
+                    this.innerHTML = '<i class="bi bi-eye-slash me-1"></i> {% trans "Hide" %}';
+                } else {
+                    detailsRow.style.display = 'none';
+                    this.innerHTML = '<i class="bi bi-eye me-1"></i> {% trans "View" %}';
+                }
+            });
+        });
+
+        // Search functionality
+        const studentSearch = document.getElementById('student-search');
+        if (studentSearch) {
+            studentSearch.addEventListener('input', function() {
+                filterApplications('student', this.value.toLowerCase());
+            });
+        }
+
+        const staffSearch = document.getElementById('staff-search');
+        if (staffSearch) {
+            staffSearch.addEventListener('input', function() {
+                filterApplications('staff', this.value.toLowerCase());
+            });
+        }
+
+        // Filter dropdown functionality
+        const filterOptions = document.querySelectorAll('.filter-option');
+        filterOptions.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const filter = this.getAttribute('data-filter');
+                applyFilter(filter);
+            });
+        });
+
+        // Export button functionality
+        const exportOptions = document.querySelectorAll('.export-option');
+        exportOptions.forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const format = this.getAttribute('data-format');
+                const activeTab = document.querySelector('#applicationTabs .nav-link.active');
+                const applicationType = activeTab.getAttribute('data-bs-target').replace('#', ''); // 'student' or 'staff'
+                
+                const searchTerm = document.getElementById(`${applicationType}-search`).value.toLowerCase();
+                const activeFilter = document.querySelector('.filter-option.active')?.getAttribute('data-filter') || 'all';
+
+                let exportUrl = `{% url 'users:export_applications' '0000' %}?format=${format}&status=${activeFilter}&q=${searchTerm}`;
+                exportUrl = exportUrl.replace('0000', applicationType); // Replace placeholder with actual type
+
+                window.location.href = exportUrl; // Trigger file download
+            });
+        });
+
+        // Filter applications based on search input
+        function filterApplications(type, searchTerm) {
+            const applications = document.querySelectorAll(`#${type}-applications-list .application-row`);
+            let visibleCount = 0;
+            
+            applications.forEach(app => {
+                const searchData = app.getAttribute('data-search');
+                if (searchTerm === '' || searchData.includes(searchTerm)) {
+                    app.style.display = 'table-row';
+                    visibleCount++;
+                } else {
+                    app.style.display = 'none';
+                }
+            });
+            
+            // Update results count
+            const countElement = document.getElementById(`${type}-results-count`);
+            if (countElement) {
+                countElement.textContent = `${visibleCount} applications`;
+            }
+        }
+
+        // Apply status filter
+        function applyFilter(filter) {
+            const activeTab = document.querySelector('#applicationTabs .nav-link.active');
+            const tabId = activeTab.getAttribute('data-bs-target').replace('#', '');
+            const applications = document.querySelectorAll(`#${tabId}-applications-list .application-row`);
+            
+            applications.forEach(app => {
+                if (filter === 'all' || app.getAttribute('data-status') === filter) {
+                    app.style.display = 'table-row';
+                } else {
+                    app.style.display = 'none';
+                }
+            });
+            
+            // Update search input and results count
+            const searchInput = document.getElementById(`${tabId}-search`);
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            
+            const countElement = document.getElementById(`${tabId}-results-count`);
+            if (countElement) {
+                const visibleApps = document.querySelectorAll(`#${tabId}-applications-list .application-row[style="display: table-row"]`);
+                countElement.textContent = `${visibleApps.length} applications`;
+            }
+        }
+
+        // Auto-refresh functionality
+        function autoRefresh() {
+            console.log('Checking for new applications...');
+            fetch('{% url "users:get_application_counts" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const studentCountElement = document.querySelector('#student-tab .application-count');
+                    const staffCountElement = document.querySelector('#staff-tab .application-count');
+
+                    if (studentCountElement) {
+                        studentCountElement.textContent = data.student_count;
+                    }
+                    if (staffCountElement) {
+                        staffCountElement.textContent = data.staff_count;
+                    }
+                    console.log('Application counts updated:', data);
+                })
+                .catch(error => console.error('Error fetching application counts:', error));
+        }
+        
+        // Initial call to autoRefresh and then refresh every 5 minutes
+        autoRefresh(); 
+        setInterval(autoRefresh, 300000); // 5 minutes
+    });
+</script>
+{% endblock %}

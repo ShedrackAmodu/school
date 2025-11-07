@@ -1,0 +1,63 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Resources{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Resources</h1>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <form method="GET" action="{% url 'support:resource_list' %}" class="d-flex">
+                <select name="type" class="form-select me-2" onchange="this.form.submit()">
+                    <option value="">All Types</option>
+                    {% for type_value, type_label in view.model.RESOURCE_TYPE_CHOICES %}
+                        <option value="{{ type_value }}" {% if request.GET.type == type_value %}selected{% endif %}>{{ type_label }}</option>
+                    {% endfor %}
+                </select>
+                <!-- <button type="submit" class="btn btn-primary">Filter</button> -->
+            </form>
+        </div>
+    </div>
+
+    {% if resources %}
+        <div class="list-group">
+            {% for resource in resources %}
+                <a href="{% url 'support:resource_detail' slug=resource.slug %}" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">{{ resource.title }}</h5>
+                    <p class="mb-1 text-muted">Type: {{ resource.get_resource_type_display }}</p>
+                    <small>Published: {{ resource.created_at|date:"M d, Y" }}</small>
+                </a>
+            {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}">Previous</a></li>
+                    {% else %}
+                        <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                    {% endif %}
+
+                    {% for i in paginator.page_range %}
+                        {% if page_obj.number == i %}
+                            <li class="page-item active"><a class="page-link" href="#">{{ i }}</a></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="?page={{ i }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}">{{ i }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}">Next</a></li>
+                    {% else %}
+                        <li class="page-item disabled"><a class="page-link" href="#">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <p>No resources available.</p>
+    {% endif %}
+</div>
+{% endblock %}

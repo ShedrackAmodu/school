@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Edit{% else %}Create{% endif %} Question{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        {% if form.instance.pk %}Edit{% else %}Create{% endif %} Question
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{% url 'assessment:question_list' %}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </div>
+                <form method="post" id="questionForm">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.question_bank.id_for_label }}">Question Bank</label>
+                                    {{ form.question_bank }}
+                                    {% if form.question_bank.errors %}
+                                        <div class="text-danger">{{ form.question_bank.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.question_type.id_for_label }}">Question Type</label>
+                                    {{ form.question_type }}
+                                    {% if form.question_type.errors %}
+                                        <div class="text-danger">{{ form.question_type.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.difficulty_level.id_for_label }}">Difficulty Level</label>
+                                    {{ form.difficulty_level }}
+                                    {% if form.difficulty_level.errors %}
+                                        <div class="text-danger">{{ form.difficulty_level.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.marks.id_for_label }}">Marks</label>
+                                    {{ form.marks }}
+                                    {% if form.marks.errors %}
+                                        <div class="text-danger">{{ form.marks.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ form.question_text.id_for_label }}">Question Text</label>
+                            {{ form.question_text }}
+                            {% if form.question_text.errors %}
+                                <div class="text-danger">{{ form.question_text.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Options section for multiple choice and true/false -->
+                        <div id="optionsSection" style="display: none;">
+                            <h5>Answer Options</h5>
+                            <div id="optionsContainer">
+                                <!-- Options will be dynamically added here -->
+                            </div>
+                            <button type="button" id="addOptionBtn" class="btn btn-sm btn-outline-primary mb-3">
+                                <i class="fas fa-plus"></i> Add Option
+                            </button>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ form.explanation.id_for_label }}">Explanation/Answer Key</label>
+                            {{ form.explanation }}
+                            {% if form.explanation.errors %}
+                                <div class="text-danger">{{ form.explanation.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.time_limit.id_for_label }}">Time Limit (seconds)</label>
+                                    {{ form.time_limit }}
+                                    {% if form.time_limit.errors %}
+                                        <div class="text-danger">{{ form.time_limit.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.tags.id_for_label }}">Tags</label>
+                                    {{ form.tags }}
+                                    {% if form.tags.errors %}
+                                        <div class="text-danger">{{ form.tags.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-check">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                Active
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {% if form.instance.pk %}Update{% else %}Create{% endif %} Question
+                        </button>
+                        <a href="{% url 'assessment:question_list' %}" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const questionTypeSelect = document.getElementById('{{ form.question_type.id_for_label }}');
+    const optionsSection = document.getElementById('optionsSection');
+    const optionsContainer = document.getElementById('optionsContainer');
+    const addOptionBtn = document.getElementById('addOptionBtn');
+
+    function toggleOptionsSection() {
+        const questionType = questionTypeSelect.value;
+        if (questionType === 'multiple_choice' || questionType === 'true_false') {
+            optionsSection.style.display = 'block';
+            updateOptions();
+        } else {
+            optionsSection.style.display = 'none';
+        }
+    }
+
+    function updateOptions() {
+        const questionType = questionTypeSelect.value;
+        optionsContainer.innerHTML = '';
+
+        if (questionType === 'multiple_choice') {
+            // Add existing options or create new ones
+            for (let i = 0; i < 4; i++) {
+                addOptionField(i, false);
+            }
+        } else if (questionType === 'true_false') {
+            // True/False has exactly 2 options
+            addOptionField(0, false, 'True');
+            addOptionField(1, false, 'False');
+        }
+    }
+
+    function addOptionField(index, isCorrect = false, text = '') {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'form-group d-flex align-items-center';
+        optionDiv.innerHTML = `
+            <input type="text" name="option_text[]" class="form-control mr-2"
+                   placeholder="Option ${index + 1}" value="${text}" required>
+            <div class="form-check mr-2">
+                <input type="checkbox" name="is_correct[]" class="form-check-input"
+                       id="correct_${index}" ${isCorrect ? 'checked' : ''}>
+                <label class="form-check-label" for="correct_${index}">Correct</label>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-option">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        optionsContainer.appendChild(optionDiv);
+
+        // Add remove functionality
+        optionDiv.querySelector('.remove-option').addEventListener('click', function() {
+            optionDiv.remove();
+        });
+    }
+
+    // Event listeners
+    questionTypeSelect.addEventListener('change', toggleOptionsSection);
+
+    addOptionBtn.addEventListener('click', function() {
+        const currentOptions = optionsContainer.children.length;
+        addOptionField(currentOptions, false);
+    });
+
+    // Initialize on page load
+    toggleOptionsSection();
+});
+</script>
+{% endblock %}

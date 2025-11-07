@@ -1,0 +1,33 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'support:home' %}">Support Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ document.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h1 class="card-title">{{ document.title }}</h1>
+            <p class="card-subtitle mb-2 text-muted">
+                Document Type: {{ document.get_document_type_display }} |
+                Version: {{ document.version|default:"N/A" }} |
+                Last updated: {{ document.updated_at|date:"M d, Y" }}
+            </p>
+            <hr>
+            <div class="legal-content">
+                {{ document.content|safe }}
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'support:home' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Support Home</a>
+    </div>
+</div>
+{% endblock %}

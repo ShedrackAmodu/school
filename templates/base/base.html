@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+{% load static i18n %}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}" data-bs-theme="auto">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{% block meta_description %}School Management System - Comprehensive platform for educational institutions{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}school, management, education, students, teachers, administration{% endblock %}">
+    <meta name="author" content="School Management System">
+    
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    
+    <title>
+        {% block title_prefix %}{% if title and title != "Nexus School Management System" %}{{ title }} | {% endif %}{% endblock %}
+        {% block title %}Nexus Intelligence School Management System{% endblock %}
+    </title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/logo.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/logo.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/Nexus.png' %}">
+
+    <!-- External CSS Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/core/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'css/themes/light.css' %}" id="light-theme">
+    <link rel="stylesheet" href="{% static 'css/themes/dark.css' %}" id="dark-theme" media="(prefers-color-scheme: dark)">
+        
+    <!-- Page-specific CSS -->
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#65a0f9ff">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="{% static 'css/core/base.css' %}" as="style">
+    <link rel="preload" href="{% static 'js/core/base.js' %}" as="script">
+
+    <!-- JSON-LD Structured Data -->
+    {% block structured_data %}{% endblock %}
+</head>
+
+<body class="{% block body_class %}{% endblock %}" data-user-theme="{% if user.is_authenticated and user.profile %}{{ user.profile.theme|default:'light' }}{% else %}light{% endif %}">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+        <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+    </noscript>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="loading-spinner" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">{% trans "Loading..." %}</span>
+        </div>
+    </div>
+
+    <!-- Announcement Banner -->
+    {% block announcement_banner %}
+    <div id="announcement-banner" class="announcement-banner bg-warning text-dark py-2" style="display: none;">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col">
+                    <p class="mb-0 text-center" id="announcement-text"></p>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn-close" aria-label="{% trans 'Close announcement' %}" onclick="BaseApp.hideAnnouncement()"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    <!-- Main Layout Wrapper -->
+    <div class="layout-wrapper">
+        <!-- Header Section -->
+        {% block header %}
+            {% include 'base/header.html' %}
+        {% endblock %}
+
+      
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="main-content" role="main">
+            <!-- Page Header -->
+            {% block page_header %}
+            <div class="page-header bg-light py-4 mb-4">
+                <div class="container-fluid">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h1 class="page-title h2 mb-0">
+                                {% block page_title %}{{ title|default:"Dashboard" }}{% endblock %}
+                            </h1>
+                            {% block breadcrumbs %}
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb mb-0">
+                                    <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}">{% trans "Home" %}</a></li>
+                                    {% block breadcrumb_items %}
+                                    <li class="breadcrumb-item active" aria-current="page">{{ title|default:"Dashboard" }}</li>
+                                    {% endblock %}
+                                </ol>
+                            </nav>
+                            {% endblock %}
+                        </div>
+                        <div class="col-auto">
+                                    {% block page_actions %}
+                                    <div class="page-actions">
+                                        {% if user.is_authenticated %}
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-outline-secondary" id="fullscreen-toggle" title="{% trans 'Toggle fullscreen' %}">
+                                                <i class="bi bi-arrows-fullscreen"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#settingsModal" title="{% trans 'Settings' %}">
+                                                <i class="bi bi-gear-fill"></i>
+                                            </button>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endblock %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endblock %}
+
+            <!-- Messages/Alerts -->
+            {% block messages %}
+            <div class="container-fluid mb-4">
+                {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                    <div class="alert alert-dismissible fade show alert-{{ message.tags|default:'info' }} {% if message.tags == 'error' %}alert-danger{% endif %}" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi 
+                                {% if message.tags == 'success' %}bi-check-circle-fill
+                                {% elif message.tags == 'warning' %}bi-exclamation-triangle-fill
+                                {% elif message.tags == 'error' %}bi-x-circle-fill
+                                {% else %}bi-info-circle-fill{% endif %}
+                                me-2"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{% trans 'Close' %}"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endblock %}
+
+            <!-- Content Sections -->
+            <div class="container-fluid">
+                <div class="row">
+                    <!-- Sidebar -->
+                    {% block sidebar %}
+                    <aside class="col-lg-3 col-xl-2 sidebar d-print-none" id="sidebar">
+                        {% include 'base/sidebar.html' %}
+                    </aside>
+                    {% endblock %}
+
+                    <!-- Main Content -->
+                    <div class="{% block main_content_class %}col-lg-9 col-xl-10{% endblock %}">
+                        {% block content_wrapper %}
+                        <div class="content-area">
+                            <!-- Content Header -->
+                            {% block content_header %}{% endblock %}
+
+                            <!-- Main Content Block -->
+                            {% block content %}
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{% trans "Welcome to School Management System" %}</h5>
+                                    <p class="card-text">{% trans "This is the main content area. Extend this template and override the content block." %}</p>
+                                </div>
+                            </div>
+                            {% endblock %}
+
+                            <!-- Content Footer -->
+                            {% block content_footer %}{% endblock %}
+                        </div>
+                        {% endblock %}
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer Section -->
+        {% block footer %}
+            {% include 'base/footer.html' %}
+        {% endblock %}
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="modal-container">
+        {% block modals %}
+        <!-- Global Modals -->
+        <div class="modal fade" id="globalModal" tabindex="-1" aria-labelledby="globalModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="globalModalLabel">Modal title</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="globalModalBody">
+                        ...
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Close" %}</button>
+                        <button type="button" class="btn btn-primary" id="globalModalAction">{% trans "Save changes" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Settings Modal -->
+        <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="settingsModalLabel">{% trans "Quick Settings" %}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">{% trans "Theme" %}</label>
+                            <select class="form-select" id="theme-select">
+                                <option value="light">{% trans "Light" %}</option>
+                                <option value="dark">{% trans "Dark" %}</option>
+                                <option value="auto">{% trans "Auto" %}</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{% trans "Language" %}</label>
+                            <select class="form-select" id="language-select">
+                                <option value="en">English</option>
+                                <option value="es">Español</option>
+                                <option value="fr">Français</option>
+                                <option value="ar">العربية</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Close" %}</button>
+                        <button type="button" class="btn btn-primary" onclick="BaseApp.saveSettings()">{% trans "Save Settings" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+    </div>
+
+    <!-- Back to Top Button -->
+    <button type="button" class="btn btn-primary back-to-top" id="backToTop" aria-label="{% trans 'Back to top' %}">
+        <i class="bi bi-chevron-up"></i>
+    </button>
+
+    <!-- Offline Indicator -->
+    <div id="offline-indicator" class="offline-indicator alert alert-warning alert-dismissible fade show" style="display: none;">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-wifi-off me-2"></i>
+            <span>{% trans "You are currently offline. Some features may not be available." %}</span>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- CodeMirror for JSON editing -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/lint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/lint/json-lint.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="{% static 'js/core/base.js' %}"></script>
+    <script src="{% static 'js/themes/theme-toggle.js' %}"></script>
+
+    <!-- Global Configuration -->
+    <script>
+        // Global constants for JavaScript usage
+        window.CSRF_TOKEN = "{{ csrf_token }}";
+        window.CURRENT_USER_ID = "{% if user.is_authenticated %}{{ user.id }}{% else %}{% endif %}";
+        window.CURRENT_LANGUAGE = "{{ LANGUAGE_CODE }}";
+        window.STATIC_URL = "{% static '' %}";
+        window.MEDIA_URL = "{{ MEDIA_URL }}";
+        window.BASE_URL = "{{ request.scheme }}://{{ request.get_host }}";
+        window.DEBUG = {% if debug %}true{% else %}false{% endif %};
+        
+        // Utility function to get login URL
+        window.getLoginUrl = function() {
+            return BASE_URL + "{% url 'users:login' %}";
+        };
+    </script>
+
+    <!-- Page-specific JavaScript -->
+    {% block extra_js %}{% endblock %}
+
+    <!-- Analytics Scripts (production only) -->
+    {% if not debug %}
+    <script>
+        // Google Analytics
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'GA_MEASUREMENT_ID');
+    </script>
+    {% endif %}
+
+    <!-- No JavaScript Warning -->
+    <noscript>
+        <div class="alert alert-danger m-3" role="alert">
+            <h4 class="alert-heading">{% trans "JavaScript Required" %}</h4>
+            <p class="mb-0">{% trans "This application requires JavaScript to function properly. Please enable JavaScript in your browser settings." %}</p>
+        </div>
+    </noscript>
+</body>
+</html>

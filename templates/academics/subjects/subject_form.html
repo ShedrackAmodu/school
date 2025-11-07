@@ -1,0 +1,108 @@
+<!-- templates/academics/subjects/subject_form.html -->
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{% trans "Create New Subject" %}</h2>
+   
+
+    <!-- Display form errors -->
+    {% if form.errors %}
+        <div class="alert alert-danger">
+            <h4>{% trans "Please correct the following errors:" %}</h4>
+            <ul>
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.name.id_for_label }}">{% trans "Subject Name" %} *</label>
+                    {{ form.name }}
+                    {% if form.name.help_text %}
+                        <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.code.id_for_label }}">{% trans "Subject Code" %} *</label>
+                    {{ form.code }}
+                    {% if form.code.help_text %}
+                        <small class="form-text text-muted">{{ form.code.help_text }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.subject_type.id_for_label }}">{% trans "Subject Type" %} *</label>
+                    {{ form.subject_type }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.department.id_for_label }}">{% trans "Department" %} *</label>
+                    {{ form.department }}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.credits.id_for_label }}">{% trans "Credits" %} *</label>
+                    {{ form.credits }}
+                    {% if form.credits.help_text %}
+                        <small class="form-text text-muted">{{ form.credits.help_text }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="{{ form.is_active.id_for_label }}">{% trans "Active Status" %}</label>
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                            {% trans "Is Active" %}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">{% trans "Description" %}</label>
+            {{ form.description }}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.prerequisites.id_for_label }}">{% trans "Prerequisites" %}</label>
+            {{ form.prerequisites }}
+            {% if form.prerequisites.help_text %}
+                <small class="form-text text-muted">{{ form.prerequisites.help_text }}</small>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% trans "Create Subject" %}</button>
+            <a href="{% url 'academics:subject_list' %}" class="btn btn-secondary">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

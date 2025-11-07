@@ -1,0 +1,496 @@
+{% load static i18n %}
+<!-- Footer Component -->
+<footer class="footer bg-dark text-light">
+    <div class="container-fluid py-4">
+        <!-- Main Footer Content -->
+        <div class="row g-4">
+            <!-- School Information -->
+            <div class="col-lg-4 col-md-6">
+                <div class="footer-brand mb-3">
+                    <img src="{% static 'images/logo.png' %}" alt="{% trans 'School Management System' %}" height="40" class="mb-2">
+                    <h5 class="text-white mb-2">{% trans "School Management System" %}</h5>
+                </div>
+                <p class="text-light-70 mb-3">
+                    {% trans "Comprehensive platform for educational institutions to manage students, teachers, academics, and administration efficiently." %}
+                </p>
+                <div class="contact-info">
+                    <div class="contact-item mb-2">
+                        <i class="bi bi-geo-alt me-2"></i>
+                        <span>123 Education Street, Learning City, JOS 12345</span>
+                    </div>
+                    <div class="contact-item mb-2">
+                        <i class="bi bi-telephone me-2"></i>
+                        <span>+1 (555) 123-4567</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="bi bi-envelope me-2"></i>
+                        <span>info@nexusschoolmanagement.edu</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Access -->
+            <div class="col-lg-2 col-md-3">
+                <h6 class="text-uppercase fw-bold mb-3">{% trans "Quick Access" %}</h6>
+                <ul class="footer-links list-unstyled">
+                    {% url 'users:dashboard' as dashboard_url %}
+                    <li><a href="{{ dashboard_url|default:'#' }}" class="text-light-70 {% if not dashboard_url %}link-disabled{% endif %}">{% trans "Dashboard" %}</a></li>
+                    
+                    {% url 'academics:student_timetable' as timetable_url %}
+                    <li><a href="{{ timetable_url|default:'#' }}" class="text-light-70 {% if not timetable_url %}link-disabled{% endif %}">{% trans "Timetable" %}</a></li>
+                    
+                    {% url 'assessment:student_marks' as grades_url %}
+                    <li><a href="{{ grades_url|default:'#' }}" class="text-light-70 {% if not grades_url %}link-disabled{% endif %}">{% trans "Grades" %}</a></li>
+                    
+                    {% url 'attendance:student_my_attendance' as attendance_url %}
+                    <li><a href="{{ attendance_url|default:'#' }}" class="text-light-70 {% if not attendance_url %}link-disabled{% endif %}">{% trans "Attendance" %}</a></li>
+                    
+                    {% url 'users:profile' as profile_url %}
+                    <li><a href="{{ profile_url|default:'#' }}" class="text-light-70 {% if not profile_url %}link-disabled{% endif %}">{% trans "My Profile" %}</a></li>
+                </ul>
+            </div>
+
+            <!-- Support & Resources -->
+            <div class="col-lg-2 col-md-3">
+                <h6 class="text-uppercase fw-bold mb-3">{% trans "Support & Resources" %}</h6>
+                <ul class="footer-links list-unstyled">
+                    {% url 'support:home' as support_home_url %}
+                    <li><a href="{{ support_home_url|default:'#' }}" class="text-light-70 {% if not support_home_url %}link-disabled{% endif %}">{% trans "Help Center" %}</a></li>
+                    
+                    {% url 'support:article_list' as article_list_url %}
+                    <li><a href="{{ article_list_url|default:'#' }}" class="text-light-70 {% if not article_list_url %}link-disabled{% endif %}">{% trans "Knowledge Base" %}</a></li>
+                    
+                    {% url 'support:resource_list' as resource_list_url %}
+                    <li><a href="{{ resource_list_url|default:'/support/resources/' }}" class="text-light-70 {% if not resource_list_url %}link-disabled{% endif %}">{% trans "User Guides" %}</a></li>
+                    
+                    <li><a href="{{ resource_list_url|default:'/support/resources/' }}" class="text-light-70 {% if not resource_list_url %}link-disabled{% endif %}">{% trans "Video Tutorials" %}</a></li>
+                    
+                    {% url 'support:faq_list' as faq_list_url %}
+                    <li><a href="{{ faq_list_url|default:'#' }}" class="text-light-70 {% if not faq_list_url %}link-disabled{% endif %}">{% trans "FAQ" %}</a></li>
+                </ul>
+            </div>
+
+            <!-- Legal & Contact -->
+            <div class="col-lg-2 col-md-3">
+                <h6 class="text-uppercase fw-bold mb-3">{% trans "Legal & Contact" %}</h6>
+                <ul class="footer-links list-unstyled">
+                    {% url 'support:privacy_policy' as privacy_url %}
+                    <li><a href="{{ privacy_url|default:'/legal/privacy/' }}" class="text-light-70 {% if not privacy_url %}link-disabled{% endif %}">{% trans "Privacy Policy" %}</a></li>
+                    
+                    {% url 'support:terms_of_service' as terms_url %}
+                    <li><a href="{{ terms_url|default:'/legal/terms/' }}" class="text-light-70 {% if not terms_url %}link-disabled{% endif %}">{% trans "Terms of Service" %}</a></li>
+                    
+                    {% url 'support:data_protection' as data_protection_url %}
+                    <li><a href="{{ data_protection_url|default:'/legal/data-protection/' }}" class="text-light-70 {% if not data_protection_url %}link-disabled{% endif %}">{% trans "Data Protection" %}</a></li>
+                    
+                    {% url 'support:cookie_policy' as cookie_url %}
+                    <li><a href="{{ cookie_url|default:'/legal/cookies/' }}" class="text-light-70 {% if not cookie_url %}link-disabled{% endif %}">{% trans "Cookie Policy" %}</a></li>
+                    
+                    {% url 'support:contact' as contact_url %}
+                    <li><a href="{{ contact_url|default:'/contact/' }}" class="text-light-70 {% if not contact_url %}link-disabled{% endif %}">{% trans "Contact Support" %}</a></li>
+                </ul>
+            </div>
+
+            <!-- Newsletter & Social -->
+            <div class="col-lg-2 col-md-3">
+                <h6 class="text-uppercase fw-bold mb-3">{% trans "Stay Connected" %}</h6>
+                <p class="text-light-70 mb-3">{% trans "Subscribe to our newsletter for updates." %}</p>
+                
+                <!-- Newsletter Form -->
+                <form class="newsletter-form mb-4">
+                    <div class="input-group input-group-sm">
+                        <input type="email" class="form-control" placeholder="{% trans 'Your email' %}" required>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Social Links -->
+                <div class="social-links">
+                    <a href="#" class="social-link" aria-label="Facebook">
+                        <i class="bi bi-facebook"></i>
+                    </a>
+                    <a href="#" class="social-link" aria-label="Twitter">
+                        <i class="bi bi-twitter"></i>
+                    </a>
+                    <a href="#" class="social-link" aria-label="LinkedIn">
+                        <i class="bi bi-linkedin"></i>
+                    </a>
+                    <a href="#" class="social-link" aria-label="YouTube">
+                        <i class="bi bi-youtube"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Footer -->
+        <div class="footer-bottom border-top border-secondary mt-4 pt-3">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start mb-2 mb-md-0">
+                    <p class="mb-0 text-light-70">
+                        &copy; {% now "Y" %} {% trans "Nexus School Management System. All rights reserved." %}
+                    </p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <div class="footer-meta">
+                        <span class="meta-item">
+                            <i class="bi bi-shield-check me-1"></i>
+                            {% trans "Secure & Encrypted" %}
+                        </span>
+                        <span class="meta-item">
+                            <i class="bi bi-lightning me-1"></i>
+                            v{{ SYSTEM_VERSION|default:"1.0.0" }}
+                        </span>
+                        <span class="meta-item">
+                            <i class="bi bi-server me-1"></i>
+                            {% trans "System Status:" %}
+                            <span class="text-success">{% trans "Online" %}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Help Floating Button -->
+<div class="floating-help-container">
+    <button class="floating-help-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#helpOffcanvas" aria-controls="helpOffcanvas">
+        <i class="bi bi-question-lg"></i>
+    </button>
+</div>
+
+<!-- Help Offcanvas -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="helpOffcanvas" aria-labelledby="helpOffcanvasLabel">
+    <div class="offcanvas-header bg-primary text-white">
+        <h5 class="offcanvas-title" id="helpOffcanvasLabel">{% trans "Quick Help" %}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="help-links mb-4">
+            {% url 'support:article_list' as article_list_url %}
+            <a href="{{ article_list_url|default:'#' }}" class="help-link {% if not article_list_url %}link-disabled{% endif %}">
+                <i class="bi bi-book me-2"></i>
+                {% trans "Knowledge Base" %}
+            </a>
+            
+            {% url 'support:contact' as contact_url %}
+            <a href="{{ contact_url|default:'#' }}" class="help-link {% if not contact_url %}link-disabled{% endif %}">
+                <i class="bi bi-headset me-2"></i>
+                {% trans "Contact Support" %}
+            </a>
+            
+            {% url 'support:resource_list' as resource_list_url %}
+            <a href="{{ resource_list_url|default:'#' }}" class="help-link {% if not resource_list_url %}link-disabled{% endif %}">
+                <i class="bi bi-camera-video me-2"></i>
+                {% trans "Video Tutorials" %}
+            </a>
+            
+            <a href="{{ resource_list_url|default:'#' }}" class="help-link {% if not resource_list_url %}link-disabled{% endif %}">
+                <i class="bi bi-file-text me-2"></i>
+                {% trans "User Manual" %}
+            </a>
+        </div>
+        
+        <div class="emergency-contacts">
+            <h6 class="mb-3">{% trans "Emergency Contacts" %}</h6>
+            <div class="card bg-light">
+                <div class="card-body">
+                    <p class="mb-1"><strong>{% trans "Technical Support:" %}</strong></p>
+                    <p class="mb-1">support@schoolmanagement.edu</p>
+                    <p class="mb-0">+1 (555) 123-HELP</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Footer Styles */
+.footer {
+    background: linear-gradient(135deg, #212529 0%, #343a40 100%) !important;
+    position: relative;
+    z-index: 100;
+    margin-top: auto;
+}
+
+.footer-links li {
+    margin-bottom: 0.5rem;
+}
+
+.footer-links a {
+    color: rgba(255, 255, 255, 0.7) !important;
+    text-decoration: none;
+    transition: color 0.3s ease;
+    display: block;
+    padding: 0.25rem 0;
+}
+
+.footer-links a:hover {
+    color: #0d6efd !important;
+    text-decoration: none;
+}
+
+/* Disabled link style for missing URLs */
+.link-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.text-light-70 {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.contact-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.contact-item i {
+    margin-top: 0.125rem;
+    min-width: 20px;
+}
+
+/* Newsletter Form */
+.newsletter-form .form-control {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.newsletter-form .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.newsletter-form .form-control:focus {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: #0d6efd;
+    color: white;
+    box-shadow: none;
+}
+
+/* Social Links */
+.social-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.social-link {
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-size: 1.25rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.social-link:hover {
+    color: white !important;
+    background: #0d6efd;
+    transform: translateY(-2px);
+}
+
+/* Footer Meta */
+.footer-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.meta-item {
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Floating Help Button */
+.floating-help-container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1030;
+}
+
+.floating-help-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #0d6efd;
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.floating-help-btn:hover {
+    background: #0b5ed7;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.6);
+}
+
+/* Help Offcanvas */
+.help-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: #212529;
+    text-decoration: none;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+    margin-bottom: 0.5rem;
+}
+
+.help-link:hover {
+    background-color: #f8f9fa;
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.help-link.link-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.emergency-contacts .card {
+    border: 1px solid #dee2e6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .footer .col-md-6 {
+        text-align: center !important;
+    }
+    
+    .footer-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .meta-item {
+        justify-content: center;
+    }
+    
+    .floating-help-container {
+        bottom: 1rem;
+        right: 1rem;
+    }
+    
+    .floating-help-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 1rem;
+    }
+    
+    .social-links {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .footer {
+        text-align: center;
+    }
+    
+    .contact-item {
+        justify-content: center;
+    }
+    
+    .footer-brand {
+        text-align: center;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .footer,
+    .floating-help-container {
+        display: none !important;
+    }
+}
+
+/* Debug styles to see if sections are loading */
+.footer-section {
+    min-height: 20px;
+}
+
+.footer-section:empty::before {
+    content: "Section not loaded";
+    color: #ff6b6b;
+    font-style: italic;
+}
+
+/* Temporary override: force footer columns to be visible while debugging */
+.footer .col-lg-2,
+.footer .col-md-3 {
+    display: block !important;
+    visibility: visible !important;
+    width: auto !important;
+    min-width: 0 !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Newsletter form submission
+    const newsletterForm = document.querySelector('.newsletter-form');
+    if (newsletterForm) {
+        newsletterForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const emailInput = this.querySelector('input[type="email"]');
+            const email = emailInput.value;
+            
+            // Simple validation
+            if (email && email.includes('@')) {
+                // You can add AJAX submission here
+                alert('{% trans "Thank you for subscribing to our newsletter!" %}');
+                emailInput.value = '';
+            } else {
+                alert('{% trans "Please enter a valid email address." %}');
+            }
+        });
+    }
+
+    // Debug: Check if footer links are loading
+    console.log('Footer Debug Info:');
+    const footerSections = document.querySelectorAll('.col-lg-2.col-md-3');
+    footerSections.forEach((section, index) => {
+        const links = section.querySelectorAll('a');
+        console.log(`Section ${index + 1}: ${links.length} links found`);
+        
+        links.forEach(link => {
+            if (link.href === '#' || link.classList.contains('link-disabled')) {
+                console.log(`- Broken link: ${link.textContent.trim()}`);
+            }
+        });
+    });
+
+    // Initialize tooltips for social links
+    const socialLinks = document.querySelectorAll('.social-link');
+    socialLinks.forEach(link => {
+        link.setAttribute('data-bs-toggle', 'tooltip');
+    });
+    
+    // Initialize Bootstrap tooltips if available
+    if (typeof bootstrap !== 'undefined') {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
+</script>

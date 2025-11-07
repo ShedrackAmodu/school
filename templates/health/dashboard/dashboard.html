@@ -1,0 +1,348 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Health Dashboard" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="bi bi-heart-pulse me-2"></i>
+                        {% trans "Health & Wellness Management Dashboard" %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if user.is_authenticated %}
+                        {% if hasattr user 'student_profile' %}
+                            <!-- Student Health Dashboard -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="text-primary mb-3">
+                                        <i class="bi bi-person-circle me-2"></i>
+                                        {% trans "My Health Information" %}
+                                    </h5>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                {% if health_record %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border-primary">
+                                        <div class="card-body text-center">
+                                            <i class="bi bi-clipboard-data fs-1 text-primary mb-3"></i>
+                                            <h6 class="card-title">{% trans "Health Record" %}</h6>
+                                            <p class="card-text text-muted small">
+                                                {% trans "Blood Group" %}: {{ health_record.blood_group|default:"Not specified" }}<br>
+                                                {% trans "BMI" %}: {{ health_record.bmi|default:"Not calculated" }}<br>
+                                                {% trans "Last Checkup" %}: {{ health_record.last_checkup_date|date:"M d, Y"|default:"Not recorded" }}
+                                            </p>
+                                            <a href="{% url 'health:record_detail' pk=health_record.pk %}" class="btn btn-primary btn-sm">
+                                                {% trans "View Details" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border-success">
+                                        <div class="card-body text-center">
+                                            <i class="bi bi-calendar-check fs-1 text-success mb-3"></i>
+                                            <h6 class="card-title">{% trans "Medical Appointments" %}</h6>
+                                            <p class="card-text text-muted small">
+                                                {% trans "Recent appointments" %}: {{ recent_appointments|length }}<br>
+                                                {% trans "Next appointment" %}:
+                                                {% for appointment in recent_appointments %}
+                                                    {% if appointment.appointment_date >= today %}
+                                                        {{ appointment.appointment_date|date:"M d, Y" }}
+                                                        {% break %}
+                                                    {% endif %}
+                                                {% empty %}
+                                                    {% trans "None scheduled" %}
+                                                {% endfor %}
+                                            </p>
+                                            <a href="{% url 'health:appointment_list' %}?student={{ student.pk }}" class="btn btn-success btn-sm">
+                                                {% trans "View Appointments" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border-info">
+                                        <div class="card-body text-center">
+                                            <i class="bi bi-capsule fs-1 text-info mb-3"></i>
+                                            <h6 class="card-title">{% trans "Current Medications" %}</h6>
+                                            <p class="card-text text-muted small">
+                                                {% trans "Active medications" %}: {{ current_medications|length }}<br>
+                                                {% for medication in current_medications %}
+                                                    {{ medication.medication_name }}
+                                                    {% if not forloop.last %}, {% endif %}
+                                                {% empty %}
+                                                    {% trans "No active medications" %}
+                                                {% endfor %}
+                                            </p>
+                                            <a href="{% url 'health:medication_list' %}?student={{ student.pk }}" class="btn btn-info btn-sm">
+                                                {% trans "View Medications" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100 border-warning">
+                                        <div class="card-body text-center">
+                                            <i class="bi bi-search fs-1 text-warning mb-3"></i>
+                                            <h6 class="card-title">{% trans "Health Screenings" %}</h6>
+                                            <p class="card-text text-muted small">
+                                                {% trans "Recent screenings" %}: {{ health_screenings|length }}<br>
+                                                {% trans "Last screening" %}:
+                                                {% for screening in health_screenings %}
+                                                    {{ screening.screening_date|date:"M d, Y" }} ({{ screening.screening_type }})
+                                                    {% break %}
+                                                {% empty %}
+                                                    {% trans "No recent screenings" %}
+                                                {% endfor %}
+                                            </p>
+                                            <a href="{% url 'health:screening_list' %}?student={{ student.pk }}" class="btn btn-warning btn-sm">
+                                                {% trans "View Screenings" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100 border-danger">
+                                        <div class="card-body text-center">
+                                            <i class="bi bi-telephone fs-1 text-danger mb-3"></i>
+                                            <h6 class="card-title">{% trans "Emergency Contacts" %}</h6>
+                                            <p class="card-text text-muted small">
+                                                {% trans "Emergency contacts" %}: {{ emergency_contacts|length }}<br>
+                                                {% for contact in emergency_contacts %}
+                                                    {{ contact.full_name }} ({{ contact.relationship }})
+                                                    {% if not forloop.last %}, {% endif %}
+                                                {% empty %}
+                                                    {% trans "No emergency contacts" %}
+                                                {% endfor %}
+                                            </p>
+                                            <a href="{% url 'health:contact_list' %}?student={{ student.pk }}" class="btn btn-danger btn-sm">
+                                                {% trans "View Contacts" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        {% elif user.is_staff or user.user_roles.all.0.role.role_type in 'nurse,health_staff,admin,principal,super_admin' %}
+                            <!-- Health Staff Dashboard -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="text-primary mb-3">
+                                        <i class="bi bi-stethoscope me-2"></i>
+                                        {% trans "Health Management Overview" %}
+                                    </h5>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <div class="card h-100 border-primary text-center">
+                                        <div class="card-body">
+                                            <i class="bi bi-clipboard-data fs-2 text-primary mb-2"></i>
+                                            <h5 class="card-title">{{ health_stats.total_health_records }}</h5>
+                                            <p class="card-text text-muted">{% trans "Health Records" %}</p>
+                                            <a href="{% url 'health:record_list' %}" class="btn btn-primary btn-sm">
+                                                {% trans "Manage" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <div class="card h-100 border-success text-center">
+                                        <div class="card-body">
+                                            <i class="bi bi-calendar-check fs-2 text-success mb-2"></i>
+                                            <h5 class="card-title">{{ health_stats.total_appointments }}</h5>
+                                            <p class="card-text text-muted">{% trans "Total Appointments" %}</p>
+                                            <a href="{% url 'health:appointment_list' %}" class="btn btn-success btn-sm">
+                                                {% trans "Manage" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <div class="card h-100 border-info text-center">
+                                        <div class="card-body">
+                                            <i class="bi bi-capsule fs-2 text-info mb-2"></i>
+                                            <h5 class="card-title">{{ health_stats.active_medications }}</h5>
+                                            <p class="card-text text-muted">{% trans "Active Medications" %}</p>
+                                            <a href="{% url 'health:medication_list' %}" class="btn btn-info btn-sm">
+                                                {% trans "Manage" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <div class="card h-100 border-warning text-center">
+                                        <div class="card-body">
+                                            <i class="bi bi-search fs-2 text-warning mb-2"></i>
+                                            <h5 class="card-title">{{ health_stats.total_screenings }}</h5>
+                                            <p class="card-text text-muted">{% trans "Health Screenings" %}</p>
+                                            <a href="{% url 'health:screening_list' %}" class="btn btn-warning btn-sm">
+                                                {% trans "Manage" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-light">
+                                            <h6 class="card-title mb-0">
+                                                <i class="bi bi-calendar-event me-2"></i>
+                                                {% trans "Today's Appointments" %}
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if today_appointments %}
+                                                <div class="list-group list-group-flush">
+                                                    {% for appointment in today_appointments %}
+                                                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <strong>{{ appointment.student.user.get_full_name }}</strong><br>
+                                                                <small class="text-muted">
+                                                                    {{ appointment.appointment_type }} - {{ appointment.healthcare_provider }}
+                                                                </small>
+                                                            </div>
+                                                            <div class="text-end">
+                                                                <span class="badge bg-{{ appointment.appointment_status|default:'secondary' }}">
+                                                                    {{ appointment.get_appointment_status_display }}
+                                                                </span><br>
+                                                                <small class="text-muted">{{ appointment.appointment_time|time:"H:i" }}</small>
+                                                            </div>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <p class="text-muted text-center mb-0">{% trans "No appointments scheduled for today." %}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-light">
+                                            <h6 class="card-title mb-0">
+                                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                                {% trans "Pending Actions" %}
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if pending_medications %}
+                                                <div class="alert alert-info">
+                                                    <strong>{{ pending_medications|length }}</strong> {% trans "medications pending administration" %}
+                                                    <a href="{% url 'health:medication_list' %}?administration_status=pending" class="alert-link">
+                                                        {% trans "View Details" %}
+                                                    </a>
+                                                </div>
+                                            {% endif %}
+
+                                            {% if overdue_screenings %}
+                                                <div class="alert alert-warning">
+                                                    <strong>{{ overdue_screenings|length }}</strong> {% trans "screenings have overdue follow-ups" %}
+                                                    <a href="{% url 'health:screening_list' %}?follow_up_overdue=true" class="alert-link">
+                                                        {% trans "View Details" %}
+                                                    </a>
+                                                </div>
+                                            {% endif %}
+
+                                            {% if not pending_medications and not overdue_screenings %}
+                                                <p class="text-muted text-center mb-0">{% trans "All tasks are up to date." %}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-light">
+                                            <h6 class="card-title mb-0">{% trans "Quick Actions" %}</h6>
+                                        </div>
+                                        <div class="card-body d-flex flex-wrap gap-2">
+                                            <a href="{% url 'health:record_create' %}" class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-plus-circle me-1"></i> {% trans "Create Health Record" %}
+                                            </a>
+                                            <a href="{% url 'health:appointment_create' %}" class="btn btn-outline-success btn-sm">
+                                                <i class="bi bi-calendar-plus me-1"></i> {% trans "Schedule Appointment" %}
+                                            </a>
+                                            <a href="{% url 'health:screening_create' %}" class="btn btn-outline-info btn-sm">
+                                                <i class="bi bi-search me-1"></i> {% trans "Add Screening" %}
+                                            </a>
+                                            <a href="{% url 'health:contact_create' %}" class="btn btn-outline-warning btn-sm">
+                                                <i class="bi bi-person-plus me-1"></i> {% trans "Add Emergency Contact" %}
+                                            </a>
+                                            <a href="{% url 'health:reports' %}" class="btn btn-outline-secondary btn-sm">
+                                                <i class="bi bi-graph-up me-1"></i> {% trans "View Reports" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        {% else %}
+                            <!-- General Staff Dashboard -->
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border-primary text-center">
+                                        <div class="card-body">
+                                            <i class="bi bi-clipboard-data fs-2 text-primary mb-2"></i>
+                                            <h5 class="card-title">{{ total_students }}</h5>
+                                            <p class="card-text text-muted">{% trans "Students with Health Records" %}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border-success text-center">
+                                        <div class="card-body">
+                                            <i class="bi bi-calendar-check fs-2 text-success mb-2"></i>
+                                            <h5 class="card-title">{{ total_appointments }}</h5>
+                                            <p class="card-text text-muted">{% trans "Upcoming Appointments" %}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100 border-info text-center">
+                                        <div class="card-body">
+                                            <i class="bi bi-capsule fs-2 text-info mb-2"></i>
+                                            <h5 class="card-title">{{ active_medications }}</h5>
+                                            <p class="card-text text-muted">{% trans "Active Medications" %}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning" role="alert">
+                            {% trans "Please log in to access the health dashboard." %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
