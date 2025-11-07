@@ -196,6 +196,7 @@ Examples:
         self.print_header("CREATING PRE-DEPLOYMENT BACKUP")
 
         try:
+            import shutil
             # Use existing backup functionality from production setup
             backup_dir = self.project_root / "backups"
             backup_dir.mkdir(exist_ok=True)
@@ -207,7 +208,6 @@ Examples:
             db_file = self.project_root / "db.sqlite3"
             if db_file.exists():
                 backup_db = backup_dir / f"{backup_name}_db.sqlite3"
-                import shutil
                 shutil.copy2(db_file, backup_db)
                 self.print_success(f"Database backed up: {backup_db}")
 

@@ -52,10 +52,10 @@ def main():
         pip_cmd = "venv/bin/pip"
         python_exec = "venv/bin/python"
 
-    # Setup steps
+    # Setup steps - Skip venv creation to save space on PythonAnywhere
     steps = [
-        (f"Creating virtual environment", f"{python_cmd} -m venv venv"),
-        (f"Activating virtual environment", venv_activate),
+        # (f"Creating virtual environment", f"{python_cmd} -m venv venv"),  # Commented out to save space
+        # (f"Activating virtual environment", venv_activate),  # Commented out - assume venv already exists
         (f"Installing requirements", f"{pip_cmd} install -r setup/requirements/production.txt"),
         (f"Running database migrations", f"{python_exec} manage.py migrate"),
         (f"Collecting static files", f"{python_exec} manage.py collectstatic --noinput"),
@@ -78,6 +78,8 @@ def main():
         print("2. Configure your web app in PythonAnywhere dashboard")
         print("3. Set up WSGI file: cp setup/pythonanywhere_wsgi.py /home/nordalms/pythonanywhere_wsgi.py")
         print("4. Reload your web app")
+        print("\n💡 Note: Virtual environment creation was skipped to save disk space.")
+        print("   Make sure your PythonAnywhere virtual environment is already set up.")
     else:
         print("\n❌ Setup had issues. Please check the errors above.")
 
