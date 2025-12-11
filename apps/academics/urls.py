@@ -1,20 +1,8 @@
 # apps/academics/urls.py
 
-from django.urls import path, include, register_converter
+from django.urls import path, include
 from django.contrib.auth.decorators import login_required
 from . import views
-import uuid
-
-class UUIDConverter:
-    regex = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-
-    def to_python(self, value):
-        return uuid.UUID(value)
-
-    def to_url(self, value):
-        return str(value)
-
-register_converter(UUIDConverter, 'uuid')
 
 app_name = 'academics'
 

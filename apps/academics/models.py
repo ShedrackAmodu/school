@@ -60,11 +60,11 @@ class AcademicSession(CoreBaseModel):
         ordering = ['-start_date']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(end_date__gt=models.F('start_date')),
+                condition=models.Q(end_date__gt=models.F('start_date')),
                 name='end_date_after_start_date'
             ),
             models.CheckConstraint(
-                check=models.Q(term_number__isnull=True) | models.Q(term_number__lte=models.F('number_of_semesters')),
+                condition=models.Q(term_number__isnull=True) | models.Q(term_number__lte=models.F('number_of_semesters')),
                 name='term_number_within_semesters_range'
             )
         ]

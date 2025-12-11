@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Theme toggle element:', themeToggle);
 
     if (!themeToggle) {
-        console.error('Theme toggle button not found!');
+        console.log('Theme toggle button not found on this page - skipping initialization');
         return;
     }
 

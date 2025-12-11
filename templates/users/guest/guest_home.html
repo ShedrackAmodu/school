@@ -30,7 +30,7 @@
             <a href="{% url 'users:login' %}" class="nav-link text-white me-3 hover-underline">{% trans "Login" %}</a>
             
             <a href="{% url 'users:application_portal' %}" class="btn btn-primary btn-glow me-3">{% trans "Apply Now" %}</a>
-            <button type="button" class="btn btn-dark" id="theme-toggle" title="{% trans 'Toggle theme' %}">
+            <button type="button" class="btn btn-dark" id="guest-theme-toggle" title="{% trans 'Toggle theme' %}">
                 <i class="bi bi-sun-fill"></i>
             </button>
         </div>
@@ -46,6 +46,9 @@
         <div class="container-fluid py-3">
             <a href="{% url 'users:login' %}" class="nav-link text-white py-2">{% trans "Login" %}</a>
             <a href="{% url 'users:application_portal' %}" class="btn btn-primary w-100 mt-2">{% trans "Apply Now" %}</a>
+            <button type="button" class="btn btn-dark w-100 mt-2" id="guest-mobile-theme-toggle">
+                <i class="bi bi-sun-fill"></i> {% trans "Toggle Theme" %}
+            </button>
         </div>
     </div>
 </header>
@@ -880,34 +883,131 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Theme Toggle Functionality
-    const themeToggle = document.getElementById('theme-toggle');
-    const themeIcon = themeToggle.querySelector('i');
-    
-    // Check for saved theme preference or default to light
-    const currentTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-bs-theme', currentTheme);
-    updateThemeIcon(currentTheme);
-    
-    themeToggle.addEventListener('click', function() {
-        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        
-        document.documentElement.setAttribute('data-bs-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeIcon(newTheme);
-    });
-    
-    function updateThemeIcon(theme) {
-        if (theme === 'dark') {
-            themeIcon.className = 'bi bi-moon-fill';
-            themeIcon.style.color = '#f8f9fa';
+    // Use a different ID for guest page theme toggle to avoid conflict
+    const themeToggle = document.getElementById('guest-theme-toggle');
+
+    if (!themeToggle) {
+        console.error('Theme toggle button not found on guest page');
+        return;
+    }
+
+    // Get current theme from localStorage or system preference
+    function getCurrentTheme() {
+        const savedTheme = localStorage.getItem('theme');
+
+        if (savedTheme) return savedTheme;
+
+        // Check system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        return 'light';
+    }
+
+    // Apply theme
+    function applyTheme(theme) {
+        const html = document.documentElement;
+
+        if (theme === 'auto') {
+            html.removeAttribute('data-bs-theme');
+            localStorage.setItem('theme', 'auto');
         } else {
-            themeIcon.className = 'bi bi-sun-fill';
-            themeIcon.style.color = '#ffc107';
+            html.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+
+            // Manually toggle theme styles
+            const lightTheme = document.getElementById('light-theme');
+            const darkTheme = document.getElementById('dark-theme');
+
+            if (lightTheme && darkTheme) {
+                if (theme === 'light') {
+                    lightTheme.media = 'all';
+                    darkTheme.media = 'not all';
+                } else {
+                    lightTheme.media = 'not all';
+                    darkTheme.media = 'all';
+                }
+            }
+        }
+
+        updateThemeIcon(theme);
+    }
+
+    // Update toggle button icon
+    function updateThemeIcon(theme) {
+        const icon = themeToggle.querySelector('i');
+        if (icon) {
+            if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                icon.className = 'bi bi-moon-fill';
+                themeToggle.title = 'Switch to light theme';
+            } else {
+                icon.className = 'bi bi-sun-fill';
+                themeToggle.title = 'Switch to dark theme';
+            }
+        }
+
+        // Update mobile button icon if exists
+        const mobileThemeToggle = document.getElementById('guest-mobile-theme-toggle');
+        if (mobileThemeToggle) {
+            const mobileIcon = mobileThemeToggle.querySelector('i');
+            if (mobileIcon) {
+                if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    mobileIcon.className = 'bi bi-moon-fill';
+                } else {
+                    mobileIcon.className = 'bi bi-sun-fill';
+                }
+            }
         }
     }
-    
+
+    // Toggle theme
+    function toggleTheme() {
+        const currentTheme = getCurrentTheme();
+        let newTheme;
+
+        if (currentTheme === 'auto') {
+            newTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark';
+        } else {
+            newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        }
+
+        applyTheme(newTheme);
+    }
+
+    // Initialize theme
+    function initTheme() {
+        const currentTheme = getCurrentTheme();
+        applyTheme(currentTheme);
+    }
+
+    // Event listener for desktop
+    themeToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        toggleTheme();
+    });
+
+    // Also handle mobile theme toggle if exists
+    const mobileThemeToggle = document.getElementById('guest-mobile-theme-toggle');
+    if (mobileThemeToggle) {
+        mobileThemeToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleTheme();
+        });
+    }
+
+    // Listen for system theme changes
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            const currentSavedTheme = localStorage.getItem('theme');
+            if (currentSavedTheme === 'auto' || !currentSavedTheme) {
+                applyTheme('auto');
+            }
+        });
+    }
+
+    // Initialize
+    initTheme();
+
     // Header scroll effect
     const header = document.querySelector('.absolute-header');
     window.addEventListener('scroll', function() {
@@ -917,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function() {
             header.classList.remove('scrolled');
         }
     });
-    
+
     // Smooth scrolling for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
@@ -931,13 +1031,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
+
     // Animation on scroll
     const observerOptions = {
         threshold: 0.1,
         rootMargin: '0px 0px -50px 0px'
     };
-    
+
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -946,8 +1046,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }, observerOptions);
-    
-    // Observe elements for animation
+
     document.querySelectorAll('.program-card, .facility-card, .feature-item').forEach(el => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(20px)';

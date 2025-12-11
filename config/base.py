@@ -6,11 +6,11 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(os.getcwd())
+
+# Load environment variables from .env file in setup directory
+load_dotenv(BASE_DIR / "setup" / ".env")
 
 # Add apps directory to Python path - ADD THIS LINE
 sys.path.insert(0, str(BASE_DIR / 'apps'))
@@ -19,10 +19,10 @@ sys.path.insert(0, str(BASE_DIR / 'apps'))
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "True").lower() in ('true', '1', 't')
 
 # SECURITY WARNING: restrict allowed hosts in production!
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(',')
 
 # Application definition
 INSTALLED_APPS = [
