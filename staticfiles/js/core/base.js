@@ -49,7 +49,7 @@ class BaseApp {
         document.addEventListener('submit', (e) => {
             const form = e.target;
             if (form.method.toLowerCase() === 'post') {
-                this.showLoading();
+                window.showLoading();
             }
         });
 
@@ -57,7 +57,7 @@ class BaseApp {
         document.addEventListener('click', (e) => {
             const target = e.target.closest('[data-loading]');
             if (target) {
-                this.showLoading();
+                window.showLoading();
             }
         });
 

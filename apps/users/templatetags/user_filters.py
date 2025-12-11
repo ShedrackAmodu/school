@@ -1,5 +1,4 @@
 from django import template
-from apps.activities.models import Activity
 
 register = template.Library()
 
@@ -28,6 +27,7 @@ def has_role(user, role_type):
 
     elif role_type == 'coordinator':
         # Check if user coordinates any activities
+        from apps.activities.models import Activity
         return Activity.objects.filter(coordinator=user).exists()
 
     return False
