@@ -16,7 +16,7 @@
         <div class="d-flex align-items-center">
             <a class="navbar-brand d-flex align-items-center me-4" href="{% url 'users:guest_home' %}">
                 <div class="brand-logo me-2">
-                    <img src="{% static 'images/Nexus.png' %}" alt="{% trans 'Nexus Intelligence' %}" height="50" width="50" class="rounded-circle nexus-logo" style="object-fit:cover; background:transparent; border-radius:50%; opacity:0.95; border:2px solid rgba(255,255,255,0.12);" 
+                    <img src="{% static 'images/Nexus.png' %}" alt="{% trans 'Nexus Intelligence' %}" height="50" width="50" class="rounded-circle nexus-logo" style="object-fit:cover; background:transparent; border-radius:50%; opacity:0.95; border:2px solid rgba(255,255,255,0.12);"
                          onerror="this.onerror=null; this.src='{% static 'images/Nexus.png' %}'">
                 </div>
                 <div class="brand-text text-white">
@@ -25,30 +25,17 @@
             </a>
         </div>
 
-        <!-- Desktop Navigation -->
-        <div class="navbar-nav ms-auto d-none d-lg-flex">
-            <a href="{% url 'users:login' %}" class="nav-link text-white me-3 hover-underline">{% trans "Login" %}</a>
-            
-            <a href="{% url 'users:application_portal' %}" class="btn btn-primary btn-glow me-3">{% trans "Apply Now" %}</a>
-            <button type="button" class="btn btn-dark" id="guest-theme-toggle" title="{% trans 'Toggle theme' %}">
+        <!-- Right side actions (no duplicate buttons) -->
+        <div class="d-flex align-items-center">
+            <button type="button" class="btn btn-dark me-3" id="guest-theme-toggle" title="{% trans 'Toggle theme' %}">
                 <i class="bi bi-sun-fill"></i>
             </button>
-        </div>
-
-        <!-- Mobile Menu Toggle -->
-        <button class="navbar-toggler border-0 d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-
-    <!-- Mobile Menu -->
-    <div class="collapse navbar-collapse bg-dark d-lg-none" id="mobileMenu">
-        <div class="container-fluid py-3">
-            <a href="{% url 'users:login' %}" class="nav-link text-white py-2">{% trans "Login" %}</a>
-            <a href="{% url 'users:application_portal' %}" class="btn btn-primary w-100 mt-2">{% trans "Apply Now" %}</a>
-            <button type="button" class="btn btn-dark w-100 mt-2" id="guest-mobile-theme-toggle">
-                <i class="bi bi-sun-fill"></i> {% trans "Toggle Theme" %}
-            </button>
+            <a href="{% url 'users:application_portal' %}" class="btn btn-primary btn-glow me-3 d-none d-md-inline-block">
+                {% trans "Apply Now" %}
+            </a>
+            <a href="{% url 'users:login' %}" class="btn btn-outline-light d-none d-md-inline-block">
+                {% trans "Login" %}
+            </a>
         </div>
     </div>
 </header>
