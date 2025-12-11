@@ -158,16 +158,16 @@
 
             <!-- Content Sections -->
             <div class="container-fluid">
-                <div class="row">
+                <div class="layout-container">
                     <!-- Sidebar -->
                     {% block sidebar %}
-                    <aside class="col-lg-3 col-xl-2 sidebar d-print-none" id="sidebar">
+                    <aside class="sidebar d-print-none" id="sidebar">
                         {% include 'base/sidebar.html' %}
                     </aside>
                     {% endblock %}
 
                     <!-- Main Content -->
-                    <div class="{% block main_content_class %}col-lg-9 col-xl-10{% endblock %}">
+                    <div class="main-content-area">
                         {% block content_wrapper %}
                         <div class="content-area">
                             <!-- Content Header -->

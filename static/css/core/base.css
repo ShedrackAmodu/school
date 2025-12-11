@@ -62,6 +62,23 @@
     flex: 1;
 }
 
+/* Custom Flex Layout for Sidebar */
+.layout-container {
+    display: flex;
+    min-height: calc(100vh - var(--header-height, 80px));
+}
+
+.layout-container .sidebar {
+    flex: 0 0 280px; /* Fixed width sidebar */
+    position: sticky;
+    top: 0;
+}
+
+.layout-container .main-content-area {
+    flex: 1; /* Takes remaining space */
+    padding-left: 1rem; /* Add some spacing between sidebar and content */
+}
+
 /* Page Header */
 .page-header {
     border-bottom: 1px solid var(--bs-border-color);
@@ -162,7 +179,12 @@
 
 /* Responsive Design */
 @media (max-width: 991.98px) {
-    .sidebar {
+    .layout-container {
+        display: block; /* Stack vertically on mobile */
+    }
+
+    .layout-container .sidebar {
+        flex: none; /* Remove flex properties */
         position: fixed;
         top: 0;
         left: -100%;
@@ -171,15 +193,19 @@
         z-index: 1040;
         overflow-y: auto;
     }
-    
+
     .sidebar.show {
         left: 0;
     }
-    
+
+    .layout-container .main-content-area {
+        padding-left: 0; /* Remove padding on mobile */
+    }
+
     .main-content {
         margin-left: 0 !important;
     }
-    
+
     .messages {
         position: relative;
         top: auto;
