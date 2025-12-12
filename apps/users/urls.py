@@ -74,6 +74,7 @@ urlpatterns = [
     path('admin/users/<uuid:user_id>/roles/set-secondary/', views.user_role_set_secondary, name='user_role_set_secondary'),
     path('admin/users/<uuid:user_id>/roles/remove/', views.user_role_remove, name='user_role_remove'),
     path('admin/users/<uuid:user_id>/toggle-status/', views.user_toggle_status, name='user_toggle_status'),
+    path('admin/users/<uuid:user_id>/delete/', views.user_delete, name='user_delete'),
     
     # Staff Management
     path('admin/staff/', views.staff_list, name='staff_list'),
@@ -105,6 +106,7 @@ urlpatterns = [
     # Bulk Operations
     path('admin/users/bulk-action/', views.user_bulk_action, name='user_bulk_action'),
     path('admin/users/bulk-import/', views.user_bulk_import, name='user_bulk_import'),
+    path('admin/users/bulk-import/sample/', views.download_bulk_user_sample, name='download_bulk_user_sample'),
 
     # System Configuration
     path('admin/test-email/', views.test_email_configuration, name='test_email_configuration'),
@@ -132,6 +134,9 @@ urlpatterns = [
     path('teacher/assessment/', views.teacher_assessment, name='teacher_assessment'),
     path('teacher/timetable/', views.teacher_timetable, name='teacher_timetable'),
     path('teacher/communication/', views.teacher_communication, name='teacher_communication'),
+
+    # User Export
+    path('admin/users/export/', views.export_users, name='export_users'),
 
     # Login History
     path('admin/login-history/', views.login_history, name='login_history'),

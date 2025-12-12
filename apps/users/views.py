@@ -3,6 +3,8 @@
 import logging
 import secrets
 import string
+import datetime
+from datetime import date, time
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -1847,16 +1849,16 @@ def user_toggle_status(request, user_id):
     Activate/Deactivate user account.
     """
     user = get_object_or_404(User, id=user_id)
-    
+
     if user.status == 'active':
         user.status = 'inactive'
         action = 'deactivated'
     else:
         user.status = 'active'
         action = 'activated'
-    
+
     user.save()
-    
+
     # Log status change
     AuditLog.objects.create(
         user=request.user,
@@ -1866,9 +1868,82 @@ def user_toggle_status(request, user_id):
         ip_address=get_client_ip(request),
         details={'action': f'User {action}'}
     )
-    
+
     messages.success(request, _(f'User {action} successfully!'))
     return redirect('users:user_detail', user_id=user.id)
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def user_delete(request, user_id):
+    """
+    Permanently delete a user account (superuser only).
+    """
+    user_to_delete = get_object_or_404(User, id=user_id)
+
+    # Prevent self-deletion
+    if request.user.id == user_to_delete.id:
+        messages.error(request, _('You cannot delete your own account.'))
+        return redirect('users:user_detail', user_id=user_id)
+
+    # Additional safety check for superusers
+    if user_to_delete.is_superuser and not request.user.is_superuser:
+        messages.error(request, _('Only superusers can delete other superuser accounts.'))
+        return redirect('users:user_detail', user_id=user_id)
+
+    if request.method == 'POST':
+        try:
+            # Store user details for logging before deletion
+            user_name = user_to_delete.display_name
+            user_email = user_to_delete.email
+            user_id_deleted = user_to_delete.id
+
+            # Check for related academic records that will be affected
+            related_models = []
+            try:
+                from apps.academics.models import Student
+                if Student.objects.filter(user=user_to_delete).exists():
+                    related_models.append('Student profile')
+            except:
+                pass
+
+            try:
+                from apps.academics.models import Teacher
+                if Teacher.objects.filter(user=user_to_delete).exists():
+                    related_models.append('Teacher profile')
+            except:
+                pass
+
+            # Log the deletion with details
+            AuditLog.objects.create(
+                user=request.user,
+                action=AuditLog.ActionType.DELETE,
+                model_name='users.User',
+                object_id=str(user_id_deleted),
+                ip_address=get_client_ip(request),
+                details={
+                    'action': 'User account permanently deleted',
+                    'deleted_user_name': user_name,
+                    'deleted_user_email': user_email,
+                    'related_models_affected': related_models
+                }
+            )
+
+            # Delete the user (cascading delete will handle related data)
+            user_to_delete.delete()
+
+            # Add message warning about cascade effects
+            if related_models:
+                messages.success(request, _(f'User "{user_name}" and associated {", ".join(related_models)} have been permanently deleted.'))
+            else:
+                messages.success(request, _(f'User "{user_name}" has been permanently deleted.'))
+
+            return redirect('users:user_list')
+
+        except Exception as e:
+            logger.error(f"Error deleting user {user_id}: {e}")
+            messages.error(request, _('An error occurred while deleting the user. Please try again.'))
+
+    return redirect('users:user_detail', user_id=user_id)
 
 # =============================================================================
 # APPLICATION MANAGEMENT VIEWS
@@ -2690,6 +2765,44 @@ def message_teacher(request, teacher_id=None):
     return render(request, 'users/parent/message_teacher.html', context)
 
 @login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def download_bulk_user_sample(request):
+    """
+    Download the test sample CSV file with one user for each role type.
+    """
+    # Generate the test sample data
+    sample_data = '''email,first_name,last_name,mobile,gender,nationality,address,city,state,postal_code,country,date_of_birth,role
+admin@nexussms.com,John,Admin,+1234567890,male,American,123 Admin Street,Washington,DC,20500,USA,1980-01-15,super_admin
+administrator@nexussms.com,Jane,Administrator,+1234567891,female,American,456 Admin Ave,Washington,DC,20501,USA,1982-03-22,admin
+principal@nexussms.com,Michael,Principal,+1234567892,male,American,789 School Lane,Education City,CA,90210,USA,1975-08-10,principal
+depthead@nexussms.com,Sarah,Head,+1234567893,female,American,321 Department Rd,Department Town,NY,10001,USA,1978-12-05,department_head
+counselor@nexussms.com,David,Counselor,+1234567894,male,American,654 Counseling St,Counsel City,TX,75001,USA,1982-05-18,counselor
+teacher@nexussms.com,Amy,Teacher,+1234567895,female,American,987 Classroom Ave,Learning Town,CA,95014,USA,1985-09-30,teacher
+student@nexussms.com,Alex,Student,+1234567896,male,American,147 Student Dorm,College City,FL,33101,USA,2005-02-14,student
+parent@nexussms.com,Mary,Parent,+1234567897,female,American,258 Parent Home,Family Town,GA,30301,USA,1970-11-28,parent
+accountant@nexussms.com,Robert,Accountant,+1234567898,male,American,369 Finance St,Money City,NY,10002,USA,1977-07-12,accountant
+librarian@nexussms.com,Laura,Librarian,+1234567899,female,American,741 Book Library,Reading City,WA,98102,USA,1980-04-25,librarian
+driver@nexussms.com,James,Driver,+1234567800,male,American,852 Transport Rd,Driver Town,TX,77001,USA,1976-06-08,driver
+support@nexussms.com,Linda,Support,+1234567801,female,American,963 Support Center,Help City,CA,94103,USA,1983-10-17,support
+transport@nexussms.com,Mark,Transport,+1234567802,male,American,174 Fleet Management,Transport Hub,IL,60602,USA,1979-01-20,transport_manager
+warden@nexussms.com,Patricia,Warden,+1234567803,female,American,285 Hostel Complex,Residence City,AZ,85002,USA,1974-12-03,hostel_warden'''
+
+    # Log the download action
+    AuditLog.objects.create(
+        user=request.user,
+        action=AuditLog.ActionType.DOWNLOAD,
+        model_name='users.User',
+        object_id='bulk_import_sample',
+        ip_address=get_client_ip(request),
+        details={'action': 'Downloaded bulk user import sample file'}
+    )
+
+    # Return the CSV file as a download
+    response = HttpResponse(sample_data, content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="bulk_user_import_sample_{timezone.now().strftime("%Y%m%d")}.csv"'
+    return response
+
+@login_required
 @user_passes_test(lambda u: u.is_superuser or u.has_perm('users.manage_relationships'))
 def parent_student_relationship_create(request):
     """
@@ -2699,12 +2812,12 @@ def parent_student_relationship_create(request):
         form = ParentStudentRelationshipForm(request.POST)
         if form.is_valid():
             relationship = form.save()
-            
+
             messages.success(request, _('Relationship created successfully!'))
             return redirect('users:parent_student_relationships')
     else:
         form = ParentStudentRelationshipForm()
-    
+
     context = {
         'title': _('Create Relationship'),
         'form': form,
@@ -3129,9 +3242,9 @@ def export_applications(request, application_type):
                     value = getattr(obj, field_name, None)
                 
                 # Format specific fields
-                if isinstance(value, timezone.datetime):
+                if isinstance(value, datetime):
                     value = value.strftime('%Y-%m-%d %H:%M:%S')
-                elif isinstance(value, timezone.date):
+                elif isinstance(value, date):
                     value = value.strftime('%Y-%m-%d')
                 elif value is None:
                     value = ''
@@ -3145,11 +3258,16 @@ def export_applications(request, application_type):
         sheet = workbook.active
         sheet.title = filename_prefix.replace('_', ' ').title()
 
-        sheet.append(field_titles)
+        # Write headers
+        for col_num, title in enumerate(field_titles, 1):
+            sheet.cell(row=1, column=col_num).value = title
 
+        # Write data rows
+        current_row = 2
         for obj in queryset:
-            row = []
+            current_col = 1
             for field_name in fields:
+                # Get field value
                 if '__' in field_name:
                     parts = field_name.split('__')
                     value = obj
@@ -3159,15 +3277,19 @@ def export_applications(request, application_type):
                         value = getattr(value, part, None)
                 else:
                     value = getattr(obj, field_name, None)
-                
-                if isinstance(value, timezone.datetime):
+
+                # Format value
+                if isinstance(value, datetime):
                     value = value.strftime('%Y-%m-%d %H:%M:%S')
-                elif isinstance(value, timezone.date):
+                elif isinstance(value, date):
                     value = value.strftime('%Y-%m-%d')
                 elif value is None:
                     value = ''
-                row.append(str(value))
-            sheet.append(row)
+
+                # Set cell value as string to prevent type detection issues
+                sheet.cell(row=current_row, column=current_col).value = str(value)
+                current_col += 1
+            current_row += 1
 
         workbook.save(output)
         output.seek(0)
@@ -3181,6 +3303,198 @@ def export_applications(request, application_type):
     
     messages.error(request, _('Invalid export format.'))
     return redirect('users:pending_applications')
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def export_users(request):
+    """
+    Export users to CSV or Excel.
+    """
+    format = request.GET.get('format', 'csv')
+    roles = request.GET.getlist('fields')  # Get selected role fields
+    include_inactive = request.GET.get('include_inactive', 'false').lower() == 'true'
+
+    # Base queryset
+    queryset = User.objects.all().select_related('profile').prefetch_related('user_roles__role')
+
+    # Apply filters
+    if not include_inactive:
+        queryset = queryset.filter(is_active=True)
+
+    # Fields to export based on selection
+    fields = [
+        'email', 'first_name', 'last_name', 'mobile', 'is_active', 'is_verified',
+        'is_staff', 'is_superuser', 'status', 'last_login', 'created_at'
+    ]
+
+    # Add profile fields if available
+    profile_fields = [
+        'profile__date_of_birth', 'profile__gender', 'profile__nationality',
+        'profile__address_line_1', 'profile__city', 'profile__state',
+        'profile__postal_code', 'profile__country'
+    ]
+    fields.extend(profile_fields)
+
+    field_titles = [
+        _('Email'), _('First Name'), _('Last Name'), _('Mobile'), _('Active'),
+        _('Verified'), _('Staff'), _('Superuser'), _('Status'), _('Last Login'),
+        _('Created Date'), _('Date of Birth'), _('Gender'), _('Nationality'),
+        _('Address'), _('City'), _('State'), _('Postal Code'), _('Country')
+    ]
+
+    # Add roles information
+    # We handle roles separately since it's a many-to-many relationship
+
+    if format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="users_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(field_titles + [_('Roles'), _('Primary Role')])
+        for user in queryset:
+            row = []
+            for field_name in fields:
+                # Handle profile fields
+                if '__' in field_name:
+                    parts = field_name.split('__')
+                    value = user
+                    for part in parts:
+                        if value is None:
+                            break
+                        value = getattr(value, part, None)
+                else:
+                    value = getattr(user, field_name, None)
+
+                # Format specific fields
+                if isinstance(value, datetime):
+                    value = value.strftime('%Y-%m-%d %H:%M:%S')
+                elif isinstance(value, date):
+                    value = value.strftime('%Y-%m-%d')
+                elif isinstance(value, bool):
+                    value = 'Yes' if value else 'No'
+                elif value is None:
+                    value = ''
+                elif hasattr(value, '__str__'):
+                    value = str(value)
+                row.append(str(value))
+
+            # Add roles information
+            user_roles = user.user_roles.all()
+            roles_str = ', '.join([ur.role.name for ur in user_roles])
+            primary_role = user_roles.filter(is_primary=True).first()
+            primary_role_name = primary_role.role.name if primary_role else ''
+
+            row.extend([roles_str, primary_role_name])
+            writer.writerow(row)
+        return response
+
+    elif format == 'excel':
+        output = BytesIO()
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = 'Users Export'
+
+        # Write headers
+        for col_num, title in enumerate(field_titles + [_('Roles'), _('Primary Role')], 1):
+            sheet.cell(row=1, column=col_num).value = title
+
+        # Write data rows
+        current_row = 2
+        for user in queryset:
+            current_col = 1
+            for field_name in fields:
+                # Handle profile fields
+                if '__' in field_name:
+                    parts = field_name.split('__')
+                    value = user
+                    for part in parts:
+                        if value is None:
+                            break
+                        value = getattr(value, part, None)
+                else:
+                    value = getattr(user, field_name, None)
+
+                # Format value
+                if isinstance(value, datetime):
+                    value = value.strftime('%Y-%m-%d %H:%M:%S')
+                elif isinstance(value, date):
+                    value = value.strftime('%Y-%m-%d')
+                elif isinstance(value, bool):
+                    value = 'Yes' if value else 'No'
+                elif value is None:
+                    value = ''
+                elif hasattr(value, '__str__'):
+                    value = str(value)
+
+                # Set cell value as string to prevent type detection issues
+                sheet.cell(row=current_row, column=current_col).value = str(value)
+                current_col += 1
+
+            # Add roles information
+            user_roles = user.user_roles.all()
+            roles_str = ', '.join([ur.role.name for ur in user_roles])
+            primary_role = user_roles.filter(is_primary=True).first()
+            primary_role_name = primary_role.role.name if primary_role else ''
+
+            sheet.cell(row=current_row, column=current_col).value = roles_str
+            sheet.cell(row=current_row, column=current_col + 1).value = primary_role_name
+            current_row += 1
+
+        workbook.save(output)
+        output.seek(0)
+
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="users_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+        return response
+
+    elif format == 'json':
+        # JSON export
+        users_data = []
+        for user in queryset:
+            user_data = {}
+            for field_name, title in zip(fields, field_titles):
+                # Handle profile fields
+                if '__' in field_name:
+                    parts = field_name.split('__')
+                    value = user
+                    for part in parts:
+                        if value is None:
+                            break
+                        value = getattr(value, part, None)
+                else:
+                    value = getattr(user, field_name, None)
+
+                # Format specific fields for JSON
+                if isinstance(value, datetime):
+                    value = value.strftime('%Y-%m-%d %H:%M:%S')
+                elif isinstance(value, date):
+                    value = value.strftime('%Y-%m-%d')
+                elif isinstance(value, bool):
+                    value = bool(value)
+                elif value is None:
+                    value = None
+                else:
+                    value = str(value)
+
+                user_data[field_name.replace('__', '_')] = value
+
+            # Add roles information
+            user_roles = user.user_roles.all()
+            user_data['roles'] = [ur.role.name for ur in user_roles]
+            primary_role = user_roles.filter(is_primary=True).first()
+            user_data['primary_role'] = primary_role.role.name if primary_role else None
+
+            users_data.append(user_data)
+
+        response = JsonResponse({'users': users_data})
+        response['Content-Disposition'] = f'attachment; filename="users_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.json"'
+        return response
+
+    messages.error(request, _('Invalid export format.'))
+    return redirect('users:user_list')
 
 
 @login_required

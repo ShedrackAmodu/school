@@ -1,0 +1,15 @@
+email,first_name,last_name,mobile,gender,nationality,address,city,state,postal_code,country,date_of_birth,role
+admin@nexussms.com,John,Admin,+1234567890,male,American,123 Admin Street,Washington,DC,20500,USA,1980-01-15,super_admin
+administrator@nexussms.com,Jane,Administrator,+1234567891,female,American,456 Admin Ave,Washington,DC,20501,USA,1982-03-22,admin
+principal@nexussms.com,Michael,Principal,+1234567892,male,American,789 School Lane,Education City,CA,90210,USA,1975-08-10,principal
+depthead@nexussms.com,Sarah,Head,+1234567893,female,American,321 Department Rd,Department Town,NY,10001,USA,1978-12-05,department_head
+counselor@nexussms.com,David,Counselor,+1234567894,male,American,654 Counseling St,Counsel City,TX,75001,USA,1982-05-18,counselor
+teacher@nexussms.com,Amy,Teacher,+1234567895,female,American,987 Classroom Ave,Learning Town,CA,95014,USA,1985-09-30,teacher
+student@nexussms.com,Alex,Student,+1234567896,male,American,147 Student Dorm,College City,FL,33101,USA,2005-02-14,student
+parent@nexussms.com,Mary,Parent,+1234567897,female,American,258 Parent Home,Family Town,GA,30301,USA,1970-11-28,parent
+accountant@nexussms.com,Robert,Accountant,+1234567898,male,American,369 Finance St,Money City,NY,10002,USA,1977-07-12,accountant
+librarian@nexussms.com,Laura,Librarian,+1234567899,female,American,741 Book Library,Reading City,WA,98102,USA,1980-04-25,librarian
+driver@nexussms.com,James,Driver,+1234567800,male,American,852 Transport Rd,Driver Town,TX,77001,USA,1976-06-08,driver
+support@nexussms.com,Linda,Support,+1234567801,female,American,963 Support Center,Help City,CA,94103,USA,1983-10-17,support
+transport@nexussms.com,Mark,Transport,+1234567802,male,American,174 Fleet Management,Transport Hub,IL,60602,USA,1979-01-20,transport_manager
+warden@nexussms.com,Patricia,Warden,+1234567803,female,American,285 Hostel Complex,Residence City,AZ,85002,USA,1974-12-03,hostel_warden

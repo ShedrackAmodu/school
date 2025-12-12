@@ -744,14 +744,14 @@ class UserBulkActionForm(forms.Form):
 
 class UserImportForm(forms.Form):
     """
-    Form for bulk importing users from CSV file.
+    Form for bulk importing users from CSV/Excel file.
     """
     csv_file = forms.FileField(
-        label=_('CSV File'),
-        help_text=_('Upload a CSV file with user data. Required columns: email, first_name, last_name'),
+        label=_('File'),
+        help_text=_('Upload a CSV or Excel file with user data. Required columns: email, first_name, last_name'),
         widget=forms.FileInput(attrs={
             'class': 'form-control',
-            'accept': '.csv'
+            'accept': '.csv,.xlsx,.xls'
         })
     )
     send_welcome_email = forms.BooleanField(
@@ -771,18 +771,25 @@ class UserImportForm(forms.Form):
         csv_file = self.cleaned_data.get('csv_file')
         if csv_file:
             # Validate file type
-            if not csv_file.name.endswith('.csv'):
+            allowed_extensions = ['.csv', '.xlsx', '.xls']
+            file_extension = None
+            for ext in allowed_extensions:
+                if csv_file.name.lower().endswith(ext):
+                    file_extension = ext
+                    break
+
+            if not file_extension:
                 raise ValidationError(
-                    _("Only CSV files are allowed.")
+                    _("Only CSV (.csv) and Excel (.xlsx, .xls) files are allowed.")
                 )
-            
+
             # Validate file size (10MB limit)
             max_size = 10 * 1024 * 1024
             if csv_file.size > max_size:
                 raise ValidationError(
                     _("File size must not exceed 10MB.")
                 )
-        
+
         return csv_file
 
 

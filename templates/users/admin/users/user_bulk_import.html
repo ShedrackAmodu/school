@@ -105,11 +105,15 @@
 
                     <!-- CSV Format Instructions -->
                     <div class="card border-info mb-4">
-                        <div class="card-header bg-info text-white">
+                        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                             <h6 class="card-title mb-0">
                                 <i class="bi bi-file-earmark-spreadsheet me-2"></i>
                                 {% trans "CSV Format Requirements" %}
                             </h6>
+                            <a href="{% url 'users:download_bulk_user_sample' %}" class="btn btn-light btn-sm">
+                                <i class="bi bi-download me-1"></i>
+                                {% trans "Download Test Sample" %}
+                            </a>
                         </div>
                         <div class="card-body">
                             <p class="mb-3">{% trans "Your CSV file must contain the following columns (case-insensitive):" %}</p>

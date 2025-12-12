@@ -672,6 +672,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <form method="post" action="{% url 'users:user_delete' user_obj.id %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
                         <i class="bi bi-trash me-1"></i>{% trans "Delete User" %}

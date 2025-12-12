@@ -417,7 +417,7 @@
                 <h5 class="modal-title" id="exportModalLabel">{% trans "Export Users" %}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            {% comment %} <form method="get" action="{% url 'users:user_export' %}"> {% endcomment %}
+            <form method="get" action="{% url 'users:export_users' %}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">{% trans "Export Format" %}</label>

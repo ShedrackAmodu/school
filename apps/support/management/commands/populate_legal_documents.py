@@ -1,236 +1,194 @@
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 from apps.support.models import LegalDocument
 
 
 class Command(BaseCommand):
-    help = 'Populate the database with initial legal documents for the support app'
+    help = 'Populate the database with initial legal documents for the support system'
 
     def handle(self, *args, **options):
-        # Define the legal document data
+        # Define the legal documents data
         documents_data = [
-            {
-                'document_type': 'privacy_policy',
-                'title': 'Privacy Policy',
-                'slug': 'privacy-policy',
-                'content': '''
-# Privacy Policy
-
-## Introduction
-This Privacy Policy describes how we collect, use, and protect your personal information when you use our school management system.
-
-## Information We Collect
-We may collect the following types of information:
-- Personal identification information (name, email, phone number)
-- Academic records and performance data
-- Attendance records
-- Financial information (fees, payments)
-- Communication logs
-
-## How We Use Your Information
-We use collected information to:
-- Manage student enrollment and academic records
-- Process payments and financial transactions
-- Communicate important school information
-- Ensure safety and security on campus
-- Comply with legal and regulatory requirements
-
-## Data Security
-We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.
-
-## Contact Us
-If you have any questions about this Privacy Policy, please contact us through the support system.
-
----
-*This is placeholder content. Please replace with your actual privacy policy content.*
-                '''
-            },
             {
                 'document_type': 'terms_of_service',
                 'title': 'Terms of Service',
                 'slug': 'terms-of-service',
                 'content': '''
-# Terms of Service
+# Terms of Service for Nexus School Management System
 
-## Acceptance of Terms
-By accessing and using our school management system, you accept and agree to be bound by these Terms of Service.
+## 1. Acceptance of Terms
 
-## User Accounts
-Users are responsible for maintaining the confidentiality of their account credentials and for all activities that occur under their account.
+By accessing and using the Nexus School Management System ("the System"), you accept and agree to be bound by the terms and provision of this agreement.
 
-## Acceptable Use
-You agree to use the system only for lawful purposes and in accordance with these terms:
-- Respect academic integrity
-- Protect student privacy
-- Follow school policies and procedures
-- Report any security concerns
+## 2. Use License
 
-## Prohibited Activities
-You may not:
-- Attempt to gain unauthorized access
-- Share account credentials
-- Upload malicious content
-- Violate intellectual property rights
-- Disrupt system operations
+Permission is granted to temporarily download one copy of the System per user for personal, non-commercial transitory viewing only.
 
-## Limitation of Liability
-The system is provided "as is" without warranties. We shall not be liable for any damages arising from system use.
+## 3. Disclaimer
 
----
-*This is placeholder content. Please replace with your actual terms of service.*
-                '''
+The materials on the System are provided on an 'as is' basis. The School makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties.
+
+## 4. Limitations
+
+In no event shall the School or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit).
+
+## 5. Accuracy of Materials
+
+The materials appearing on the System could include technical, typographical, or photographic errors. The School does not warrant that any of the materials on its System are accurate, complete, or current.
+
+## 6. Modifications
+
+The School may revise these terms of service at any time without notice. By using this System you are agreeing to be bound by the then current version of these Terms and Conditions of Use.
+
+## 7. Data Privacy
+
+Your privacy is important to us. Please review our Privacy Policy, which also governs your use of the System, to understand our practices.
+                ''',
+                'is_active': True,
+                'requires_acknowledgment': True
             },
             {
-                'document_type': 'data_protection',
-                'title': 'Data Protection Policy',
-                'slug': 'data-protection',
+                'document_type': 'privacy_policy',
+                'title': 'Privacy Policy',
+                'slug': 'privacy-policy',
                 'content': '''
-# Data Protection Policy
+# Privacy Policy for Nexus School Management System
 
-## Purpose
-This policy outlines our commitment to protecting personal data and complying with data protection regulations.
+## 1. Information We Collect
 
-## Data Controller
-Our school acts as the data controller for all personal data processed within the system.
+We collect information you provide directly to us, such as when you create an account, use our services, or contact us for support.
 
-## Legal Basis for Processing
-We process personal data based on:
-- Consent from data subjects
-- Legitimate interests of the school
-- Legal obligations (education regulations)
-- Contractual necessities
+## 2. How We Use Your Information
 
-## Data Subject Rights
-You have the right to:
-- Access your personal data
-- Rectify inaccurate data
-- Erase your data (where applicable)
-- Restrict or object to processing
-- Data portability
+We use the information we collect to:
+- Provide, maintain, and improve our services
+- Process transactions and send related information
+- Send you technical notices, updates, and support messages
+- Respond to your comments and questions
 
-## Data Retention
-Personal data is retained only as long as necessary for the purposes outlined in this policy or as required by law.
+## 3. Information Sharing
 
-## Security Measures
-We implement comprehensive security controls including:
-- Encryption of sensitive data
-- Access controls and authentication
-- Regular security audits
-- Incident response procedures
+We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this policy.
 
-## Data Breach Procedures
-In the event of a data breach, we will:
-- Assess the risk to affected individuals
-- Notify required authorities within 72 hours
-- Inform affected data subjects without undue delay
+## 4. Data Security
 
----
-*This is placeholder content. Please replace with your actual data protection policy.*
-                '''
+We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.
+
+## 5. Changes to This Policy
+
+We may update this privacy policy from time to time. We will notify you of any changes by posting the new policy on this page.
+                ''',
+                'is_active': True,
+                'requires_acknowledgment': False
             },
             {
                 'document_type': 'cookie_policy',
                 'title': 'Cookie Policy',
                 'slug': 'cookie-policy',
                 'content': '''
-# Cookie Policy
+# Cookie Policy for Nexus School Management System
 
 ## What Are Cookies
-Cookies are small text files that are placed on your device when you visit our website to enhance your browsing experience.
+
+Cookies are small text files that are placed on your computer or mobile device when you visit our website.
 
 ## How We Use Cookies
-Our school management system uses cookies for:
-- User authentication and session management
-- Remembering user preferences
-- Analytics and performance monitoring
-- Security purposes
+
+We use cookies to:
+- Remember your preferences and settings
+- Keep you signed in to your account
+- Analyze how our site is used
+- Improve our services
 
 ## Types of Cookies We Use
 
 ### Essential Cookies
-Required for the system to function properly:
-- Session cookies
-- Authentication tokens
-- Security cookies
+Required for the website to function properly.
 
-### Performance Cookies
-Help us understand how users interact with the system:
-- Google Analytics (if implemented)
-- Performance monitoring tools
+### Analytics Cookies
+Help us understand how visitors interact with our website.
 
-### Functional Cookies
-Enhance user experience:
-- Language preferences
-- Theme settings
-- Form data preservation
+### Preference Cookies
+Remember your settings and preferences.
 
 ## Managing Cookies
-Most web browsers allow you to control cookies through their settings. You can:
-- Block all cookies
-- Delete existing cookies
-- Receive notifications about new cookies
 
-## Third-Party Cookies
-We may use third-party services that set their own cookies:
-- Payment processors
-- Analytics services
-- Content delivery networks
+You can control cookies through your browser settings. However, disabling cookies may affect the functionality of our website.
+                ''',
+                'is_active': True,
+                'requires_acknowledgment': False
+            },
+            {
+                'document_type': 'data_protection',
+                'title': 'Data Protection Policy',
+                'slug': 'data-protection',
+                'content': '''
+# Data Protection Policy for Nexus School Management System
 
-## Updates to This Policy
-We may update this Cookie Policy periodically to reflect changes in our practices or for legal compliance.
+## 1. Introduction
 
----
-*This is placeholder content. Please replace with your actual cookie policy.*
-                '''
+This policy outlines how we handle personal data in compliance with applicable data protection laws.
+
+## 2. Data Collection Principles
+
+We collect and process personal data fairly, lawfully, and transparently.
+
+## 3. Data Subject Rights
+
+You have the right to:
+- Access your personal data
+- Rectify inaccurate data
+- Erase your data ("right to be forgotten")
+- Restrict processing
+- Data portability
+- Object to processing
+
+## 4. Data Security
+
+We implement appropriate security measures to protect personal data against unauthorized access, loss, or damage.
+
+## 5. Data Retention
+
+We retain personal data only as long as necessary for the purposes for which it was collected.
+                ''',
+                'is_active': True,
+                'requires_acknowledgment': False
             },
             {
                 'document_type': 'accessibility_statement',
                 'title': 'Accessibility Statement',
                 'slug': 'accessibility-statement',
                 'content': '''
-# Accessibility Statement
+# Accessibility Statement for Nexus School Management System
 
 ## Our Commitment
-We are committed to ensuring our school management system is accessible to all users, including those with disabilities, in accordance with accessibility standards and guidelines.
 
-## Accessibility Standards
-Our system aims to comply with:
-- Web Content Accessibility Guidelines (WCAG) 2.1 Level AA
-- Section 508 of the Rehabilitation Act
-- European Accessibility Act requirements
+We are committed to ensuring digital accessibility for people with disabilities. We are continually improving the user experience for everyone.
+
+## Compliance Standards
+
+Our website aims to conform to Web Content Accessibility Guidelines (WCAG) 2.1 AA standards.
 
 ## Accessibility Features
-Our platform includes:
+
 - Keyboard navigation support
 - Screen reader compatibility
-- High contrast mode options
-- Adjustable text sizes
+- High contrast options
+- Resizable text
 - Alternative text for images
 
-## Assistive Technologies Support
-We support commonly used assistive technologies including:
-- Screen readers (NVDA, JAWS, VoiceOver)
-- Magnification software
-- Voice control systems
-- Alternative input devices
-
-## Known Limitations
-While we strive for full accessibility, some legacy features may have limitations. We are actively working to improve accessibility across all functions.
-
 ## Feedback
-If you encounter accessibility barriers, please contact our support team. We welcome feedback on how we can improve accessibility.
+
+If you encounter accessibility barriers, please contact us at accessibility@nexus-sms.edu or through our support system.
 
 ## Contact Information
-For accessibility-related questions or issues:
-- Email: [accessibility contact email]
-- Support portal: [support system URL]
 
-## Regular Audits
-We conduct regular accessibility audits and usability testing with users who have disabilities to ensure ongoing compliance.
-
----
-*This is placeholder content. Please replace with your actual accessibility statement.*
-                '''
+For questions about this accessibility statement, please contact:
+Accessibility Team
+Nexus School Management System
+Email: accessibility@nexus-sms.edu
+                ''',
+                'is_active': True,
+                'requires_acknowledgment': False
             }
         ]
 
@@ -238,36 +196,41 @@ We conduct regular accessibility audits and usability testing with users who hav
         updated_count = 0
 
         for doc_data in documents_data:
-            document_type = doc_data['document_type']
-
             # Check if document already exists
-            existing_doc = LegalDocument.objects.filter(document_type=document_type).first()
+            existing_doc = LegalDocument.objects.filter(
+                document_type=doc_data['document_type']
+            ).first()
 
             if existing_doc:
-                # Update if inactive
-                if not existing_doc.is_active:
-                    existing_doc.is_active = True
+                # Update content if needed
+                if existing_doc.title != doc_data['title'] or existing_doc.content.strip() != doc_data['content'].strip():
+                    existing_doc.title = doc_data['title']
+                    existing_doc.content = doc_data['content'].strip()
+                    existing_doc.slug = doc_data['slug']
+                    existing_doc.is_active = doc_data['is_active']
+                    existing_doc.requires_acknowledgment = doc_data['requires_acknowledgment']
                     existing_doc.save()
                     updated_count += 1
                     self.stdout.write(
-                        self.style.SUCCESS(f'Activated existing {document_type} document')
+                        self.style.SUCCESS(f'Updated document: {doc_data["title"]}')
                     )
                 else:
                     self.stdout.write(
-                        self.style.WARNING(f'{document_type} document already exists and is active')
+                        self.style.WARNING(f'Document already exists: {doc_data["title"]}')
                     )
             else:
                 # Create new document
                 LegalDocument.objects.create(
+                    document_type=doc_data['document_type'],
                     title=doc_data['title'],
                     slug=doc_data['slug'],
                     content=doc_data['content'].strip(),
-                    document_type=document_type,
-                    is_active=True
+                    is_active=doc_data['is_active'],
+                    requires_acknowledgment=doc_data['requires_acknowledgment']
                 )
                 created_count += 1
                 self.stdout.write(
-                    self.style.SUCCESS(f'Created {document_type} document')
+                    self.style.SUCCESS(f'Created document: {doc_data["title"]}')
                 )
 
         if created_count > 0 or updated_count > 0:
@@ -275,9 +238,9 @@ We conduct regular accessibility audits and usability testing with users who hav
                 self.style.SUCCESS(f'Successfully created {created_count} and updated {updated_count} legal documents.')
             )
             self.stdout.write(
-                self.style.SUCCESS('You can now access legal document URLs like /support/privacy-policy/')
+                self.style.SUCCESS('You can now view the legal documents at /support/legal-documents/')
             )
         else:
             self.stdout.write(
-                self.style.SUCCESS('All legal documents already exist and are active.')
+                self.style.SUCCESS('All legal documents already exist and are up to date.')
             )
