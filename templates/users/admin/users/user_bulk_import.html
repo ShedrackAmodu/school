@@ -147,8 +147,8 @@
                             <div class="alert alert-light border mt-3">
                                 <h6 class="mb-2">{% trans "Sample CSV Format" %}:</h6>
                                 <pre class="mb-0"><code>email,first_name,last_name,mobile,role,date_of_birth,gender
-john.doe@example.com,John,Doe,+1234567890,student,2005-05-15,male
-jane.smith@example.com,Jane,Smith,+1234567891,teacher,1985-03-20,female</code></pre>
+john.doe@nordalms.pythonanywhere.com,John,Doe,+1234567890,student,2005-05-15,male
+jane.smith@nordalms.pythonanywhere.com,Jane,Smith,+1234567891,teacher,1985-03-20,female</code></pre>
                             </div>
 
                             <div class="alert alert-warning">
@@ -260,9 +260,9 @@ jane.smith@example.com,Jane,Smith,+1234567891,teacher,1985-03-20,female</code></
             <div class="modal-body">
                 <p>{% trans "Copy the following CSV content and save it as a .csv file:" %}</p>
                 <pre><code>email,first_name,last_name,mobile,role,date_of_birth,gender,nationality,address,city,state,postal_code,country
-john.doe@example.com,John,Doe,+1234567890,student,2005-05-15,male,American,123 Main St,New York,NY,10001,USA
-jane.smith@example.com,Jane,Smith,+1234567891,teacher,1985-03-20,female,American,456 Oak Ave,Los Angeles,CA,90210,USA
-bob.parent@example.com,Bob,Parent,+1234567892,parent,,male,American,789 Pine Rd,Chicago,IL,60601,USA</code></pre>
+john.doe@nordalms.pythonanywhere.com,John,Doe,+1234567890,student,2005-05-15,male,American,123 Main St,New York,NY,10001,USA
+jane.smith@nordalms.pythonanywhere.com,Jane,Smith,+1234567891,teacher,1985-03-20,female,American,456 Oak Ave,Los Angeles,CA,90210,USA
+bob.parent@nordalms.pythonanywhere.com,Bob,Parent,+1234567892,parent,,male,American,789 Pine Rd,Chicago,IL,60601,USA</code></pre>
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
                     {% trans "You can open this in Excel, Google Sheets, or any spreadsheet application, then save as CSV." %}
@@ -407,9 +407,9 @@ bob.parent@example.com,Bob,Parent,+1234567892,parent,,male,American,789 Pine Rd,
                 totalRows: 5,
                 columns: ['email', 'first_name', 'last_name', 'role', 'mobile'],
                 previewRows: [
-                    ['john.doe@example.com', 'John', 'Doe', 'student', '+1234567890'],
-                    ['jane.smith@example.com', 'Jane', 'Smith', 'teacher', '+1234567891'],
-                    ['bob.parent@example.com', 'Bob', 'Parent', 'parent', '+1234567892']
+                    ['john.doe@nordalms.pythonanywhere.com', 'John', 'Doe', 'student', '+1234567890'],
+                    ['jane.smith@nordalms.pythonanywhere.com', 'Jane', 'Smith', 'teacher', '+1234567891'],
+                    ['bob.parent@nordalms.pythonanywhere.com', 'Bob', 'Parent', 'parent', '+1234567892']
                 ]
             };
 
@@ -456,9 +456,9 @@ bob.parent@example.com,Bob,Parent,+1234567892,parent,,male,American,789 Pine Rd,
         // Sample CSV download
         window.downloadSampleCSV = function() {
             const csvContent = `email,first_name,last_name,mobile,role,date_of_birth,gender,nationality,address,city,state,postal_code,country
-john.doe@example.com,John,Doe,+1234567890,student,2005-05-15,male,American,123 Main St,New York,NY,10001,USA
-jane.smith@example.com,Jane,Smith,+1234567891,teacher,1985-03-20,female,American,456 Oak Ave,Los Angeles,CA,90210,USA
-bob.parent@example.com,Bob,Parent,+1234567892,parent,,male,American,789 Pine Rd,Chicago,IL,60601,USA`;
+john.doe@nordalms.pythonanywhere.com,John,Doe,+1234567890,student,2005-05-15,male,American,123 Main St,New York,NY,10001,USA
+jane.smith@nordalms.pythonanywhere.com,Jane,Smith,+1234567891,teacher,1985-03-20,female,American,456 Oak Ave,Los Angeles,CA,90210,USA
+bob.parent@nordalms.pythonanywhere.com,Bob,Parent,+1234567892,parent,,male,American,789 Pine Rd,Chicago,IL,60601,USA`;
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');

@@ -1004,6 +1004,155 @@ def send_password_change_email(user, request):
 # AUTHENTICATION VIEWS
 # =============================================================================
 
+def custom_password_retrieval(request):
+    """
+    Custom password retrieval view that sends user's password via email.
+    Also sends notification to admin.
+    """
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+
+        if not email:
+            messages.error(request, _('Please enter your email address.'))
+            return redirect('users:password_reset')
+
+        # Check if user exists
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            messages.error(request, _('No account found with this email address.'))
+            return redirect('users:password_reset')
+
+        # Generate a temporary password if needed
+        temporary_password = None
+        is_temporary = False
+
+        # For security, we'll generate a new temporary password for retrieval
+        import secrets
+        import string
+        characters = string.ascii_letters + string.digits + string.punctuation
+        temporary_password = ''.join(secrets.choice(characters) for i in range(12))
+        is_temporary = True
+
+        # Update user's password with the temporary one
+        user.set_password(temporary_password)
+        user.save()
+
+        # Send password via email to user
+        success = send_password_retrieval_email(user, temporary_password, request)
+
+        if success:
+            # Send notification to admins
+            send_admin_password_retrieval_notification(user, request)
+
+            # Log the password retrieval event
+            AuditLog.objects.create(
+                user=user,
+                action=AuditLog.ActionType.UPDATE,
+                model_name='users.User',
+                object_id=str(user.id),
+                ip_address=get_client_ip(request),
+                details={'action': 'Password retrieved via email'}
+            )
+
+            messages.success(request, _('Your password has been sent to your email address. Please check your inbox and update your password immediately for security reasons.'))
+            return redirect('users:password_reset_done')
+        else:
+            # If email fails, revert password change for security
+            user.set_password(user.password)
+            user.save()
+            messages.error(request, _('There was an error sending your password. Please try again later or contact support.'))
+            return redirect('users:password_reset')
+
+    # GET request - show form
+    context = {
+        'title': _('Retrieve Password'),
+    }
+    return render(request, 'users/password_retrieval.html', context)
+
+def send_password_retrieval_email(user, password, request):
+    """
+    Send email with user's password and update request.
+    """
+    subject = _('Your Password - {}').format(getattr(settings, 'SCHOOL_NAME', 'Our School'))
+
+    context = {
+        'user': user,
+        'password': password,
+        'school_name': getattr(settings, 'SCHOOL_NAME', 'Our School'),
+        'contact_email': settings.DEFAULT_FROM_EMAIL,
+        'login_url': request.build_absolute_uri(reverse('users:login')),
+        'profile_url': request.build_absolute_uri(reverse('users:password_change')),
+        'retrieval_time': timezone.now(),
+    }
+
+    html_message = render_to_string('users/emails/password_retrieval_email.html', context)
+    text_message = strip_tags(html_message)
+
+    success = send_email_with_retry(
+        subject=subject,
+        message=text_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        html_message=html_message
+    )
+
+    if success:
+        logger.info(f"Password retrieval email sent to {user.email}")
+    else:
+        logger.error(f"Failed to send password retrieval email to {user.email}")
+
+    return success
+
+def send_admin_password_retrieval_notification(user, request):
+    """
+    Send notification email to admins about password retrieval request.
+    """
+    subject = _('Password Retrieval Request - {}').format(getattr(settings, 'SCHOOL_NAME', 'Our School'))
+
+    # Get emails of actual admin users (superusers and admin/principal roles)
+    admin_users = User.objects.filter(
+        Q(is_superuser=True) |
+        Q(user_roles__role__role_type__in=['super_admin', 'admin', 'principal'], user_roles__status='active')
+    ).distinct()
+    admin_emails = list(admin_users.values_list('email', flat=True))
+
+    # Fallback to ADMINS setting or DEFAULT_FROM_EMAIL if no admin users found
+    if not admin_emails:
+        admin_emails = [email for name, email in settings.ADMINS] if hasattr(settings, 'ADMINS') else [settings.DEFAULT_FROM_EMAIL]
+
+    if not admin_emails:
+        logger.warning("No admin emails found for password retrieval notification")
+        return False
+
+    context = {
+        'user': user,
+        'school_name': getattr(settings, 'SCHOOL_NAME', 'Our School'),
+        'retrieval_time': timezone.now(),
+        'ip_address': get_client_ip(request),
+        'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+        'admin_panel_url': request.build_absolute_uri(reverse('admin:index')),
+        'user_detail_url': request.build_absolute_uri(reverse('users:user_detail', kwargs={'user_id': user.id})),
+    }
+
+    html_message = render_to_string('users/emails/admin_password_retrieval_notification.html', context)
+    text_message = strip_tags(html_message)
+
+    success = send_email_with_retry(
+        subject=subject,
+        message=text_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=admin_emails,
+        html_message=html_message
+    )
+
+    if success:
+        logger.info(f"Admin password retrieval notification sent to {len(admin_emails)} admins for user {user.email}")
+    else:
+        logger.error(f"Failed to send admin notification for password retrieval by user {user.email}")
+
+    return success
+
 def custom_login(request):
     """
     Custom login view with enhanced logging and security.

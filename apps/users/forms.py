@@ -42,7 +42,7 @@ class UserCreationForm(forms.ModelForm):
         widgets = {
             'email': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': _('user@example.com')
+                'placeholder': _('user@nordalms.pythonanywhere.com')
             }),
             'first_name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -205,7 +205,7 @@ class UserProfileForm(forms.ModelForm):
             }),
             'website': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': _('https://example.com')
+                'placeholder': _('https://nordalms.pythonanywhere.com')
             }),
             'facebook': forms.URLInput(attrs={
                 'class': 'form-control',
@@ -906,7 +906,7 @@ class StudentApplicationForm(forms.ModelForm):
             # Contact Information
             'email': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': _('student@example.com')
+                'placeholder': _('student@nordalms.pythonanywhere.com')
             }),
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -963,7 +963,7 @@ class StudentApplicationForm(forms.ModelForm):
             }),
             'parent_email': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': _('parent@example.com')
+                'placeholder': _('parent@nordalms.pythonanywhere.com')
             }),
             'parent_phone': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -1240,7 +1240,7 @@ class StaffApplicationForm(forms.ModelForm):
             # Contact Information
             'email': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': _('applicant@example.com')
+                'placeholder': _('applicant@nordalms.pythonanywhere.com')
             }),
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',

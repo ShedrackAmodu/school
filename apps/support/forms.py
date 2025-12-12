@@ -95,7 +95,7 @@ class ResourceForm(forms.ModelForm):
             'file': forms.FileInput(attrs={'class': 'form-control'}),
             'external_url': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'https://example.com'
+                'placeholder': 'https://nordalms.pythonanywhere.com'
             }),
             'category': forms.Select(attrs={'class': 'form-control'}),
             'tags': forms.SelectMultiple(attrs={

@@ -160,7 +160,7 @@ AUTH_USER_MODEL = 'users.User'
 SITE_ID = 1
 
 # Admins for error reporting
-ADMINS = [("Your Name", "your_email@example.com")]
+ADMINS = [("Your Name", "your_@nordalms.pythonanywhere.com")]
 MANAGERS = ADMINS
 
 # Email settings

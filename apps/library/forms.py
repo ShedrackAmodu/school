@@ -111,7 +111,7 @@ class PublisherForm(forms.ModelForm):
             'name', 'contact_person', 'email', 'phone', 'website', 'status'
         ]
         widgets = {
-            'website': forms.URLInput(attrs={'placeholder': 'https://example.com'}),
+            'website': forms.URLInput(attrs={'placeholder': 'https://nordalms.pythonanywhere.com'}),
         }
 
     def clean_email(self):
