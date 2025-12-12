@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
     "django.contrib.humanize",
     "templated_mail",
     'crispy_forms',
@@ -154,6 +155,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Custom user model
 AUTH_USER_MODEL = 'users.User'
+
+# Site framework settings
+SITE_ID = 1
 
 # Admins for error reporting
 ADMINS = [("Your Name", "your_email@example.com")]

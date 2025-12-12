@@ -358,6 +358,14 @@ class ProjectSetup:
         """Set up initial data using management commands."""
         self.print_header("SETTING UP INITIAL DATA")
 
+        # Set site domain for local development
+        site_shell_script = r"from django.contrib.sites.models import Site; site, created = Site.objects.get_or_create(id=1, defaults={'name': 'NexusSMS', 'domain': 'localhost:8000'}); site.name = 'NexusSMS'; site.domain = 'localhost:8000'; site.save(); print('Site domain set to localhost:8000 for development')"
+        self.run_command(
+            f'"{self.python_executable}" manage.py shell -c "{site_shell_script}"',
+            "Configuring site domain for local development",
+            critical=False
+        )
+
         # List of potential setup commands (some might not exist in all projects)
         setup_commands = [
             (f'"{self.python_executable}" manage.py seed_staff_roles',

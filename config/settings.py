@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.humanize",
+    "django.contrib.sites",
 
     # Third-party apps
     "templated_mail",
@@ -416,3 +416,4 @@ DATABASES = {
 # Site name for templates
 SITE_NAME = "Nexus Intelligence School Management System"
 SITE_DOMAIN = "NordaLMS.pythonanywhere.com"
+SITE_ID = 1
