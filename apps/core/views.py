@@ -1183,3 +1183,127 @@ def institution_statistics_api(request):
         })
 
     return JsonResponse(data)
+
+
+class GlobalSearchView(LoginRequiredMixin, View):
+    """
+    Global search view that searches across multiple models based on user query and filter.
+    """
+    template_name = 'core/search/results.html'
+
+    def get(self, request):
+        query = request.GET.get('q', '').strip()
+        filter_type = request.GET.get('filter', 'all')
+
+        results = {
+            'students': [],
+            'teachers': [],
+            'classes': [],
+            'documents': [],
+        }
+
+        if query:
+            if filter_type in ['all', 'students']:
+                results['students'] = self.search_students(query)
+            if filter_type in ['all', 'teachers']:
+                results['teachers'] = self.search_teachers(query)
+            if filter_type in ['all', 'classes']:
+                results['classes'] = self.search_classes(query)
+            if filter_type in ['all', 'documents']:
+                results['documents'] = self.search_documents(query)
+
+        context = {
+            'query': query,
+            'filter_type': filter_type,
+            'results': results,
+            'total_results': sum(len(res) for res in results.values()),
+            'page_title': _('Search Results'),
+        }
+
+        return render(request, self.template_name, context)
+
+    def search_students(self, query):
+        """Search for students across relevant fields."""
+        from apps.users.models import User
+
+        return User.objects.filter(
+            Q(user_roles__role__role_type='student') &
+            (
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(email__icontains=query) |
+                Q(profile__student_id__icontains=query) |
+                Q(profile__phone_primary__icontains=query)
+            )
+        ).distinct().select_related('profile')[:10]
+
+    def search_teachers(self, query):
+        """Search for teachers/staff across relevant fields."""
+        from apps.users.models import User
+
+        return User.objects.filter(
+            Q(user_roles__role__role_type__in=['teacher', 'staff', 'admin']) &
+            (
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(email__icontains=query) |
+                Q(profile__employee_id__icontains=query) |
+                Q(profile__phone_primary__icontains=query)
+            )
+        ).distinct().select_related('profile')[:10]
+
+    def search_classes(self, query):
+        """Search for classes across relevant fields."""
+        from apps.academics.models import Class
+
+        return Class.objects.filter(
+            Q(name__icontains=query) |
+            Q(class_code__icontains=query) |
+            Q(class_stream__stream_name__icontains=query)
+        ).distinct().select_related('academic_session', 'class_teacher')[:10]
+
+    def search_documents(self, query):
+        """Search for documents/books across relevant fields."""
+        try:
+            from apps.library.models import Book, BookCopy
+
+            # Search books
+            books = Book.objects.filter(
+                Q(title__icontains=query) |
+                Q(isbn__icontains=query) |
+                Q(authors__first_name__icontains=query) |
+                Q(authors__last_name__icontains=query)
+            ).distinct()[:10]
+
+            # Search book copies for barcodes
+            book_copies = BookCopy.objects.filter(
+                Q(barcode__icontains=query)
+            ).select_related('book')[:10]
+
+            # Combine and deduplicate
+            documents = []
+            seen_books = set()
+
+            for book in books:
+                if book.id not in seen_books:
+                    documents.append({
+                        'type': 'book',
+                        'object': book,
+                        'url': reverse('library:book_detail', kwargs={'pk': book.pk})
+                    })
+                    seen_books.add(book.id)
+
+            for copy in book_copies:
+                if copy.book.id not in seen_books:
+                    documents.append({
+                        'type': 'book_copy',
+                        'object': copy,
+                        'url': reverse('library:book_borrow_detail', kwargs={'pk': copy.pk})
+                    })
+                    seen_books.add(copy.book.id)
+
+            return documents[:10]
+
+        except ImportError:
+            # Library app not available
+            return []

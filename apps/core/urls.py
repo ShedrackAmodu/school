@@ -32,6 +32,9 @@ urlpatterns = [
     path('principal/curriculum-planning/', views.PrincipalCurriculumPlanningView.as_view(), name='principal_curriculum_planning'),
     path('principal/communication/', views.PrincipalCommunicationView.as_view(), name='principal_communication'),
 
+    # Global Search
+    path('search/', views.GlobalSearchView.as_view(), name='global_search'),
+
     # API endpoints
     path('api/config/<str:config_key>/', views.get_config_value, name='get_config_value'),
     path('api/config/validate/', views.validate_config_value, name='validate_config_value'),
