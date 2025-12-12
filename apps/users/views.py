@@ -1441,27 +1441,65 @@ def password_change_view(request):
     if request.method == 'POST':
         form = CustomPasswordChangeForm(request.user, request.POST)
         if form.is_valid():
+            # Log before change
+            old_password_hash = request.user.password
+
+            # Save the password change
             user = form.save()
-            
-            # Log password change
-            AuditLog.objects.create(
-                user=request.user,
-                action=AuditLog.ActionType.UPDATE,
-                model_name='users.User',
-                object_id=str(request.user.id),
-                ip_address=get_client_ip(request),
-                details={'action': 'Password changed'}
-            )
-            
-            messages.success(request, _('Password changed successfully!'))
-            return redirect('users:profile')
+
+            # Force refresh from database to ensure changes are persisted
+            user.refresh_from_db()
+
+            # Verify password actually changed
+            new_password_hash = user.password
+            password_changed = (old_password_hash != new_password_hash)
+
+            logger.info(f"Password change attempt for user {user.email}: form valid, password_changed={password_changed}")
+
+            if password_changed:
+                # Create password history entry
+                PasswordHistory.objects.create(
+                    user=user,
+                    password_hash=new_password_hash,
+                    changed_by=user,
+                    change_reason='regular'
+                )
+
+                # Log password change
+                AuditLog.objects.create(
+                    user=user,
+                    action=AuditLog.ActionType.UPDATE,
+                    model_name='users.User',
+                    object_id=str(user.id),
+                    ip_address=get_client_ip(request),
+                    details={'action': 'Password changed'}
+                )
+
+                # Send confirmation email
+                send_password_change_email(user, request)
+
+                messages.success(request, _('Password changed successfully!'))
+                return redirect('users:profile')
+            else:
+                logger.error(f"Password change failed for user {user.email}: password hash did not change")
+                messages.error(request, _('Password change failed. Please try again.'))
+        else:
+            logger.warning(f"Password change form invalid for user {request.user.email}: {form.errors}")
     else:
         form = CustomPasswordChangeForm(request.user)
-    
+
+    # Get password history for template (if exists)
+    try:
+        password_history = request.user.password_history.last()
+        last_changed_time = password_history.changed_at if password_history else None
+    except Exception:
+        last_changed_time = None
+
     context = {
         'title': _('Change Password'),
         'form': form,
         'active_tab': 'password',
+        'last_changed_time': last_changed_time,
     }
     return render(request, 'users/profile/password_change.html', context)
 

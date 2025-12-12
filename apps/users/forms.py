@@ -477,7 +477,7 @@ class CustomPasswordChangeForm(PasswordChangeForm):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
         # Add Bootstrap classes to all fields
         for field_name in self.fields:
             self.fields[field_name].widget.attrs.update({
@@ -492,7 +492,7 @@ class CustomSetPasswordForm(SetPasswordForm):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
         # Add Bootstrap classes to all fields
         for field_name in self.fields:
             self.fields[field_name].widget.attrs.update({
