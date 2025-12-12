@@ -33,8 +33,12 @@
             </a>
 
             <!-- Desktop Navigation Toggle -->
-            <button class="btn btn-link navbar-btn d-none d-lg-block" type="button" id="sidebarToggleDesktop">
-                <i class="bi bi-layout-sidebar"></i>
+            <button class="btn btn-link navbar-btn d-none d-lg-block desktop-toggle" type="button" id="sidebarToggleDesktop">
+                <div class="hamburger">
+                    <span class="line"></span>
+                    <span class="line"></span>
+                    <span class="line"></span>
+                </div>
                 <span class="visually-hidden">{% trans "Toggle sidebar" %}</span>
             </button>
         </div>
@@ -99,6 +103,11 @@
                 {% endif %}
             </div>
         </div>
+
+<!-- Floating Action Button Toggle for Mobile -->
+<button class="fab-toggle d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar">
+    <span class="fab-icon"></span>
+</button>
 
         <!-- Right Section: User Menu & Notifications -->
         <div class="navbar-nav flex-row align-items-center">
@@ -307,6 +316,121 @@
     font-weight: 600;
 }
 
+/* Floating Action Button Toggle Styles */
+.fab-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+    border: none;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-toggle:hover {
+    transform: translateY(-5px) scale(1.1);
+    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.4);
+}
+
+.fab-toggle:active {
+    transform: translateY(-2px) scale(1.05);
+}
+
+.fab-icon {
+    position: relative;
+    width: 24px;
+    height: 2px;
+    background: white;
+    border-radius: 1px;
+    transition: all 0.3s ease;
+}
+
+.fab-icon::before,
+.fab-icon::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 2px;
+    background: white;
+    border-radius: 1px;
+    left: 0;
+    transition: all 0.3s ease;
+}
+
+.fab-icon::before {
+    top: -8px;
+}
+
+.fab-icon::after {
+    top: 8px;
+}
+
+.fab-toggle.active .fab-icon {
+    background: transparent;
+}
+
+.fab-toggle.active .fab-icon::before {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.fab-toggle.active .fab-icon::after {
+    transform: rotate(-45deg) translate(7px, -6px);
+}
+
+/* Desktop Hamburger Toggle Styles */
+.desktop-toggle .hamburger {
+    width: 20px;
+    height: 14px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 1;
+}
+
+.desktop-toggle .hamburger .line {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background-color: #6c757d;
+    border-radius: 2px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+}
+
+.desktop-toggle:hover .hamburger .line {
+    background-color: #0d6efd;
+}
+
+/* Active/Collapsed State - Show expanded/X icon */
+.desktop-toggle.active .hamburger .line:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+}
+
+.desktop-toggle.active .hamburger .line:nth-child(2) {
+    opacity: 0;
+    transform: translateX(-10px);
+}
+
+.desktop-toggle.active .hamburger .line:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+}
+
+/* Only show on mobile */
+@media (min-width: 768px) {
+    .fab-toggle {
+        display: none !important;
+    }
+}
+
 /* Dark theme support */
 [data-bs-theme="dark"] .header {
     background-color: rgba(33, 37, 41, 0.95);
@@ -369,8 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sidebarToggleDesktop.addEventListener('click', function() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('collapsed');
-            this.querySelector('i').classList.toggle('bi-layout-sidebar');
-            this.querySelector('i').classList.toggle('bi-layout-sidebar-inset');
+            this.classList.toggle('active');
         });
     }
 
@@ -451,6 +574,34 @@ document.addEventListener('DOMContentLoaded', function() {
             icon.classList.remove('bi-fullscreen-exit');
             icon.classList.add('bi-arrows-fullscreen');
         }
+    }
+
+    // Floating Action Button toggle synchronization
+    const fabToggle = document.querySelector('.fab-toggle');
+    const sidebar = document.getElementById('sidebar');
+
+    if (fabToggle && sidebar) {
+        // Update button state when sidebar collapses/expands
+        sidebar.addEventListener('show.bs.collapse', function() {
+            fabToggle.classList.add('active');
+        });
+
+        sidebar.addEventListener('hide.bs.collapse', function() {
+            fabToggle.classList.remove('active');
+        });
+
+        // Check initial state
+        if (sidebar.classList.contains('show')) {
+            fabToggle.classList.add('active');
+        }
+
+        // Optional: Close sidebar when clicking outside on mobile
+        fabToggle.addEventListener('click', function() {
+            if (window.innerWidth < 768) {
+                // The Bootstrap collapse will handle the toggle
+                // Additional logic can be added here if needed
+            }
+        });
     }
 
     // Keyboard shortcuts
