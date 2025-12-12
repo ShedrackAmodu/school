@@ -7,86 +7,6 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 
-class CoreBaseModel(models.Model):
-    """
-    Comprehensive base model combining all core functionalities:
-    - UUID primary key
-    - Created/updated timestamps
-    - Status tracking with change timestamp
-    - Soft delete functionality
-    """
-    
-    class Status(models.TextChoices):
-        ACTIVE = 'active', _('Active')
-        INACTIVE = 'inactive', _('Inactive')
-        PENDING = 'pending', _('Pending')
-        SUSPENDED = 'suspended', _('Suspended')
-        ARCHIVED = 'archived', _('Archived')
-
-    # UUID Primary Key
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
-    # Timestamp fields
-    created_at = models.DateTimeField(_('created at'), auto_now_add=True, db_index=True)
-    updated_at = models.DateTimeField(_('updated at'), auto_now=True, db_index=True)
-    
-    # Status fields
-    status = models.CharField(
-        _('status'),
-        max_length=20,
-        choices=Status.choices,
-        default=Status.ACTIVE,
-        db_index=True
-    )
-    status_changed_at = models.DateTimeField(_('status changed at'), auto_now_add=True)
-    
-    # Soft delete fields
-    is_deleted = models.BooleanField(_('is deleted'), default=False, db_index=True)
-    deleted_at = models.DateTimeField(_('deleted at'), null=True, blank=True)
-
-    class Meta:
-        abstract = True
-
-    def save(self, *args, **kwargs):
-        """
-        Update status_changed_at when status changes.
-        """
-        if self.pk and not self._state.adding:  # Check if object exists and is not being added
-            try:
-                original = self.__class__.objects.get(pk=self.pk)
-                if original.status != self.status:
-                    self.status_changed_at = timezone.now()
-            except self.__class__.DoesNotExist:
-                # Object doesn't exist yet (shouldn't happen in normal flow)
-                pass
-        super().save(*args, **kwargs)
-
-    def delete(self, using=None, keep_parents=False):
-        """
-        Soft delete by setting is_deleted flag and deleted_at timestamp.
-        """
-        self.is_deleted = True
-        self.deleted_at = timezone.now()
-        self.save()
-
-    def hard_delete(self, using=None, keep_parents=False):
-        """
-        Perform actual database deletion.
-        """
-        super().delete(using=using, keep_parents=keep_parents)
-
-    def restore(self):
-        """
-        Restore a soft-deleted instance.
-        """
-        self.is_deleted = False
-        self.deleted_at = None
-        self.save()
-
-    def __str__(self):
-        return f"{self.__class__.__name__} {self.id}"
-
-
 class AddressModel(models.Model):
     """
     Abstract model for storing address information.
@@ -129,7 +49,25 @@ class ContactModel(models.Model):
         abstract = True
 
 
-class Institution(CoreBaseModel, AddressModel, ContactModel):
+class Institution(AddressModel, ContactModel):
+    """
+    Model for managing multiple school institutions under one platform.
+    """
+    # UUID Primary Key
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Timestamp fields
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True, db_index=True)
+
+    # Status fields
+    status = models.CharField(
+        _('status'),
+        max_length=20,
+        choices=[('active', _('Active')), ('inactive', _('Inactive')), ('pending', _('Pending')), ('suspended', _('Suspended')), ('archived', _('Archived'))],
+        default='active',
+        db_index=True
+    )
     """
     Model for managing multiple school institutions under one platform.
     """
@@ -187,6 +125,16 @@ class Institution(CoreBaseModel, AddressModel, ContactModel):
     # System Settings
     database_schema = models.CharField(_('database schema'), max_length=50, blank=True, help_text=_('For multi-tenant database separation'))
     api_key = models.CharField(_('API key'), max_length=100, blank=True, unique=True)
+
+    # Relationships
+    users = models.ManyToManyField(
+        'users.User',
+        through='InstitutionUser',
+        related_name='institutions',
+        verbose_name=_('users'),
+        blank=True,
+        help_text=_('Users associated with this institution')
+    )
 
     # Metadata
     created_by = models.ForeignKey(
@@ -250,6 +198,167 @@ class Institution(CoreBaseModel, AddressModel, ContactModel):
         if self.max_students == 0:
             return 0
         return (self.current_student_count / self.max_students) * 100
+
+
+class CoreBaseModel(models.Model):
+    """
+    Comprehensive base model combining all core functionalities:
+    - UUID primary key
+    - Created/updated timestamps
+    - Status tracking with change timestamp
+    - Soft delete functionality
+    """
+    
+    class Status(models.TextChoices):
+        ACTIVE = 'active', _('Active')
+        INACTIVE = 'inactive', _('Inactive')
+        PENDING = 'pending', _('Pending')
+        SUSPENDED = 'suspended', _('Suspended')
+        ARCHIVED = 'archived', _('Archived')
+
+    # UUID Primary Key
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Timestamp fields
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(_('updated at'), auto_now=True, db_index=True)
+    
+    # Status fields
+    status = models.CharField(
+        _('status'),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True
+    )
+    status_changed_at = models.DateTimeField(_('status changed at'), auto_now_add=True)
+    
+    # Soft delete fields
+    is_deleted = models.BooleanField(_('is deleted'), default=False, db_index=True)
+    deleted_at = models.DateTimeField(_('deleted at'), null=True, blank=True)
+
+    # Multi-tenancy support
+    institution = models.ForeignKey(
+        Institution,
+        on_delete=models.CASCADE,
+        related_name='%(class)s_records',
+        verbose_name=_('institution'),
+        help_text=_('Institution this record belongs to')
+    )
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        """
+        Update status_changed_at when status changes.
+        Set default institution if none is set during creation.
+        """
+        if self.pk and not self._state.adding:  # Check if object exists and is not being added
+            try:
+                original = self.__class__.objects.get(pk=self.pk)
+                if original.status != self.status:
+                    self.status_changed_at = timezone.now()
+            except self.__class__.DoesNotExist:
+                # Object doesn't exist yet (shouldn't happen in normal flow)
+                pass
+
+        # Set default institution if none is set and this is a new instance
+        if self._state.adding and getattr(self, 'institution_id', None) is None:
+            try:
+                default_institution = Institution.objects.filter(
+                    code='DEFAULT',
+                    is_active=True
+                ).first()
+                if default_institution:
+                    self.institution = default_institution
+                else:
+                    # If no default exists, try to get any active institution
+                    any_institution = Institution.objects.filter(is_active=True).first()
+                    if any_institution:
+                        self.institution = any_institution
+            except Institution.DoesNotExist:
+                pass  # Let it fail with proper error message
+
+        super().save(*args, **kwargs)
+
+    def delete(self, using=None, keep_parents=False):
+        """
+        Soft delete by setting is_deleted flag and deleted_at timestamp.
+        """
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save()
+
+    def hard_delete(self, using=None, keep_parents=False):
+        """
+        Perform actual database deletion.
+        """
+        super().delete(using=using, keep_parents=keep_parents)
+
+    def restore(self):
+        """
+        Restore a soft-deleted instance.
+        """
+        self.is_deleted = False
+        self.deleted_at = None
+        self.save()
+
+    def __str__(self):
+        return f"{self.__class__.__name__} {self.id}"
+
+
+class InstitutionUser(CoreBaseModel):
+    """
+    Through model for user-institution many-to-many relationship.
+    Provides additional fields for user-institution associations.
+    """
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='institution_memberships',
+        verbose_name=_('user')
+    )
+    institution = models.ForeignKey(
+        Institution,
+        on_delete=models.CASCADE,
+        related_name='user_memberships',
+        verbose_name=_('institution')
+    )
+    date_joined = models.DateField(_('date joined'), auto_now_add=True)
+    employee_id = models.CharField(
+        _('employee/student ID'),
+        max_length=20,
+        blank=True,
+        help_text=_('Unique identifier within this institution')
+    )
+    is_primary = models.BooleanField(
+        _('is primary institution'),
+        default=False,
+        help_text=_('Primary institution for this user')
+    )
+
+    class Meta:
+        verbose_name = _('Institution User')
+        verbose_name_plural = _('Institution Users')
+        unique_together = ['user', 'institution']
+        ordering = ['-is_primary', 'date_joined']
+        indexes = [
+            models.Index(fields=['user', 'is_primary']),
+            models.Index(fields=['institution', 'user']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} at {self.institution}"
+
+    def save(self, *args, **kwargs):
+        """Ensure only one primary institution per user."""
+        if self.is_primary:
+            InstitutionUser.objects.filter(
+                user=self.user,
+                is_primary=True
+            ).exclude(pk=self.pk).update(is_primary=False)
+        super().save(*args, **kwargs)
 
 
 class InstitutionConfig(CoreBaseModel):

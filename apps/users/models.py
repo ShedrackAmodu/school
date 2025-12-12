@@ -90,6 +90,8 @@ class User(AbstractUser, CoreBaseModel):
     current_login_ip = models.GenericIPAddressField(_('current login IP'), null=True, blank=True)
     login_count = models.PositiveIntegerField(_('login count'), default=0)
 
+
+
     # Preferences
     language = models.CharField(
         _('language'),

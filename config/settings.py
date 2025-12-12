@@ -74,6 +74,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+
+    # Multi-tenancy middleware (must come after AuthenticationMiddleware)
+    "apps.core.middleware.TenantMiddleware",
+
     # Allauth middleware
     "allauth.account.middleware.AccountMiddleware",
 ]
@@ -98,6 +102,7 @@ TEMPLATES = [
                     "django.contrib.auth.context_processors.auth",
                     "django.contrib.messages.context_processors.messages",
                     "django.contrib.sites.context_processors.site",
+                    'apps.core.context_processors.tenant_context',
                     'apps.communication.context_processors.notification_count',
                     'apps.users.context_processors.user_roles',
                 ],
@@ -286,8 +291,10 @@ if ON_PYTHONANYWHERE:
     ALLOWED_HOSTS = [
         'NordaLMS.pythonanywhere.com',
         'www.NordaLMS.pythonanywhere.com',
+        # Add tenant subdomains dynamically as institutions are created
+        # Example: 'school1.NordaLMS.pythonanywhere.com', 'school2.NordaLMS.pythonanywhere.com'
     ]
-    
+
     # Production security settings
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
@@ -300,12 +307,16 @@ if ON_PYTHONANYWHERE:
     SECURE_HSTS_PRELOAD = True
     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
     SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
-    
+
     # CSRF trusted origins for PythonAnywhere
     CSRF_TRUSTED_ORIGINS = [
         'https://NordaLMS.pythonanywhere.com',
         'https://www.NordaLMS.pythonanywhere.com',
+        # Add tenant subdomains dynamically: 'https://*.NordaLMS.pythonanywhere.com'
     ]
+
+    # Update TENANT_DOMAIN for production
+    TENANT_DOMAIN = 'NordaLMS.pythonanywhere.com'
     
     # Adjust static files for PythonAnywhere production
     STATIC_ROOT = BASE_DIR / "static"
@@ -418,3 +429,31 @@ DATABASES = {
 SITE_NAME = "Nexus Intelligence School Management System"
 SITE_DOMAIN = "NordaLMS.pythonanywhere.com"
 SITE_ID = 1
+
+# ============================
+# MULTI-TENANCY SETTINGS
+# ============================
+
+# Domain for tenant subdomains (e.g., institution-code.TENANT_DOMAIN)
+TENANT_DOMAIN = 'localhost'  # Change to your actual domain in production
+
+# Default institution for single-tenant fallback
+DEFAULT_INSTITUTION_CODE = None  # Set to an institution code if you want a default fallback
+
+# Enable tenant subdomain routing (disable for single institution mode)
+TENANT_SUBDOMAIN_ENABLED = True
+
+# Allow users to switch institutions (if they have access to multiple)
+ALLOW_INSTITUTION_SWITCHING = True
+
+# Cache timeout for institution data (in seconds)
+INSTITUTION_CACHE_TIMEOUT = 3600  # 1 hour
+
+# Enable institution-specific branding
+INSTITUTION_BRANDING_ENABLED = True
+
+# Maximum institutions per user account
+MAX_INSTITUTIONS_PER_USER = 5
+
+# Enable tenant data isolation (always True for security)
+TENANT_DATA_ISOLATION = True

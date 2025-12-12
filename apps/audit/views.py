@@ -356,7 +356,8 @@ def _can_create_audit_log():
     """
     Check if it's safe to create audit logs
     """
-    return not _is_migration_running() and _audit_log_table_exists()
+    from apps.core.middleware import get_current_institution
+    return not _is_migration_running() and _audit_log_table_exists() and get_current_institution() is not None
 
 
 # Signal handlers for automatic audit logging
