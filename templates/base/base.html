@@ -254,6 +254,95 @@
                 </div>
             </div>
         </div>
+
+        <!-- Quick Help Modal -->
+        <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="helpModalLabel">
+                            <i class="bi bi-question-circle-fill me-2"></i>{% trans "Quick Help & Support" %}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <!-- Help Center -->
+                            <div class="col-md-6 col-sm-12">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center">
+                                        <div class="mb-3">
+                                            <i class="bi bi-book-fill text-primary" style="font-size: 2rem;"></i>
+                                        </div>
+                                        <h6 class="card-title">Help Center</h6>
+                                        <p class="card-text text-muted small">Browse our comprehensive help articles and guides.</p>
+                                        <a href="{% url 'support:article_list' %}" class="btn btn-outline-primary btn-sm">Visit Help Center</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- FAQ -->
+                            <div class="col-md-6 col-sm-12">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center">
+                                        <div class="mb-3">
+                                            <i class="bi bi-question-circle-fill text-success" style="font-size: 2rem;"></i>
+                                        </div>
+                                        <h6 class="card-title">Frequently Asked Questions</h6>
+                                        <p class="card-text text-muted small">Find quick answers to common questions.</p>
+                                        <a href="{% url 'support:faq_list' %}" class="btn btn-outline-success btn-sm">View FAQ</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- User Guides -->
+                            <div class="col-md-6 col-sm-12">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center">
+                                        <div class="mb-3">
+                                            <i class="bi bi-file-earmark-text-fill text-info" style="font-size: 2rem;"></i>
+                                        </div>
+                                        <h6 class="card-title">User Guides & Resources</h6>
+                                        <p class="card-text text-muted small">Access detailed user guides and learning resources.</p>
+                                        <a href="{% url 'support:resource_list' %}" class="btn btn-outline-info btn-sm">Browse Resources</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Support -->
+                            <div class="col-md-6 col-sm-12">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center">
+                                        <div class="mb-3">
+                                            <i class="bi bi-headset-fill text-warning" style="font-size: 2rem;"></i>
+                                        </div>
+                                        <h6 class="card-title">Contact Support</h6>
+                                        <p class="card-text text-muted small">Get in touch with our support team for assistance.</p>
+                                        <a href="{% url 'support:contact' %}" class="btn btn-outline-warning btn-sm">Contact Us</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <hr class="my-4">
+                        <div class="text-center">
+                            <h6 class="mb-3">Need More Help?</h6>
+                            <div class="d-flex flex-wrap justify-content-center gap-2">
+                                <a href="{% url 'support:privacy_policy' %}" class="btn btn-sm btn-outline-secondary">Privacy Policy</a>
+                                <a href="{% url 'support:terms_of_service' %}" class="btn btn-sm btn-outline-secondary">Terms of Service</a>
+                                <a href="mailto:support@nexusschoolmanagement.edu" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-envelope me-1"></i>Email Support
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Close" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% endblock %}
     </div>
 

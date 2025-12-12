@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <!-- Footer Component - Working Version -->
 <footer class="footer bg-dark text-light" style="background: linear-gradient(135deg, #212529 0%, #343a40 100%) !important; position: relative; z-index: 100; margin-top: auto;">
@@ -29,6 +30,7 @@
                 </div>
             </div>
 
+            {% if user.is_authenticated %}
             <!-- Quick Access -->
             <div class="col-lg-4 col-md-4">
                 <h6 style="text-transform: uppercase; font-weight: bold; margin-bottom: 1rem; color: white;">Quick Access</h6>
@@ -40,16 +42,17 @@
                     <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">My Profile</a></li>
                 </ul>
             </div>
+            {% endif %}
 
             <!-- Support & Resources -->
             <div class="col-lg-4 col-md-4">
                 <h6 style="text-transform: uppercase; font-weight: bold; margin-bottom: 1rem; color: white;">Support & Resources</h6>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Help Center</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Knowledge Base</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">User Guides</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Video Tutorials</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">FAQ</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:article_list' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Help Center</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:article_list' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Knowledge Base</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:resource_list' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">User Guides</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:resource_list' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Video Tutorials</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:faq_list' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">FAQ</a></li>
                 </ul>
             </div>
 
@@ -57,11 +60,11 @@
             <div class="col-lg-4 col-md-4">
                 <h6 style="text-transform: uppercase; font-weight: bold; margin-bottom: 1rem; color: white;">Legal & Contact</h6>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Privacy Policy</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Terms of Service</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Data Protection</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Cookie Policy</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="#" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Contact Support</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:privacy_policy' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Privacy Policy</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:terms_of_service' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Terms of Service</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:data_protection' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Data Protection</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:cookie_policy' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Cookie Policy</a></li>
+                    <li style="margin-bottom: 0.5rem;"><a href="{% url 'support:contact' %}" style="color: white !important; text-decoration: none; display: block; padding: 0.25rem 0;">Contact Support</a></li>
                 </ul>
             </div>
 
@@ -129,7 +132,7 @@
 
 <!-- Help Floating Button -->
 <div style="position: fixed; bottom: 2rem; right: 2rem; z-index: 1030;">
-    <button style="width: 60px; height: 60px; border-radius: 50%; background: #0d6efd; border: none; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4); cursor: pointer;">
+    <button data-bs-toggle="modal" data-bs-target="#helpModal" style="width: 60px; height: 60px; border-radius: 50%; background: #0d6efd; border: none; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4); cursor: pointer;" title="{% trans 'Quick Help' %}">
         <i class="bi bi-question-lg"></i>
     </button>
 </div>
