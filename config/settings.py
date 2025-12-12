@@ -258,17 +258,22 @@ MANAGERS = ADMINS
 # EMAIL CONFIGURATION
 # ============================
 
-# Email settings for PythonAnywhere (using Gmail)
+# Email Backend Configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_HOST_USER = "supereaglepilot@gmail.com"
-EMAIL_HOST_PASSWORD = "lwuiaxslniodkwcr"
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', "supereaglepilot@gmail.com")  # Use environment variable
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', "lwuiaxslniodkwcr")  # Use environment variable (app password)
+EMAIL_TIMEOUT = 30
 DEFAULT_FROM_EMAIL = "noreply@NordaLMS.pythonanywhere.com"
 SERVER_EMAIL = "errors@NordaLMS.pythonanywhere.com"
-EMAIL_TIMEOUT = 30
+
+# For development, you can set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in your environment
+# Example: export EMAIL_HOST_USER="your-email@gmail.com"
+# Example: export EMAIL_HOST_PASSWORD="your-gmail-app-password"
+# If not set, defaults above will be used (but should be set for each developer)
 
 # ============================
 # SECURITY SETTINGS

@@ -1896,6 +1896,7 @@ def pending_applications(request):
 def approve_application(request, application_id, application_type):
     """
     Approve an application and create user account.
+    Supports both AJAX and regular POST requests.
     """
     try:
         with transaction.atomic():
@@ -1912,7 +1913,10 @@ def approve_application(request, application_id, application_type):
                 user, temporary_password = create_user_from_staff_application(application, request.user)
 
             else:
-                messages.error(request, _('Invalid application type.'))
+                error_msg = _('Invalid application type.')
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': error_msg}, status=400)
+                messages.error(request, error_msg)
                 return redirect('users:pending_applications')
 
             # Update application status
@@ -1941,14 +1945,31 @@ def approve_application(request, application_id, application_type):
             # Send approval email
             send_approval_email(request, application, user, temporary_password)
 
-            messages.success(request, _('Application approved and user account created!'))
+            success_msg = _('Application approved and user account created!')
+
+            # Handle AJAX request
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': success_msg,
+                    'application_id': str(application.id),
+                    'user_email': user.email
+                })
+
+            messages.success(request, success_msg)
 
     except Exception as e:
         logger.error(f"Error approving application {application_id}: {str(e)}")
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        messages.error(request, _('Error approving application. Please try again.'))
+        error_msg = _('Error approving application. Please try again.')
+
+        # Handle AJAX request
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': error_msg}, status=500)
+
+        messages.error(request, error_msg)
 
     return redirect('users:pending_applications')
 

@@ -523,12 +523,9 @@
                                             <i class="bi bi-eye me-1"></i> {% trans "View" %}
                                         </a>
                                         {% if application.application_status == 'pending' or application.application_status == 'under_review' %}
-                                            <form method="post" action="{% url 'users:approve_application' application.id 'student' %}" class="d-inline">
-                                                {% csrf_token %}
-                                                <button type="submit" class="btn btn-approve btn-sm" onclick="return confirm('{% trans "Are you sure you want to approve this application?" %}')">
-                                                    <i class="bi bi-check-lg me-1"></i> {% trans "Approve" %}
-                                                </button>
-                                            </form>
+                                            <button type="button" class="btn btn-approve btn-sm approve-btn" data-app-id="{{ application.id }}" data-app-type="student">
+                                                <i class="bi bi-check-lg me-1"></i> {% trans "Approve" %}
+                                            </button>
                                             <button type="button" class="btn btn-review btn-sm" data-bs-toggle="modal" data-bs-target="#reviewStudentModal{{ application.id }}">
                                                 <i class="bi bi-pencil me-1"></i> {% trans "Review" %}
                                             </button>
@@ -620,12 +617,9 @@
                                         <button type="button" class="btn btn-view btn-sm view-details" data-app-id="{{ application.id }}">
                                             <i class="bi bi-eye me-1"></i> {% trans "View" %}
                                         </button>
-                                        <form method="post" action="{% url 'users:approve_application' application.id 'staff' %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-approve btn-sm" onclick="return confirm('{% trans "Are you sure you want to approve this application?" %}')">
-                                                <i class="bi bi-check-lg me-1"></i> {% trans "Approve" %}
-                                            </button>
-                                        </form>
+                                        <button type="button" class="btn btn-approve btn-sm approve-btn" data-app-id="{{ application.id }}" data-app-type="staff">
+                                            <i class="bi bi-check-lg me-1"></i> {% trans "Approve" %}
+                                        </button>
                                         <button type="button" class="btn btn-interview btn-sm" data-bs-toggle="modal" data-bs-target="#interviewModal{{ application.id }}">
                                             <i class="bi bi-calendar-event me-1"></i> {% trans "Interview" %}
                                         </button>
@@ -882,8 +876,113 @@
                 .catch(error => console.error('Error fetching application counts:', error));
         }
         
+        // Approval functionality via AJAX
+        const approveButtons = document.querySelectorAll('.approve-btn');
+        approveButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const appId = this.getAttribute('data-app-id');
+                const appType = this.getAttribute('data-app-type');
+
+                if (!confirm('Are you sure you want to approve this application?')) {
+                    return;
+                }
+
+                // Disable the button and show loading state
+                const originalContent = this.innerHTML;
+                this.disabled = true;
+                this.innerHTML = '<i class="bi bi-hourglass me-1"></i> Processing...';
+
+                // Get CSRF token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                // Make AJAX request
+                fetch(`/users/admin/applications/${appId}/approve/${appType}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        showToast('success', data.message);
+
+                        // Remove the row from the table or update it
+                        const row = this.closest('tr');
+                        row.style.backgroundColor = '#d4edda'; // Light green
+                        setTimeout(() => {
+                            row.remove();
+
+                            // Update counts
+                            const activeTab = document.querySelector('#applicationTabs .nav-link.active');
+                            const tabId = activeTab.getAttribute('data-bs-target').replace('#', '');
+                            const countElement = document.getElementById(`${tabId.slice(1)}-tab .application-count`);
+                            if (countElement) {
+                                let currentCount = parseInt(countElement.textContent) || 0;
+                                countElement.textContent = Math.max(0, currentCount - 1);
+                            }
+                        }, 1000);
+                    } else {
+                        // Show error message
+                        showToast('error', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('error', 'An error occurred while processing the application.');
+                })
+                .finally(() => {
+                    // Re-enable the button
+                    this.disabled = false;
+                    this.innerHTML = originalContent;
+                });
+            });
+        });
+
+        // Toast notification function
+        function showToast(type, message) {
+            // Create toast container if it doesn't exist
+            let toastContainer = document.querySelector('.toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                toastContainer.style.zIndex = '9999';
+                document.body.appendChild(toastContainer);
+            }
+
+            // Create toast element
+            const toastElement = document.createElement('div');
+            toastElement.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+            toastElement.setAttribute('role', 'alert');
+            toastElement.setAttribute('aria-live', 'assertive');
+            toastElement.setAttribute('aria-atomic', 'true');
+
+            toastElement.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            // Add to container
+            toastContainer.appendChild(toastElement);
+
+            // Initialize and show toast
+            const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+            toast.show();
+
+            // Remove toast from DOM after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
+
         // Initial call to autoRefresh and then refresh every 5 minutes
-        autoRefresh(); 
+        autoRefresh();
         setInterval(autoRefresh, 300000); // 5 minutes
     });
 </script>

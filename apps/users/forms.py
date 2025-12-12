@@ -1019,9 +1019,9 @@ class StudentApplicationForm(forms.ModelForm):
         self.fields['academic_session'].queryset = AcademicSession.objects.filter(
             status='active'
         )
-        
-        # Make academic session required - FIXED
-        self.fields['academic_session'].required = True
+
+        # Make academic session optional
+        self.fields['academic_session'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -1031,10 +1031,12 @@ class StudentApplicationForm(forms.ModelForm):
         confirm_parent_email = cleaned_data.get('confirm_parent_email')
         date_of_birth = cleaned_data.get('date_of_birth')
         academic_session = cleaned_data.get('academic_session')
+        parent_first_name = cleaned_data.get('parent_first_name')
+        parent_last_name = cleaned_data.get('parent_last_name')
 
-        # Academic session validation
-        if not academic_session:
-            self.add_error('academic_session', _('Please select an academic session.'))
+        # Academic session validation - REMOVED: now optional
+        # if not academic_session:
+        #     self.add_error('academic_session', _('Please select an academic session.'))
 
         # Email confirmation validation
         if email and confirm_email and email != confirm_email:
@@ -1049,11 +1051,11 @@ class StudentApplicationForm(forms.ModelForm):
             age = today.year - date_of_birth.year - (
                 (today.month, today.day) < (date_of_birth.month, date_of_birth.day)
             )
-            
+
             # Validate minimum age for school (typically 3+)
             if age < 3:
                 self.add_error('date_of_birth', _('Student must be at least 3 years old.'))
-            
+
             # Validate reasonable maximum age (typically 25 for high school)
             if age > 25:
                 self.add_error('date_of_birth', _('Please contact admissions for applicants over 25 years old.'))
@@ -1066,6 +1068,22 @@ class StudentApplicationForm(forms.ModelForm):
             ).exists()
             if existing_app:
                 self.add_error('email', _('An application with this email is already pending review.'))
+
+        # Validate parent names don't look like email addresses
+        if parent_first_name and "@" in parent_first_name:
+            self.add_error('parent_first_name', _("Parent's first name cannot be an email address."))
+        if parent_last_name and "@" in parent_last_name:
+            self.add_error('parent_last_name', _("Parent's last name cannot be an email address."))
+
+        # Auto-fill parent names if parent email matches student email
+        if parent_email and email and parent_email.lower() == email.lower():
+            # If parent email is same as student email, they might be the same person
+            # Auto-fill parent names or enforce proper names
+            if not parent_first_name:
+                cleaned_data['parent_first_name'] = "Parent"
+            if not parent_last_name:
+                # Use student's last name for parent
+                cleaned_data['parent_last_name'] = cleaned_data.get('last_name', "Guardian")
 
         return cleaned_data
 
@@ -1353,8 +1371,8 @@ class StaffApplicationForm(forms.ModelForm):
             status='active'
         ).order_by('name')
 
-        # Make academic session and CV required
-        self.fields['academic_session'].required = True
+        # Make academic session optional, but CV required
+        self.fields['academic_session'].required = False
         self.fields['cv'].required = True
 
         # Add empty label for dropdowns
@@ -1372,9 +1390,9 @@ class StaffApplicationForm(forms.ModelForm):
         years_of_experience = cleaned_data.get('years_of_experience')
         academic_session = cleaned_data.get('academic_session')
 
-        # Academic session validation
-        if not academic_session:
-            self.add_error('academic_session', _('Please select an academic session.'))
+        # Academic session validation - REMOVED: now optional
+        # if not academic_session:
+        #     self.add_error('academic_session', _('Please select an academic session.'))
 
         # Email confirmation validation
         if email and confirm_email and email != confirm_email:
