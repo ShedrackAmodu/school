@@ -275,6 +275,151 @@
             </div>
             {% endif %}
 
+            <!-- Application Information Card -->
+            {% if student_application or staff_application %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clipboard-check me-2"></i>
+                        {% trans "Application Information" %}
+                        <span class="badge bg-{{ application_status_badge }} ms-2">{{ student_application.application_status|title if student_application else staff_application.application_status|title }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if student_application %}
+                    <h6 class="text-muted mb-3">{% trans "Student Application Details" %}</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td class="text-muted" style="width: 40%;">{% trans "Application Number:" %}</td>
+                                    <td><strong>{{ student_application.application_number }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Application Date:" %}</td>
+                                    <td><strong>{{ student_application.application_date|date:"DATE_FORMAT" }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Grade Applying For:" %}</td>
+                                    <td><strong>{{ student_application.grade_applying_for }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Previous School:" %}</td>
+                                    <td><strong>{{ student_application.previous_school|default:"-" }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Academic Session:" %}</td>
+                                    <td><strong>{{ student_application.academic_session.name if student_application.academic_session else "-" }}</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td class="text-muted" style="width: 40%;">{% trans "Application Status:" %}</td>
+                                    <td><span class="badge bg-{{ application_status_badge }}">{{ student_application.get_application_status_display }}</span></td>
+                                </tr>
+                                {% if student_application.reviewed_at %}
+                                <tr>
+                                    <td class="text-muted">{% trans "Reviewed At:" %}</td>
+                                    <td><strong>{{ student_application.reviewed_at|date:"DATETIME_FORMAT" }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Reviewed By:" %}</td>
+                                    <td><strong>{{ student_application.reviewed_by.display_name if student_application.reviewed_by else "-" }}</strong></td>
+                                </tr>
+                                {% endif %}
+                                {% if student_application.review_notes %}
+                                <tr>
+                                    <td colspan="2">
+                                        <div class="mt-2">
+                                            <strong class="text-muted">{% trans "Review Notes:" %}</strong><br>
+                                            <p class="mb-0 mt-1">{{ student_application.review_notes }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+
+                    {% elif staff_application %}
+                    <h6 class="text-muted mb-3">{% trans "Staff Application Details" %}</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td class="text-muted" style="width: 40%;">{% trans "Application Number:" %}</td>
+                                    <td><strong>{{ staff_application.application_number }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Application Date:" %}</td>
+                                    <td><strong>{{ staff_application.application_date|date:"DATE_FORMAT" }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Position Applied For:" %}</td>
+                                    <td><strong>{{ staff_application.position_applied_for.name if staff_application.position_applied_for else "-" }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Position Type:" %}</td>
+                                    <td><strong>{{ staff_application.get_position_type_display }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Expected Salary:" %}</td>
+                                    <td><strong>{{ staff_application.expected_salary|default:"-" }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Academic Session:" %}</td>
+                                    <td><strong>{{ staff_application.academic_session.name if staff_application.academic_session else "-" }}</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td class="text-muted" style="width: 40%;">{% trans "Application Status:" %}</td>
+                                    <td><span class="badge bg-{{ application_status_badge }}">{{ staff_application.get_application_status_display }}</span></td>
+                                </tr>
+                                {% if staff_application.interview_date %}
+                                <tr>
+                                    <td class="text-muted">{% trans "Interview Date:" %}</td>
+                                    <td><strong>{{ staff_application.interview_date|date:"DATETIME_FORMAT" }}</strong></td>
+                                </tr>
+                                {% endif %}
+                                {% if staff_application.reviewed_at %}
+                                <tr>
+                                    <td class="text-muted">{% trans "Reviewed At:" %}</td>
+                                    <td><strong>{{ staff_application.reviewed_at|date:"DATETIME_FORMAT" }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">{% trans "Reviewed By:" %}</td>
+                                    <td><strong>{{ staff_application.reviewed_by.display_name if staff_application.reviewed_by else "-" }}</strong></td>
+                                </tr>
+                                {% endif %}
+                                {% if staff_application.review_notes %}
+                                <tr>
+                                    <td colspan="2">
+                                        <div class="mt-2">
+                                            <strong class="text-muted">{% trans "Review Notes:" %}</strong><br>
+                                            <p class="mb-0 mt-1">{{ staff_application.review_notes }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-3">
+                        <a href="{% if student_application %}{% url 'users:student_application_detail' student_application.id %}{% elif staff_application %}{% url 'users:staff_application_detail' staff_application.id %}{% endif %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i>{% trans "View Full Application Details" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Recent Activity Card -->
             <div class="card">
                 <div class="card-header">

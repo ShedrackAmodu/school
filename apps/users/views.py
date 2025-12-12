@@ -947,6 +947,38 @@ class StaffApplicationView(FormView):
 
         return super().form_valid(form)
 
+def send_password_change_email(user, request):
+    """
+    Send email confirmation when user changes password.
+    """
+    subject = _('Password Changed - {}').format(getattr(settings, 'SCHOOL_NAME', 'Our School'))
+
+    context = {
+        'user': user,
+        'school_name': getattr(settings, 'SCHOOL_NAME', 'Our School'),
+        'contact_email': settings.DEFAULT_FROM_EMAIL,
+        'login_url': request.build_absolute_uri(reverse('users:login')),
+        'change_date': timezone.now(),
+    }
+
+    html_message = render_to_string('users/emails/password_changed.html', context)
+    text_message = strip_tags(html_message)
+
+    success = send_email_with_retry(
+        subject=subject,
+        message=text_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        html_message=html_message
+    )
+
+    if success:
+        logger.info(f"Password change email sent to {user.email}")
+    else:
+        logger.error(f"Failed to send password change email to {user.email}")
+
+    return success
+
 # =============================================================================
 # AUTHENTICATION VIEWS
 # =============================================================================
@@ -958,80 +990,131 @@ def custom_login(request):
     # Redirect if already authenticated
     if request.user.is_authenticated:
         return redirect(get_user_redirect_url(request.user))
-    
+
+    change_password_mode = False
+
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
         print(f"Login attempt - Email: {email}")  # Debug line
         remember_me = request.POST.get('remember_me')
-        
-        # Authenticate user
-        user = authenticate(request, email=email, password=password)
-        print(f"Authentication result: {user}")  # Debug line
-        
-        # Log login attempt
-        login_history = LoginHistory(
-            user=user if user else None,
-            ip_address=get_client_ip(request),
-            user_agent=request.META.get('HTTP_USER_AGENT', ''),
-            was_successful=user is not None,
-            failure_reason='' if user else 'Invalid credentials'
-        )
-        
-        if user is not None:
-            # Check if user is active
-            if not user.is_active:
-                login_history.failure_reason = 'Account inactive'
-                login_history.save()
-                messages.error(request, _('Your account is inactive. Please contact administrator.'))
-                return render(request, 'users/auth/login.html')
-            
-            # Check if user is verified (if required)
-            if not user.is_verified:
-                login_history.failure_reason = 'Email not verified'
-                login_history.save()
-                messages.warning(request, _('Please verify your email before logging in.'))
-                return render(request, 'users/auth/login.html')
-            
-            # Login successful
-            login(request, user)
-            login_history.was_successful = True
-            login_history.failure_reason = ''
-            login_history.save()
-            
-            # Update user login stats
-            user.increment_login_count()
-            user.current_login_ip = get_client_ip(request)
-            user.save()
-            
-            # Set session expiry based on remember me
-            if not remember_me:
-                request.session.set_expiry(0)  # Browser session
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        change_password = request.POST.get('change_password')
+
+        # Check if this is a change password request
+        if change_password and new_password and confirm_password:
+            # Change password mode
+            change_password_mode = True
+            user = authenticate(request, email=email, password=password)
+
+            if user is not None:
+                # Check if user is active
+                if not user.is_active:
+                    messages.error(request, _('Your account is inactive. Please contact administrator.'))
+                    return render(request, 'users/auth/login.html', {'change_password_mode': change_password_mode})
+
+                if new_password != confirm_password:
+                    messages.error(request, _('New passwords do not match.'))
+                    return render(request, 'users/auth/login.html', {'change_password_mode': change_password_mode})
+
+                # Validate new password strength
+                if len(new_password) < 8:
+                    messages.error(request, _('Password must be at least 8 characters long.'))
+                    return render(request, 'users/auth/login.html', {'change_password_mode': change_password_mode})
+
+                # Change password
+                user.set_password(new_password)
+                user.save()
+
+                # Send password change confirmation email
+                send_password_change_email(user, request)
+
+                # Log password change
+                AuditLog.objects.create(
+                    user=user,
+                    action=AuditLog.ActionType.UPDATE,
+                    model_name='users.User',
+                    object_id=str(user.id),
+                    ip_address=get_client_ip(request),
+                    details={'action': 'Password changed via login page'}
+                )
+
+                messages.success(request, _('Password changed successfully! Please log in with your new password.'))
+                return redirect('users:login')
             else:
-                request.session.set_expiry(1209600)  # 2 weeks
-            
-            # Log audit event
-            AuditLog.objects.create(
-                user=user,
-                action=AuditLog.ActionType.LOGIN,
-                model_name='users.User',
-                object_id=str(user.id),
-                ip_address=get_client_ip(request),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')
-            )
-            
-            messages.success(request, _('Login successful!'))
-            logger.debug(f"User {user.email} authenticated. Is authenticated: {request.user.is_authenticated}. Redirecting to: {get_user_redirect_url(user)}")
-            return redirect(get_user_redirect_url(user))
-        
+                messages.error(request, _('Invalid email or current password.'))
+                return render(request, 'users/auth/login.html', {'change_password_mode': change_password_mode})
         else:
-            # Login failed
-            login_history.save()
-            messages.error(request, _('Invalid email or password.'))
-    
+            # Normal login attempt
+            # Authenticate user
+            user = authenticate(request, email=email, password=password)
+            print(f"Authentication result: {user}")  # Debug line
+
+            # Log login attempt
+            login_history = LoginHistory(
+                user=user if user else None,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                was_successful=user is not None,
+                failure_reason='' if user else 'Invalid credentials'
+            )
+
+            if user is not None:
+                # Check if user is active
+                if not user.is_active:
+                    login_history.failure_reason = 'Account inactive'
+                    login_history.save()
+                    messages.error(request, _('Your account is inactive. Please contact administrator.'))
+                    return render(request, 'users/auth/login.html')
+
+                # Check if user is verified (if required)
+                if not user.is_verified:
+                    login_history.failure_reason = 'Email not verified'
+                    login_history.save()
+                    messages.warning(request, _('Please verify your email before logging in.'))
+                    return render(request, 'users/auth/login.html')
+
+                # Login successful
+                login(request, user)
+                login_history.was_successful = True
+                login_history.failure_reason = ''
+                login_history.save()
+
+                # Update user login stats
+                user.increment_login_count()
+                user.current_login_ip = get_client_ip(request)
+                user.save()
+
+                # Set session expiry based on remember me
+                if not remember_me:
+                    request.session.set_expiry(0)  # Browser session
+                else:
+                    request.session.set_expiry(1209600)  # 2 weeks
+
+                # Log audit event
+                AuditLog.objects.create(
+                    user=user,
+                    action=AuditLog.ActionType.LOGIN,
+                    model_name='users.User',
+                    object_id=str(user.id),
+                    ip_address=get_client_ip(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')
+                )
+
+                messages.success(request, _('Login successful!'))
+                logger.debug(f"User {user.email} authenticated. Is authenticated: {request.user.is_authenticated}. Redirecting to: {get_user_redirect_url(user)}")
+                return redirect(get_user_redirect_url(user))
+
+            else:
+                # Login failed
+                login_history.save()
+                messages.error(request, _('Invalid email or password.'))
+
     context = {
         'title': _('Login'),
         'show_application_links': True,
+        'change_password_mode': change_password_mode,
     }
     return render(request, 'users/auth/login.html', context)
 
@@ -1282,15 +1365,19 @@ def profile_view(request):
     """
     user = request.user
     profile = user.profile
-    
+
+    # Get user's application data if it exists
+    student_application = user.student_application.first()
+    staff_application = user.staff_application.first()
+
     if request.method == 'POST':
         user_form = UserUpdateForm(request.POST, instance=user)
         profile_form = UserProfileForm(request.POST, request.FILES, instance=profile)
-        
+
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
-            
+
             # Log profile update
             AuditLog.objects.create(
                 user=user,
@@ -1300,18 +1387,42 @@ def profile_view(request):
                 ip_address=get_client_ip(request),
                 details={'action': 'Profile updated'}
             )
-            
+
             messages.success(request, _('Profile updated successfully!'))
             return redirect('users:profile')
     else:
         user_form = UserUpdateForm(instance=user)
         profile_form = UserProfileForm(instance=profile)
-    
+
+    # Determine status badge for application
+    application_status_badge = 'secondary'
+    if student_application:
+        if student_application.application_status == 'approved':
+            application_status_badge = 'success'
+        elif student_application.application_status in ['pending', 'under_review']:
+            application_status_badge = 'warning'
+        elif student_application.application_status == 'rejected':
+            application_status_badge = 'danger'
+        else:
+            application_status_badge = 'secondary'
+    elif staff_application:
+        if staff_application.application_status == 'approved':
+            application_status_badge = 'success'
+        elif staff_application.application_status in ['pending', 'under_review', 'interview_scheduled']:
+            application_status_badge = 'warning'
+        elif staff_application.application_status == 'rejected':
+            application_status_badge = 'danger'
+        else:
+            application_status_badge = 'secondary'
+
     context = {
         'title': _('My Profile'),
         'user_form': user_form,
         'profile_form': profile_form,
         'active_tab': 'profile',
+        'student_application': student_application,
+        'staff_application': staff_application,
+        'application_status_badge': application_status_badge,
     }
     return render(request, 'users/profile/profile.html', context)
 
@@ -1433,12 +1544,40 @@ def user_detail(request, user_id):
     # Get recent login history
     recent_logins = LoginHistory.objects.filter(user=user).order_by('-created_at')[:5]
 
+    # Get user's application data if it exists
+    student_application = user.student_application.first()
+    staff_application = user.staff_application.first()
+
+    # Determine status badge for application
+    application_status_badge = 'secondary'
+    if student_application:
+        if student_application.application_status == 'approved':
+            application_status_badge = 'success'
+        elif student_application.application_status in ['pending', 'under_review']:
+            application_status_badge = 'warning'
+        elif student_application.application_status == 'rejected':
+            application_status_badge = 'danger'
+        else:
+            application_status_badge = 'secondary'
+    elif staff_application:
+        if staff_application.application_status == 'approved':
+            application_status_badge = 'success'
+        elif staff_application.application_status in ['pending', 'under_review', 'interview_scheduled']:
+            application_status_badge = 'warning'
+        elif staff_application.application_status == 'rejected':
+            application_status_badge = 'danger'
+        else:
+            application_status_badge = 'secondary'
+
     context = {
         'title': _('User Details'),
         'user_obj': user,
         'can_edit': can_edit,
         'active_tab': 'users',
         'recent_logins': recent_logins,
+        'student_application': student_application,
+        'staff_application': staff_application,
+        'application_status_badge': application_status_badge,
     }
     return render(request, 'users/admin/users/user_detail.html', context)
 

@@ -97,6 +97,12 @@
                                 <i class="bi bi-gear me-2"></i>
                                 {% trans "Preferences" %}
                             </button>
+                            {% if student_application or staff_application %}
+                            <button class="nav-link" id="application-tab" data-bs-toggle="pill" data-bs-target="#application" type="button">
+                                <i class="bi bi-file-earmark-person me-2"></i>
+                                {% trans "Application Details" %}
+                            </button>
+                            {% endif %}
                             {% if user.user_roles.count > 0 %}
                             <button class="nav-link" id="roles-tab" data-bs-toggle="pill" data-bs-target="#roles" type="button">
                                 <i class="bi bi-person-badge me-2"></i>
@@ -565,6 +571,405 @@
                                 </div>
                             </form>
                         </div>
+
+                        <!-- Application Details Tab -->
+                        {% if student_application or staff_application %}
+                        <div class="tab-pane fade" id="application" role="tabpanel">
+                            <h4 class="fw-bold mb-4">{% trans "Application Details" %}</h4>
+
+                            {% if student_application %}
+                            <!-- Student Application Details -->
+                            <div class="row g-4">
+                                <div class="col-12">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h5 class="fw-bold mb-0">{% trans "Student Application" %}</h5>
+                                                <span class="badge bg-{{ application_status_badge }}">{{ student_application.get_application_status_display }}</span>
+                                            </div>
+                                            <p class="text-muted mb-3">{% trans "Application submitted on" %} {{ student_application.application_date|date:"M j, Y H:i" }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-person-vcard text-primary me-2"></i>
+                                                {% trans "Personal Information" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                <div class="col-6"><small class="text-muted">{% trans "Full Name" %}</small><br>
+                                                <strong>{{ student_application.full_name }}</strong></div>
+                                                <div class="col-6"><small class="text-muted">{% trans "Date of Birth" %}</small><br>
+                                                <strong>{{ student_application.date_of_birth|date:"M j, Y" }}{% if student_application.age %} ({{ student_application.age }} {% trans "years old" %}){% endif %}</strong></div>
+                                                <div class="col-6"><small class="text-muted">{% trans "Gender" %}</small><br>
+                                                <strong>{{ student_application.get_gender_display }}</strong></div>
+                                                <div class="col-6"><small class="text-muted">{% trans "Nationality" %}</small><br>
+                                                <strong>{{ student_application.nationality }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Email" %}</small><br>
+                                                <strong>{{ student_application.email }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Phone" %}</small><br>
+                                                <strong>{{ student_application.phone }}</strong></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-geo-alt text-success me-2"></i>
+                                                {% trans "Address" %}
+                                            </h6>
+                                            <address class="mb-0">
+                                                {{ student_application.address }}<br>
+                                                {{ student_application.city }}, {{ student_application.state }} {{ student_application.postal_code }}<br>
+                                                {{ student_application.country }}
+                                            </address>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-people text-info me-2"></i>
+                                                {% trans "Parent/Guardian" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                <div class="col-12"><small class="text-muted">{% trans "Parent Name" %}</small><br>
+                                                <strong>{{ student_application.parent_full_name }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Parent Email" %}</small><br>
+                                                <strong>{{ student_application.parent_email }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Parent Phone" %}</small><br>
+                                                <strong>{{ student_application.parent_phone }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Relationship" %}</small><br>
+                                                <strong>{{ student_application.get_parent_relationship_display }}</strong></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-book text-warning me-2"></i>
+                                                {% trans "Academic Information" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                <div class="col-12"><small class="text-muted">{% trans "Grade Applying For" %}</small><br>
+                                                <strong>{{ student_application.get_grade_applying_for_display }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Previous School" %}</small><br>
+                                                <strong>{{ student_application.previous_school|default:_("Not specified") }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Previous Grade" %}</small><br>
+                                                <strong>{{ student_application.previous_grade|default:_("Not specified") }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Academic Session" %}</small><br>
+                                                <strong>{% if student_application.academic_session %}{{ student_application.academic_session.name }}{% else %}{% trans "N/A" %}{% endif %}</strong></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if student_application.academic_achievements or student_application.medical_conditions or student_application.special_needs or student_application.extracurricular_interests %}
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-info-circle text-secondary me-2"></i>
+                                                {% trans "Additional Information" %}
+                                            </h6>
+                                            <div class="row g-3">
+                                                {% if student_application.academic_achievements %}
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">{% trans "Academic Achievements" %}</small>
+                                                    <div class="mt-1">{{ student_application.academic_achievements }}</div>
+                                                </div>
+                                                {% endif %}
+                                                {% if student_application.medical_conditions %}
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">{% trans "Medical Conditions" %}</small>
+                                                    <div class="mt-1">{{ student_application.medical_conditions }}</div>
+                                                </div>
+                                                {% endif %}
+                                                {% if student_application.special_needs %}
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">{% trans "Special Needs" %}</small>
+                                                    <div class="mt-1">{{ student_application.special_needs }}</div>
+                                                </div>
+                                                {% endif %}
+                                                {% if student_application.extracurricular_interests %}
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">{% trans "Extracurricular Interests" %}</small>
+                                                    <div class="mt-1">{{ student_application.extracurricular_interests }}</div>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if student_application.birth_certificate or student_application.previous_school_transcript or student_application.recommendation_letter or student_application.medical_report %}
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-file-earmark-arrow-down text-danger me-2"></i>
+                                                {% trans "Uploaded Documents" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                {% if student_application.birth_certificate %}
+                                                <div class="col-md-3">
+                                                    <a href="{{ student_application.birth_certificate.url }}" target="_blank" class="d-flex align-items-center justify-content-center flex-column btn btn-outline-primary btn-sm h-100">
+                                                        <i class="bi bi-file-earmark-person fs-4 mb-1"></i>
+                                                        {% trans "Birth Certificate" %}
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                                {% if student_application.previous_school_transcript %}
+                                                <div class="col-md-3">
+                                                    <a href="{{ student_application.previous_school_transcript.url }}" target="_blank" class="d-flex align-items-center justify-content-center flex-column btn btn-outline-primary btn-sm h-100">
+                                                        <i class="bi bi-file-earmark-text fs-4 mb-1"></i>
+                                                        {% trans "Transcript" %}
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                                {% if student_application.recommendation_letter %}
+                                                <div class="col-md-3">
+                                                    <a href="{{ student_application.recommendation_letter.url }}" target="_blank" class="d-flex align-items-center justify-content-center flex-column btn btn-outline-primary btn-sm h-100">
+                                                        <i class="bi bi-file-earmark-arrow-up fs-4 mb-1"></i>
+                                                        {% trans "Recommendation" %}
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                                {% if student_application.medical_report %}
+                                                <div class="col-md-3">
+                                                    <a href="{{ student_application.medical_report.url }}" target="_blank" class="d-flex align-items-center justify-content-center flex-column btn btn-outline-primary btn-sm h-100">
+                                                        <i class="bi bi-file-earmark-medical fs-4 mb-1"></i>
+                                                        {% trans "Medical Report" %}
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            {% elif staff_application %}
+                            <!-- Staff Application Details -->
+                            <div class="row g-4">
+                                <div class="col-12">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h5 class="fw-bold mb-0">{% trans "Staff Application" %}</h5>
+                                                <span class="badge bg-{{ application_status_badge }}">{{ staff_application.get_application_status_display }}</span>
+                                            </div>
+                                            <p class="text-muted mb-3">{% trans "Application submitted on" %} {{ staff_application.application_date|date:"M j, Y H:i" }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-person-vcard text-primary me-2"></i>
+                                                {% trans "Personal Information" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                <div class="col-6"><small class="text-muted">{% trans "Full Name" %}</small><br>
+                                                <strong>{{ staff_application.full_name }}</strong></div>
+                                                <div class="col-6"><small class="text-muted">{% trans "Date of Birth" %}</small><br>
+                                                <strong>{{ staff_application.date_of_birth|date:"M j, Y" }}{% if staff_application.age %} ({{ staff_application.age }} {% trans "years old" %}){% endif %}</strong></div>
+                                                <div class="col-6"><small class="text-muted">{% trans "Gender" %}</small><br>
+                                                <strong>{{ staff_application.get_gender_display }}</strong></div>
+                                                <div class="col-6"><small class="text-muted">{% trans "Nationality" %}</small><br>
+                                                <strong>{{ staff_application.nationality }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Email" %}</small><br>
+                                                <strong>{{ staff_application.email }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Phone" %}</small><br>
+                                                <strong>{{ staff_application.phone }}</strong></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-geo-alt text-success me-2"></i>
+                                                {% trans "Address" %}
+                                            </h6>
+                                            <address class="mb-0">
+                                                {{ staff_application.address }}<br>
+                                                {{ staff_application.city }}, {{ staff_application.state }} {{ staff_application.postal_code }}<br>
+                                                {{ staff_application.country }}
+                                            </address>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-briefcase text-info me-2"></i>
+                                                {% trans "Professional Information" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                <div class="col-12"><small class="text-muted">{% trans "Position Applied For" %}</small><br>
+                                                <strong>{{ staff_application.position_applied_for.name }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Position Type" %}</small><br>
+                                                <strong>{{ staff_application.get_position_type_display }}</strong></div>
+                                                {% if staff_application.expected_salary %}
+                                                <div class="col-12"><small class="text-muted">{% trans "Expected Salary" %}</small><br>
+                                                <strong>{{ staff_application.expected_salary }}</strong></div>
+                                                {% endif %}
+                                                <div class="col-12"><small class="text-muted">{% trans "Academic Session" %}</small><br>
+                                                <strong>{% if staff_application.academic_session %}{{ staff_application.academic_session.name }}{% else %}{% trans "N/A" %}{% endif %}</strong></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-mortarboard text-warning me-2"></i>
+                                                {% trans "Qualifications" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                <div class="col-12"><small class="text-muted">{% trans "Highest Qualification" %}</small><br>
+                                                <strong>{{ staff_application.highest_qualification }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Institution" %}</small><br>
+                                                <strong>{{ staff_application.institution }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Year Graduated" %}</small><br>
+                                                <strong>{{ staff_application.year_graduated }}</strong></div>
+                                                <div class="col-12"><small class="text-muted">{% trans "Years of Experience" %}</small><br>
+                                                <strong>{{ staff_application.years_of_experience }} {% trans "years" %}</strong></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if staff_application.previous_employer or staff_application.previous_position %}
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-building text-secondary me-2"></i>
+                                                {% trans "Previous Employment" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                {% if staff_application.previous_employer %}
+                                                <div class="col-12"><small class="text-muted">{% trans "Previous Employer" %}</small><br>
+                                                <strong>{{ staff_application.previous_employer }}</strong></div>
+                                                {% endif %}
+                                                {% if staff_application.previous_position %}
+                                                <div class="col-12"><small class="text-muted">{% trans "Previous Position" %}</small><br>
+                                                <strong>{{ staff_application.previous_position }}</strong></div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if staff_application.reference1_name or staff_application.reference2_name %}
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-person-check text-info me-2"></i>
+                                                {% trans "References" %}
+                                            </h6>
+                                            {% if staff_application.reference1_name %}
+                                            <div class="mb-3">
+                                                <small class="text-muted d-block">{% trans "Reference 1" %}</small>
+                                                <strong>{{ staff_application.reference1_name }}</strong><br>
+                                                <span class="text-muted small">{{ staff_application.reference1_position }}</span><br>
+                                                <span class="text-muted small">{{ staff_application.reference1_contact }}</span>
+                                            </div>
+                                            {% endif %}
+                                            {% if staff_application.reference2_name %}
+                                            <div class="mb-0">
+                                                <small class="text-muted d-block">{% trans "Reference 2" %}</small>
+                                                <strong>{{ staff_application.reference2_name }}</strong><br>
+                                                <span class="text-muted small">{{ staff_application.reference2_position }}</span><br>
+                                                <span class="text-muted small">{{ staff_application.reference2_contact }}</span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if staff_application.cv or staff_application.cover_letter or staff_application.certificates %}
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-file-earmark-arrow-down text-danger me-2"></i>
+                                                {% trans "Uploaded Documents" %}
+                                            </h6>
+                                            <div class="row g-2">
+                                                {% if staff_application.cv %}
+                                                <div class="col-md-4">
+                                                    <a href="{{ staff_application.cv.url }}" target="_blank" class="d-flex align-items-center justify-content-center flex-column btn btn-outline-primary btn-sm h-100">
+                                                        <i class="bi bi-file-earmark-person fs-4 mb-1"></i>
+                                                        {% trans "CV/Resume" %}
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                                {% if staff_application.cover_letter %}
+                                                <div class="col-md-4">
+                                                    <a href="{{ staff_application.cover_letter.url }}" target="_blank" class="d-flex align-items-center justify-content-center flex-column btn btn-outline-primary btn-sm h-100">
+                                                        <i class="bi bi-envelope-paper fs-4 mb-1"></i>
+                                                        {% trans "Cover Letter" %}
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                                {% if staff_application.certificates %}
+                                                <div class="col-md-4">
+                                                    <a href="{{ staff_application.certificates.url }}" target="_blank" class="d-flex align-items-center justify-content-center flex-column btn btn-outline-primary btn-sm h-100">
+                                                        <i class="bi bi-award fs-4 mb-1"></i>
+                                                        {% trans "Certificates" %}
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if staff_application.interview_date %}
+                                <div class="col-12">
+                                    <div class="card border-0 bg-warning bg-opacity-10">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold mb-2">
+                                                <i class="bi bi-calendar-event text-warning me-2"></i>
+                                                {% trans "Interview Scheduled" %}
+                                            </h6>
+                                            <p class="mb-0 text-warning fw-semibold">{{ staff_application.interview_date|date:"M j, Y H:i" }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
 
                         <!-- Roles Tab -->
                         {% if user.user_roles.count > 0 %}
