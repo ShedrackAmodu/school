@@ -282,7 +282,7 @@
                     <h5 class="card-title mb-0">
                         <i class="bi bi-clipboard-check me-2"></i>
                         {% trans "Application Information" %}
-                        <span class="badge bg-{{ application_status_badge }} ms-2">{{ student_application.application_status|title if student_application else staff_application.application_status|title }}</span>
+                        <span class="badge bg-{{ application_status_badge }} ms-2">{{ application_status }}</span>
                     </h5>
                 </div>
                 <div class="card-body">
@@ -309,7 +309,7 @@
                                 </tr>
                                 <tr>
                                     <td class="text-muted">{% trans "Academic Session:" %}</td>
-                                    <td><strong>{{ student_application.academic_session.name if student_application.academic_session else "-" }}</strong></td>
+                                    <td><strong>{% if student_application.academic_session %}{{ student_application.academic_session.name }}{% else %}-{% endif %}</strong></td>
                                 </tr>
                             </table>
                         </div>
@@ -326,7 +326,7 @@
                                 </tr>
                                 <tr>
                                     <td class="text-muted">{% trans "Reviewed By:" %}</td>
-                                    <td><strong>{{ student_application.reviewed_by.display_name if student_application.reviewed_by else "-" }}</strong></td>
+                                    <td><strong>{% if student_application.reviewed_by %}{{ student_application.reviewed_by.display_name }}{% else %}-{% endif %}</strong></td>
                                 </tr>
                                 {% endif %}
                                 {% if student_application.review_notes %}
@@ -358,7 +358,7 @@
                                 </tr>
                                 <tr>
                                     <td class="text-muted">{% trans "Position Applied For:" %}</td>
-                                    <td><strong>{{ staff_application.position_applied_for.name if staff_application.position_applied_for else "-" }}</strong></td>
+                                    <td><strong>{% if staff_application.position_applied_for %}{{ staff_application.position_applied_for.name }}{% else %}-{% endif %}</strong></td>
                                 </tr>
                                 <tr>
                                     <td class="text-muted">{% trans "Position Type:" %}</td>
@@ -370,7 +370,7 @@
                                 </tr>
                                 <tr>
                                     <td class="text-muted">{% trans "Academic Session:" %}</td>
-                                    <td><strong>{{ staff_application.academic_session.name if staff_application.academic_session else "-" }}</strong></td>
+                                    <td><strong>{% if staff_application.academic_session %}{{ staff_application.academic_session.name }}{% else %}-{% endif %}</strong></td>
                                 </tr>
                             </table>
                         </div>
@@ -393,7 +393,7 @@
                                 </tr>
                                 <tr>
                                     <td class="text-muted">{% trans "Reviewed By:" %}</td>
-                                    <td><strong>{{ staff_application.reviewed_by.display_name if staff_application.reviewed_by else "-" }}</strong></td>
+                                    <td><strong>{% if staff_application.reviewed_by %}{{ staff_application.reviewed_by.display_name }}{% else %}-{% endif %}</strong></td>
                                 </tr>
                                 {% endif %}
                                 {% if staff_application.review_notes %}

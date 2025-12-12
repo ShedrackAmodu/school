@@ -35,13 +35,14 @@ from apps.academics.models import (
 from .models import (
     User, UserProfile, Role, UserRole, LoginHistory,
     PasswordHistory, UserSession, ParentStudentRelationship,
-    StudentApplication, StaffApplication, UserRoleActivity
+    StudentApplication, StaffApplication, UserRoleActivity,
+    get_student_guardians, notify_guardians_profile_update
 )
 from .forms import (
     UserCreationForm, UserUpdateForm, UserProfileForm, RoleForm,
     UserRoleAssignmentForm, CustomPasswordChangeForm, ParentStudentRelationshipForm,
     StudentApplicationForm, StaffApplicationForm, LoginHistorySearchForm,
-    UserBulkActionForm
+    UserBulkActionForm, UserImportForm
 )
 
 logger = logging.getLogger(__name__)
@@ -1396,7 +1397,10 @@ def profile_view(request):
 
     # Determine status badge for application
     application_status_badge = 'secondary'
+    application_status = None
+
     if student_application:
+        application_status = student_application.get_application_status_display()
         if student_application.application_status == 'approved':
             application_status_badge = 'success'
         elif student_application.application_status in ['pending', 'under_review']:
@@ -1406,6 +1410,7 @@ def profile_view(request):
         else:
             application_status_badge = 'secondary'
     elif staff_application:
+        application_status = staff_application.get_application_status_display()
         if staff_application.application_status == 'approved':
             application_status_badge = 'success'
         elif staff_application.application_status in ['pending', 'under_review', 'interview_scheduled']:
