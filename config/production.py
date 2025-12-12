@@ -5,6 +5,37 @@ import os
 logs_dir = BASE_DIR / "logs"
 logs_dir.mkdir(exist_ok=True)
 
+# Set production site domain for password reset emails
+def configure_production_site():
+    """Configure the Site model for production with correct domain."""
+    try:
+        from django.contrib.sites.models import Site
+        site_domain = os.environ.get('SITE_DOMAIN', 'NordaLMS.pythonanywhere.com')
+        site_name = os.environ.get('SITE_NAME', 'Nexus Intelligence School Management System')
+
+        site, created = Site.objects.get_or_create(
+            id=1,
+            defaults={'name': site_name, 'domain': site_domain}
+        )
+        if not created:
+            site.name = site_name
+            site.domain = site_domain
+            site.save()
+
+        print(f'Site configured: {site_name} - {site_domain}')
+    except Exception as e:
+        print(f'Warning: Could not configure site: {e}')
+
+# Configure site after Django is ready
+# This will run when Django loads the production settings
+from django.apps import apps
+from django.db.models.signals import post_migrate
+
+def configure_site_after_migrate(sender, **kwargs):
+    configure_production_site()
+
+post_migrate.connect(configure_site_after_migrate)
+
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 't']
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')

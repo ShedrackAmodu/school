@@ -777,17 +777,26 @@ class StudentApplicationView(FormView):
     def send_admin_notification_email(self, application):
         """Send notification email to admin about new student application."""
         subject = _('New Student Application Received - {}').format(application.application_number)
-        
+
         context = {
             'application': application,
             'admin_url': self.request.build_absolute_uri(reverse('users:pending_applications')),
             'school_name': getattr(settings, 'SCHOOL_NAME', 'Our School'),
         }
-        
+
         message = render_to_string('users/emails/admin_student_application_notification.html', context)
-        
-        admin_emails = [email for name, email in settings.ADMINS] if hasattr(settings, 'ADMINS') else [settings.DEFAULT_FROM_EMAIL]
-        
+
+        # Get emails of actual admin users (superusers and admin/principal roles)
+        admin_users = User.objects.filter(
+            Q(is_superuser=True) |
+            Q(user_roles__role__role_type__in=['super_admin', 'admin', 'principal'], user_roles__status='active')
+        ).distinct()
+        admin_emails = list(admin_users.values_list('email', flat=True))
+
+        # Fallback to ADMINS setting or DEFAULT_FROM_EMAIL if no admin users found
+        if not admin_emails:
+            admin_emails = [email for name, email in settings.ADMINS] if hasattr(settings, 'ADMINS') else [settings.DEFAULT_FROM_EMAIL]
+
         try:
             send_mail(
                 subject,
@@ -797,7 +806,7 @@ class StudentApplicationView(FormView):
                 html_message=message,
                 fail_silently=False,
             )
-            logger.info(f"Admin notification email sent for application {application.application_number}")
+            logger.info(f"Admin notification email sent to {len(admin_emails)} admins for application {application.application_number}")
         except Exception as e:
             logger.error(f"Error sending admin notification email for application {application.application_number}: {e}")
             raise
@@ -857,7 +866,16 @@ class StaffApplicationView(FormView):
         try:
             message = render_to_string('users/emails/admin_staff_application_notification.html', context)
 
-            admin_emails = [email for name, email in settings.ADMINS] if hasattr(settings, 'ADMINS') else [settings.DEFAULT_FROM_EMAIL]
+            # Get emails of actual admin users (superusers and admin/principal roles)
+            admin_users = User.objects.filter(
+                Q(is_superuser=True) |
+                Q(user_roles__role__role_type__in=['super_admin', 'admin', 'principal'], user_roles__status='active')
+            ).distinct()
+            admin_emails = list(admin_users.values_list('email', flat=True))
+
+            # Fallback to ADMINS setting or DEFAULT_FROM_EMAIL if no admin users found
+            if not admin_emails:
+                admin_emails = [email for name, email in settings.ADMINS] if hasattr(settings, 'ADMINS') else [settings.DEFAULT_FROM_EMAIL]
 
             send_mail(
                 subject,
@@ -867,7 +885,7 @@ class StaffApplicationView(FormView):
                 html_message=message,
                 fail_silently=True,  # Changed to fail_silently=True to prevent application failure
             )
-            logger.info(f"Admin notification email sent for staff application {application.application_number}")
+            logger.info(f"Admin notification email sent to {len(admin_emails)} admins for staff application {application.application_number}")
             return True
         except Exception as e:
             logger.error(f"Error sending admin notification email for staff application {application.application_number}: {e}")

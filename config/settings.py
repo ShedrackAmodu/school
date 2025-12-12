@@ -92,14 +92,15 @@ TEMPLATES = [
                 "apps.attendance.templatetags.attendance_filters",
                 "apps.users.templatetags.user_filters",
             ],
-            "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
-                'apps.communication.context_processors.notification_count',
-                'apps.users.context_processors.user_roles',
-            ],
+                "context_processors": [
+                    "django.template.context_processors.debug",
+                    "django.template.context_processors.request",
+                    "django.contrib.auth.context_processors.auth",
+                    "django.contrib.messages.context_processors.messages",
+                    "django.contrib.sites.context_processors.site",
+                    'apps.communication.context_processors.notification_count',
+                    'apps.users.context_processors.user_roles',
+                ],
         },
     },
 ]
