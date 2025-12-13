@@ -24,12 +24,13 @@ from .models import (
 from apps.assessment.models import Assignment
 from .forms import (
     AcademicSessionForm, DepartmentForm, SubjectForm, GradeLevelForm, ClassForm, StudentForm,
-    TeacherForm, EnrollmentForm, SubjectAssignmentForm, TimetableForm, ClassMaterialForm, 
-    BehaviorRecordForm, AchievementForm, ParentGuardianForm, StudentParentRelationshipForm, 
+    TeacherForm, EnrollmentForm, SubjectAssignmentForm, TimetableForm, ClassMaterialForm,
+    BehaviorRecordForm, AchievementForm, ParentGuardianForm, StudentParentRelationshipForm,
     ClassTransferHistoryForm, AcademicWarningForm, HolidayForm, FileAttachmentForm, SchoolPolicyForm,
-    StudentSearchForm, TeacherSearchForm, BulkEnrollmentForm 
+    StudentSearchForm, TeacherSearchForm, BulkEnrollmentForm
 )
 from apps.users.forms import UserCreationForm, UserUpdateForm, UserProfileForm, RoleForm, UserRoleAssignmentForm # Import user-related forms
+from apps.core.mixins import InstitutionPermissionMixin  # Import for tenant filtering
 
 
 # =============================================================================
@@ -1036,13 +1037,13 @@ class AcademicSessionUpdateView(StaffRequiredMixin, UpdateView):
 # DEPARTMENT VIEWS
 # =============================================================================
 
-class DepartmentListView(AcademicsAccessMixin, ListView):
+class DepartmentListView(InstitutionPermissionMixin, ListView):
     """List all departments."""
     model = Department
     template_name = 'academics/departments/department_list.html'
     context_object_name = 'departments'
     paginate_by = 12
-    
+
     def get_queryset(self):
         return Department.objects.filter(status='active').select_related('head_of_department')
 

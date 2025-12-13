@@ -15,6 +15,7 @@ from .forms import (
     SystemConfigForm, SystemConfigBulkUpdateForm,
     InstitutionForm, InstitutionConfigForm, InstitutionConfigOverrideForm
 )
+from .mixins import MultiInstitutionMixin
 
 
 class SystemConfigListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -507,7 +508,7 @@ class InstitutionConfigOverrideView(LoginRequiredMixin, PermissionRequiredMixin,
             updated_count = 0
             created_count = 0
 
-            for field_name, value in form.cleaned_data.items():
+            for field_name, value in form.cleaned_data:
                 if field_name.startswith('config_') and value:
                     config_id = field_name.replace('config_', '')
                     try:
@@ -549,7 +550,63 @@ class InstitutionConfigOverrideView(LoginRequiredMixin, PermissionRequiredMixin,
             return render(request, 'core/institutions/config_overrides.html', context)
 
 
-class SuperAdminDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View):
+class InstitutionSwitcherView(LoginRequiredMixin, View):
+    """
+    View for switching between institutions (for users with access to multiple institutions).
+    """
+    template_name = 'core/institution_switcher.html'
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+
+        # Check if user can switch institutions
+        if user.is_superuser:
+            institutions = Institution.objects.filter(is_active=True)
+        else:
+            from .middleware import get_user_accessible_institutions, get_current_institution
+            institutions = get_user_accessible_institutions(user)
+
+        # Calculate totals for statistics
+        total_students = sum(institution.current_student_count for institution in institutions)
+        total_staff = sum(institution.current_staff_count for institution in institutions)
+
+        context = {
+            'institutions': institutions,
+            'current_institution': get_current_institution(),
+            'can_switch_institutions': user.is_superuser or institutions.count() > 1,
+            'total_students': total_students,
+            'total_staff': total_staff,
+            'page_title': _('Select Institution'),
+        }
+
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        institution_id = request.POST.get('institution')
+
+        if institution_id:
+            try:
+                from .middleware import user_can_access_institution
+                institution = Institution.objects.get(id=institution_id, is_active=True)
+
+                # Check permission
+                if user_can_access_institution(request.user, institution):
+                    # Set in session
+                    request.session['current_institution_id'] = str(institution.id)
+                    request.session.modified = True
+
+                    messages.success(request, _("Institution switched successfully."))
+                    return redirect('users:dashboard')
+                else:
+                    messages.error(request, _("You don't have permission to access this institution."))
+
+            except Institution.DoesNotExist:
+                messages.error(request, _("Selected institution not found."))
+
+        return redirect('core:institution_select')
+
+
+class SuperAdminDashboardView(MultiInstitutionMixin, LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Super Administrator dashboard showing system-wide metrics and institution overview.
     """
@@ -744,7 +801,7 @@ class SchoolAdminDashboardView(LoginRequiredMixin, View):
             principal_stats['monthly_behavior_incidents'] = monthly_incidents
 
             # Academic warnings
-            from apps.academics.models import AcademicWarning
+            from apps.academic.models import AcademicWarning
             active_warnings = AcademicWarning.objects.filter(
                 is_resolved=False
             ).count()

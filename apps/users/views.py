@@ -582,19 +582,24 @@ def send_interview_email(application, interview_date, review_notes):
 def get_user_redirect_url(user):
     """
     Determine redirect URL based on user's primary role.
+    Django superusers are automatically treated as super admins.
     """
     try:
+        # Django superusers should always go to super admin dashboard
+        if user.is_superuser:
+            return reverse('core:super_admin_dashboard')
+
         primary_role = user.user_roles.filter(is_primary=True).first()
-        
+
         if not primary_role:
             # If no primary role, check any role
             any_role = user.user_roles.first()
             if any_role:
                 return get_role_redirect_url(any_role.role.role_type)
             return reverse('users:dashboard')
-        
+
         return get_role_redirect_url(primary_role.role.role_type)
-    
+
     except Exception as e:
         logger.error(f"Error determining redirect URL for user {user.id}: {e}")
         return reverse('users:dashboard')
@@ -604,7 +609,7 @@ def get_role_redirect_url(role_type):
     Map role types to their respective dashboard URLs.
     """
     role_redirects = {
-        'super_admin': reverse('admin:index'),
+        'super_admin': reverse('core:super_admin_dashboard'),
         'admin': reverse('core:school_admin_dashboard'),
         'principal': reverse('core:school_admin_dashboard'),
         'teacher': reverse('users:dashboard'),

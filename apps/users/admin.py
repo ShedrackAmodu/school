@@ -5,10 +5,25 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.utils import timezone
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django import forms
 from .models import (
-    User, UserProfile, Role, UserRole, LoginHistory, 
+    User, UserProfile, Role, UserRole, LoginHistory,
     PasswordHistory, UserSession, ParentStudentRelationship, StudentApplication, StaffApplication
 )
+from apps.core.models import Institution
+
+
+class StaffApplicationApprovalForm(forms.Form):
+    """Form for approving staff applications with institution selection."""
+    institution = forms.ModelChoiceField(
+        queryset=Institution.objects.filter(is_active=True),
+        empty_label=_("Select an institution"),
+        label=_("Assign to Institution"),
+        help_text=_("Select which institution this staff member should be assigned to.")
+    )
+
 
 @admin.register(StudentApplication)
 class StudentApplicationAdmin(admin.ModelAdmin):
@@ -251,24 +266,136 @@ class StaffApplicationAdmin(admin.ModelAdmin):
         }),
     )
     
-    actions = ['approve_applications', 'reject_applications', 'schedule_interview']
+    actions = ['approve_applications_custom', 'reject_applications', 'schedule_interview']
+
+    def get_actions(self, request):
+        """Override to provide custom approve action."""
+        actions = super().get_actions(request)
+        if 'approve_applications_custom' in actions:
+            # For single application, redirect to approval form
+            # For multiple, use bulk approval
+            actions['approve_applications_custom'] = (
+                self.approve_applications,
+                'approve_applications_custom',
+                _('Approve selected applications and assign to institution')
+            )
+        return actions
 
     def full_name(self, obj):
         return obj.full_name
     full_name.short_description = _('Full Name')
-    
+
     def approve_applications(self, request, queryset):
-        """Admin action to approve selected staff applications."""
-        approved_count = 0
-        skipped_count = 0
-        for application in queryset:
-            if application.application_status == StaffApplication.ApplicationStatus.APPROVED:
-                skipped_count += 1
-                continue
-            elif application.application_status == StaffApplication.ApplicationStatus.PENDING:
+        """Admin action to approve selected staff applications with institution assignment."""
+        # Count selected applications
+        selected_count = queryset.count()
+
+        if selected_count == 0:
+            self.message_user(request, _('No applications selected.'), messages.WARNING)
+            return
+
+        # If only one application, redirect to detailed form
+        if selected_count == 1:
+            application = queryset.first()
+            return redirect('admin:staff_application_approve', application_id=application.pk)
+
+        # For multiple applications, show bulk approval form
+        return self.bulk_approval_view(request, queryset)
+
+    def bulk_approval_view(self, request, queryset):
+        """Handle bulk approval of staff applications."""
+        if request.method == 'POST':
+            form = StaffApplicationApprovalForm(request.POST)
+            if form.is_valid():
+                institution = form.cleaned_data['institution']
+                approved_count = 0
+                skipped_count = 0
+                errors = []
+
+                for application in queryset:
+                    if application.application_status == StaffApplication.ApplicationStatus.APPROVED:
+                        skipped_count += 1
+                        continue
+                    elif application.application_status == StaffApplication.ApplicationStatus.PENDING:
+                        try:
+                            # Create user account and assign to institution
+                            user, temp_password = self.create_user_from_application(
+                                application, request.user, institution
+                            )
+
+                            # Update application
+                            application.application_status = StaffApplication.ApplicationStatus.APPROVED
+                            application.reviewed_by = request.user
+                            application.reviewed_at = timezone.now()
+                            application.user_account = user
+                            application.save()
+
+                            # Send approval email
+                            self.send_approval_email(application, user, temp_password)
+
+                            approved_count += 1
+
+                        except Exception as e:
+                            errors.append(f"Error approving {application.application_number}: {str(e)}")
+
+                # Show results
+                if approved_count:
+                    self.message_user(
+                        request,
+                        f'{approved_count} staff application(s) approved and assigned to {institution.name}.',
+                        messages.SUCCESS
+                    )
+                if skipped_count:
+                    self.message_user(
+                        request,
+                        f'{skipped_count} application(s) were already approved and were skipped.',
+                        messages.INFO
+                    )
+                if errors:
+                    for error in errors:
+                        self.message_user(request, error, messages.ERROR)
+
+                return redirect('admin:users_staffapplication_changelist')
+        else:
+            form = StaffApplicationApprovalForm()
+
+        context = {
+            'applications': queryset,
+            'form': form,
+            'title': _('Approve Staff Applications and Assign Institution'),
+            'action_name': 'approve_applications_custom',
+            'selected_count': queryset.count(),
+        }
+
+        return render(request, 'admin/users/bulk_staff_approval.html', context)
+
+    # Add custom URL for single application approval
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:application_id>/approve/',
+                self.admin_site.admin_view(self.approve_single_application),
+                name='staff_application_approve'
+            ),
+        ]
+        return custom_urls + urls
+
+    def approve_single_application(self, request, application_id):
+        """View for approving a single staff application with institution selection."""
+        application = self.get_queryset(request).get(pk=application_id)
+
+        if request.method == 'POST':
+            form = StaffApplicationApprovalForm(request.POST)
+            if form.is_valid():
+                institution = form.cleaned_data['institution']
+
                 try:
-                    # Create user account
-                    user, temp_password = self.create_user_from_application(application, request.user)
+                    # Create user account and assign to institution
+                    user, temp_password = self.create_user_from_application(
+                        application, request.user, institution
+                    )
 
                     # Update application
                     application.application_status = StaffApplication.ApplicationStatus.APPROVED
@@ -280,28 +407,27 @@ class StaffApplicationAdmin(admin.ModelAdmin):
                     # Send approval email
                     self.send_approval_email(application, user, temp_password)
 
-                    approved_count += 1
-
-                except Exception as e:
                     self.message_user(
                         request,
-                        f"Error approving {application.application_number}: {str(e)}",
-                        messages.ERROR
+                        f'Staff application {application.application_number} approved and assigned to {institution.name}.',
+                        messages.SUCCESS
                     )
 
-        if approved_count:
-            self.message_user(
-                request,
-                f'{approved_count} staff application(s) approved successfully.',
-                messages.SUCCESS
-            )
-        if skipped_count:
-            self.message_user(
-                request,
-                f'{skipped_count} application(s) were already approved and were skipped.',
-                messages.INFO
-            )
-    approve_applications.short_description = _('Approve selected staff applications')
+                    return redirect('admin:users_staffapplication_changelist')
+
+                except Exception as e:
+                    self.message_user(request, f'Error: {str(e)}', messages.ERROR)
+                    form.add_error(None, str(e))
+        else:
+            form = StaffApplicationApprovalForm()
+
+        context = {
+            'application': application,
+            'form': form,
+            'title': f'Approve Application: {application.application_number}',
+        }
+
+        return render(request, 'admin/users/single_staff_approval.html', context)
 
     def schedule_interview(self, request, queryset):
         """Admin action to schedule interviews."""
@@ -340,9 +466,10 @@ class StaffApplicationAdmin(admin.ModelAdmin):
             'position_applied_for', 'academic_session', 'reviewed_by', 'user_account'
         )
 
-    def create_user_from_application(self, application, created_by):
+    def create_user_from_application(self, application, created_by, institution=None):
         """Create user account from staff application."""
         from .models import UserProfile, PasswordHistory, UserRole
+        from apps.core.models import InstitutionUser
 
         # Create user
         user = User.objects.create_user(
@@ -386,8 +513,26 @@ class StaffApplicationAdmin(admin.ModelAdmin):
             profile.email = application.email
             profile.save()
 
+        # Generate employee ID if institution is provided
+        employee_id = None
+        if institution:
+            # Create institution-user relationship
+            institution_user, created = InstitutionUser.objects.get_or_create(
+                user=user,
+                institution=institution,
+                defaults={
+                    'is_primary': True,
+                    'employee_id': f'{application.position_applied_for.role_type}_{institution.code}_{user.id}',
+                }
+            )
+            if created:
+                employee_id = institution_user.employee_id
+                # Update profile with employee_id
+                profile.employee_id = employee_id
+                profile.save()
+
         # Assign the role from position_applied_for
-        UserRole.objects.create(
+        user_role = UserRole.objects.create(
             user=user,
             role=application.position_applied_for,
             is_primary=True,
@@ -482,11 +627,11 @@ class UserAdmin(BaseUserAdmin):
     """
     Custom admin interface for User model.
     """
-    list_display = ('email', 'full_name', 'is_verified', 'is_active', 'is_staff', 'last_login', 'created_at')
-    list_filter = ('is_verified', 'is_active', 'is_staff', 'is_superuser', 'status', 'created_at')
+    list_display = ('email', 'full_name', 'is_verified', 'is_active', 'is_staff', 'last_login', 'date_joined')
+    list_filter = ('is_verified', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
     search_fields = ('email', 'first_name', 'last_name', 'mobile')
-    ordering = ('-created_at',)
-    readonly_fields = ('last_login', 'created_at', 'updated_at', 'login_count', 
+    ordering = ('-date_joined',)
+    readonly_fields = ('last_login', 'date_joined', 'login_count',
                       'email_verified_at', 'last_login_ip', 'current_login_ip')
     
     fieldsets = (
@@ -513,11 +658,7 @@ class UserAdmin(BaseUserAdmin):
             'classes': ('collapse',)
         }),
         (_('Important Dates'), {
-            'fields': ('last_login', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-        (_('System Status'), {
-            'fields': ('status',),
+            'fields': ('last_login', 'date_joined'),
             'classes': ('collapse',)
         }),
     )

@@ -53,6 +53,13 @@ class Institution(AddressModel, ContactModel):
     """
     Model for managing multiple school institutions under one platform.
     """
+    class Status(models.TextChoices):
+        ACTIVE = 'active', _('Active')
+        INACTIVE = 'inactive', _('Inactive')
+        PENDING = 'pending', _('Pending')
+        SUSPENDED = 'suspended', _('Suspended')
+        ARCHIVED = 'archived', _('Archived')
+
     # UUID Primary Key
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -64,8 +71,8 @@ class Institution(AddressModel, ContactModel):
     status = models.CharField(
         _('status'),
         max_length=20,
-        choices=[('active', _('Active')), ('inactive', _('Inactive')), ('pending', _('Pending')), ('suspended', _('Suspended')), ('archived', _('Archived'))],
-        default='active',
+        choices=Status.choices,
+        default=Status.ACTIVE,
         db_index=True
     )
     """

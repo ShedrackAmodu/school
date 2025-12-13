@@ -110,13 +110,14 @@ class TenantMiddleware(MiddlewareMixin):
 
     def _get_institution_from_user(self, user):
         """
-        Get institution from user's current or primary institution via InstitutionUser relationship.
+        Get institution from user's primary institution via InstitutionUser relationship.
         """
         from .models import InstitutionUser
 
-        # First try to get current session institution from related field
-        # Since we can't add foreign keys directly to User model due to circular imports,
-        # we'll get the active institution from the session or user's primary institution
+        # Check if user is superuser (can access all institutions)
+        if user.is_superuser:
+            # For superuser, return their primary institution or None to allow access to all
+            pass
 
         # Try to find the user's primary institution through InstitutionUser
         try:
@@ -160,3 +161,83 @@ def set_current_institution(institution):
     Use with caution - typically handled by middleware.
     """
     _local.current_institution = institution
+
+
+def user_can_access_institution(user, institution):
+    """
+    Check if a user can access a specific institution.
+    Returns True if:
+    - User is superuser (platform admin)
+    - User is institution admin (or higher role)
+    - User belongs to the institution via InstitutionUser
+    """
+    # Superuser can access all institutions
+    if user.is_superuser:
+        return True
+
+    # Check if user has institution-level admin role
+    from .models import InstitutionUser, Role
+    try:
+        user_membership = InstitutionUser.objects.filter(
+            user=user,
+            institution=institution,
+            institution__is_active=True
+        ).first()
+
+        if user_membership:
+            # Check user roles for admin-level access
+            user_roles = user.user_roles.filter(
+                role__hierarchy_level__gte=70,  # Principal level and above
+                academic_session__is_current=True
+            )
+            if user_roles.exists():
+                return True
+
+        return False
+    except:
+        return False
+
+
+def filter_queryset_by_institution(queryset, user, institution_field='institution'):
+    """
+    Filter a queryset by institution access permissions.
+    For superusers: no filtering (access all)
+    For regular users: filter to their accessible institutions
+    """
+    if user.is_superuser:
+        return queryset
+
+    # Get institutions the user can access
+    from .models import InstitutionUser
+    accessible_institutions = InstitutionUser.objects.filter(
+        user=user,
+        institution__is_active=True
+    ).values_list('institution_id', flat=True)
+
+    if accessible_institutions:
+        filter_kwargs = {f'{institution_field}__in': list(accessible_institutions)}
+        return queryset.filter(**filter_kwargs)
+    else:
+        # No accessible institutions, return empty queryset
+        return queryset.none()
+
+
+def get_user_accessible_institutions(user):
+    """
+    Get all institutions a user can access.
+    Superusers get all institutions.
+    Regular users get institutions they belong to.
+    """
+    if user.is_superuser:
+        return Institution.objects.filter(is_active=True)
+
+    from .models import InstitutionUser
+    accessible_institution_ids = InstitutionUser.objects.filter(
+        user=user,
+        institution__is_active=True
+    ).values_list('institution_id', flat=True)
+
+    return Institution.objects.filter(
+        id__in=accessible_institution_ids,
+        is_active=True
+    )

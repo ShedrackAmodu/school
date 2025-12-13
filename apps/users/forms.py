@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.academics.models import AcademicSession
 
 from .models import User, UserProfile, Role, UserRole, LoginHistory, PasswordHistory, ParentStudentRelationship, StudentApplication, StaffApplication
+from apps.core.models import Institution
 
 
 class UserCreationForm(forms.ModelForm):
@@ -116,8 +117,8 @@ class UserUpdateForm(forms.ModelForm):
         model = User
         fields = [
             'email', 'first_name', 'last_name', 'mobile',
-            'language', 'timezone', 'is_active', 'is_staff', 
-            'is_superuser', 'is_verified', 'status'
+            'language', 'timezone', 'is_active', 'is_staff',
+            'is_superuser', 'is_verified'
         ]
         widgets = {
             'email': forms.EmailInput(attrs={
@@ -150,9 +151,6 @@ class UserUpdateForm(forms.ModelForm):
             }),
             'is_verified': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
-            }),
-            'status': forms.Select(attrs={
-                'class': 'form-control'
             }),
         }
 
@@ -1185,6 +1183,15 @@ class StaffApplicationForm(forms.ModelForm):
             'placeholder': _('Confirm your email address')
         })
     )
+    # Override qualified_institution field to be a dropdown
+    qualified_institution = forms.ModelChoiceField(
+        queryset=Institution.objects.filter(is_active=True).order_by('name'),
+        empty_label=_('Select an institution'),
+        label=_('Qualified Institution'),
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        })
+    )
     
     class Meta:
         model = StaffApplication
@@ -1200,7 +1207,7 @@ class StaffApplicationForm(forms.ModelForm):
             'position_applied_for', 'position_type', 'expected_salary',
             
             # Educational Background
-            'highest_qualification', 'institution', 'year_graduated',
+            'highest_qualification', 'qualified_institution', 'year_graduated',
             
             # Professional Experience
             'years_of_experience', 'previous_employer', 'previous_position',
@@ -1284,10 +1291,6 @@ class StaffApplicationForm(forms.ModelForm):
             'highest_qualification': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': _('Highest degree or qualification')
-            }),
-            'institution': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('Name of institution')
             }),
             'year_graduated': forms.NumberInput(attrs={
                 'class': 'form-control',

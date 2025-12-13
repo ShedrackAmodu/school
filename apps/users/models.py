@@ -50,10 +50,15 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractUser, CoreBaseModel):
+class User(AbstractUser):
     """
     Custom User model with email as primary identifier.
     """
+    id = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        primary_key=True,
+    )
     # Remove username field, use email instead
     username = None
     email = models.EmailField(
@@ -124,9 +129,9 @@ class User(AbstractUser, CoreBaseModel):
     class Meta:
         verbose_name = _('User')
         verbose_name_plural = _('Users')
-        ordering = ['-created_at']
+        ordering = ['-date_joined']
         indexes = [
-            models.Index(fields=['email', 'status']),
+            models.Index(fields=['email']),
             models.Index(fields=['is_active', 'is_verified']),
             models.Index(fields=['last_login']),
         ]
@@ -961,7 +966,7 @@ class StaffApplication(CoreBaseModel):
     
     # Educational Background
     highest_qualification = models.CharField(_('highest qualification'), max_length=200)
-    institution = models.CharField(_('institution'), max_length=200)
+    qualified_institution = models.CharField(_('institution'), max_length=200)
     year_graduated = models.PositiveIntegerField(_('year graduated'))
     
     # Professional Experience
@@ -1255,6 +1260,51 @@ def save_user_profile(sender, instance, **kwargs):
     if hasattr(instance, 'profile'):
         instance.profile.save()
 
+
+@receiver(post_save, sender=UserRole)
+def auto_map_user_to_institution(sender, instance, created, **kwargs):
+    """
+    Automatically map users to institutions when roles are assigned.
+    """
+    from apps.core.models import Institution, InstitutionUser
+
+    # Only process if this is a staff role that requires institution mapping
+    staff_role_types = [
+        'super_admin', 'admin', 'principal', 'department_head', 'counselor',
+        'teacher', 'accountant', 'librarian', 'driver', 'support',
+        'transport_manager', 'hostel_warden'
+    ]
+
+    if instance.role.role_type in staff_role_types:
+        # Check if user is already mapped to an institution
+        existing_mapping = InstitutionUser.objects.filter(
+            user=instance.user,
+            is_primary=True
+        ).first()
+
+        if not existing_mapping:
+            # Try to find an appropriate institution
+            # First, check if there are any active institutions
+            default_institution = Institution.objects.filter(
+                is_active=True
+            ).first()
+
+            if default_institution:
+                # Create institution-user mapping
+                institution_user, created = InstitutionUser.objects.get_or_create(
+                    user=instance.user,
+                    institution=default_institution,
+                    defaults={
+                        'is_primary': True,
+                        'employee_id': f'{instance.role.role_type}_{default_institution.code}_{instance.user.id}',
+                    }
+                )
+
+                if created:
+                    # Update user profile with employee ID
+                    if hasattr(instance.user, 'profile') and instance.user.profile:
+                        instance.user.profile.employee_id = institution_user.employee_id
+                        instance.user.profile.save()
 
 @receiver(post_save, sender=UserRole)
 def sync_permissions_on_role_save(sender, instance, **kwargs):

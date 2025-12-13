@@ -14,6 +14,7 @@ urlpatterns = [
     path('configs/bulk-update/', views.SystemConfigBulkUpdateView.as_view(), name='config_bulk_update'),
 
     # Institution Management URLs
+    path('institution/select/', views.InstitutionSwitcherView.as_view(), name='institution_select'),
     path('institutions/', views.InstitutionListView.as_view(), name='institution_list'),
     path('institutions/create/', views.InstitutionCreateView.as_view(), name='institution_create'),
     path('institutions/<uuid:pk>/', views.InstitutionDetailView.as_view(), name='institution_detail'),
