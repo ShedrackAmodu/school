@@ -14,6 +14,7 @@ import sys
 
 from .models import AuditLog
 from apps.core.models import SystemConfig
+from apps.core.middleware import filter_queryset_by_institution
 
 
 class AuditLogListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -28,7 +29,10 @@ class AuditLogListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = AuditLog.objects.select_related('user').all()
-        
+
+        # Apply institution-based filtering for security
+        queryset = filter_queryset_by_institution(queryset, self.request.user)
+
         # Apply filters from GET parameters
         action = self.request.GET.get('action')
         model_name = self.request.GET.get('model_name')
@@ -36,22 +40,22 @@ class AuditLogListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         date_from = self.request.GET.get('date_from')
         date_to = self.request.GET.get('date_to')
         search = self.request.GET.get('search')
-        
+
         if action and action != 'all':
             queryset = queryset.filter(action=action)
-        
+
         if model_name and model_name != 'all':
             queryset = queryset.filter(model_name=model_name)
-        
+
         if user_id and user_id != 'all':
             queryset = queryset.filter(user_id=user_id)
-        
+
         if date_from:
             queryset = queryset.filter(timestamp__date__gte=date_from)
-        
+
         if date_to:
             queryset = queryset.filter(timestamp__date__lte=date_to)
-        
+
         if search:
             queryset = queryset.filter(
                 Q(user__email__icontains=search) |
@@ -61,7 +65,7 @@ class AuditLogListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
                 Q(object_id__icontains=search) |
                 Q(details__icontains=search)
             )
-        
+
         return queryset.order_by('-timestamp')
     
     def get_context_data(self, **kwargs):
@@ -84,8 +88,10 @@ class AuditLogListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         }
         
         # Add stats
-        context['total_logs'] = AuditLog.objects.count()
-        context['today_logs'] = AuditLog.objects.filter(
+        unfiltered_queryset = AuditLog.objects.all()
+        filtered_queryset = filter_queryset_by_institution(unfiltered_queryset, self.request.user)
+        context['total_logs'] = filtered_queryset.count()
+        context['today_logs'] = filtered_queryset.filter(
             timestamp__date=timezone.now().date()
         ).count()
         
@@ -102,7 +108,8 @@ class AuditLogDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
     permission_required = 'audit.view_auditlog'
     
     def get_queryset(self):
-        return AuditLog.objects.select_related('user')
+        queryset = AuditLog.objects.select_related('user').all()
+        return filter_queryset_by_institution(queryset, self.request.user)
 
 
 class AuditLogDashboardView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
@@ -111,47 +118,92 @@ class AuditLogDashboardView(LoginRequiredMixin, PermissionRequiredMixin, Templat
     """
     template_name = 'audit/dashboard/auditlog_dashboard.html'
     permission_required = 'audit.view_auditlog'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
+
+        # Get filtered queryset for the current user
+        filtered_queryset = filter_queryset_by_institution(AuditLog.objects.all(), self.request.user)
+
+        # Apply institution filter if specified
+        selected_institution_id = self.request.GET.get('institution', '')
+        if selected_institution_id and selected_institution_id != 'all':
+            try:
+                from apps.core.models import Institution
+                selected_institution = Institution.objects.get(
+                    id=selected_institution_id,
+                    is_active=True
+                )
+                filtered_queryset = filtered_queryset.filter(institution=selected_institution)
+                context['selected_institution'] = selected_institution
+            except Institution.DoesNotExist:
+                pass  # Ignore invalid institution selection
+
         # Time period for statistics (last 30 days)
         thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
-        
+
         # Basic statistics
-        context['total_actions'] = AuditLog.objects.filter(
+        context['total_actions'] = filtered_queryset.filter(
             timestamp__gte=thirty_days_ago
         ).count()
-        
-        context['unique_users'] = AuditLog.objects.filter(
+
+        context['unique_users'] = filtered_queryset.filter(
             timestamp__gte=thirty_days_ago
         ).values('user').distinct().count()
-        
-        context['unique_models'] = AuditLog.objects.filter(
+
+        context['unique_models'] = filtered_queryset.filter(
             timestamp__gte=thirty_days_ago
         ).values('model_name').distinct().count()
-        
+
         # Action type breakdown
-        action_stats = AuditLog.objects.filter(
+        action_stats = filtered_queryset.filter(
             timestamp__gte=thirty_days_ago
         ).values('action').annotate(
             count=Count('id')
         ).order_by('-count')
-        
+
         context['action_stats'] = list(action_stats)
-        
-        # Recent activities
-        context['recent_activities'] = AuditLog.objects.select_related('user').order_by('-timestamp')[:10]
-        
-        # Most active users
-        active_users = AuditLog.objects.filter(
+
+        # Daily activity data (last 30 days)
+        daily_data = filtered_queryset.filter(
             timestamp__gte=thirty_days_ago
-        ).values('user__email', 'user__first_name', 'user__last_name').annotate(
+        ).extra(
+            {'date': "DATE(timestamp)"}
+        ).values('date').annotate(
+            count=Count('id')
+        ).order_by('date')
+
+        context['daily_activity'] = list(daily_data)
+
+        # Model activity distribution
+        model_data = filtered_queryset.filter(
+            timestamp__gte=thirty_days_ago
+        ).values('model_name').annotate(
+            count=Count('id')
+        ).order_by('-count')[:10]
+
+        context['model_activity'] = list(model_data)
+
+        # Recent activities (also filtered by selected institution if any)
+        recent_queryset = filter_queryset_by_institution(AuditLog.objects.select_related('user').all(), self.request.user)
+        if 'selected_institution' in context:
+            recent_queryset = recent_queryset.filter(institution=context['selected_institution'])
+        context['recent_activities'] = recent_queryset.order_by('-timestamp')[:10]
+
+        # Most active users
+        active_users = filtered_queryset.filter(
+            timestamp__gte=thirty_days_ago,
+            user__isnull=False
+        ).values('user_id', 'user__email', 'user__first_name', 'user__last_name').annotate(
             activity_count=Count('id')
         ).order_by('-activity_count')[:10]
-        
+
         context['active_users'] = list(active_users)
-        
+
+        # Add available institutions for filtering
+        from apps.core.middleware import get_user_accessible_institutions
+        context['available_institutions'] = get_user_accessible_institutions(self.request.user)
+
         return context
 
 
@@ -177,24 +229,25 @@ class AuditLogExportView(LoginRequiredMixin, PermissionRequiredMixin, View):
     def get_export_queryset(self):
         # Apply same filters as list view
         queryset = AuditLog.objects.select_related('user').all()
-        
+        queryset = filter_queryset_by_institution(queryset, self.request.user)
+
         action = self.request.GET.get('action')
         model_name = self.request.GET.get('model_name')
         date_from = self.request.GET.get('date_from')
         date_to = self.request.GET.get('date_to')
-        
+
         if action and action != 'all':
             queryset = queryset.filter(action=action)
-        
+
         if model_name and model_name != 'all':
             queryset = queryset.filter(model_name=model_name)
-        
+
         if date_from:
             queryset = queryset.filter(timestamp__date__gte=date_from)
-        
+
         if date_to:
             queryset = queryset.filter(timestamp__date__lte=date_to)
-        
+
         return queryset.order_by('-timestamp')
     
     def export_csv(self, queryset):
@@ -249,42 +302,45 @@ class AuditLogStatisticsView(LoginRequiredMixin, PermissionRequiredMixin, View):
     API view for audit log statistics (used for charts).
     """
     permission_required = 'audit.view_auditlog'
-    
+
     def get(self, request, *args, **kwargs):
         period = request.GET.get('period', '7days')  # 7days, 30days, 90days
-        
+
         if period == '7days':
             days = 7
         elif period == '30days':
             days = 30
         else:  # 90days
             days = 90
-            
+
         start_date = timezone.now() - timezone.timedelta(days=days)
-        
+
+        # Get filtered queryset for current user
+        filtered_queryset = filter_queryset_by_institution(AuditLog.objects.all(), request.user)
+
         # Daily activity data
-        daily_data = AuditLog.objects.filter(
+        daily_data = filtered_queryset.filter(
             timestamp__gte=start_date
         ).extra(
             {'date': "DATE(timestamp)"}
         ).values('date').annotate(
             count=Count('id')
         ).order_by('date')
-        
+
         # Action type distribution
-        action_data = AuditLog.objects.filter(
+        action_data = filtered_queryset.filter(
             timestamp__gte=start_date
         ).values('action').annotate(
             count=Count('id')
         ).order_by('-count')
-        
+
         # Model activity distribution
-        model_data = AuditLog.objects.filter(
+        model_data = filtered_queryset.filter(
             timestamp__gte=start_date
         ).values('model_name').annotate(
             count=Count('id')
         ).order_by('-count')[:10]  # Top 10 models
-        
+
         return JsonResponse({
             'daily_activity': list(daily_data),
             'action_distribution': list(action_data),

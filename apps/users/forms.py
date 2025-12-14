@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from apps.academics.models import AcademicSession
 
-from .models import User, UserProfile, Role, UserRole, LoginHistory, PasswordHistory, ParentStudentRelationship, StudentApplication, StaffApplication
+from .models import User, UserProfile, Role, UserRole, LoginHistory, PasswordHistory, ParentStudentRelationship, StudentApplication, StaffApplication, InstitutionTransferRequest
 from apps.core.models import Institution
 
 
@@ -410,10 +410,22 @@ class UserRoleAssignmentForm(forms.ModelForm):
     """
     Form for assigning roles to users.
     """
+    # Institution field for staff roles that require institution mapping
+    institution = forms.ModelChoiceField(
+        queryset=Institution.objects.filter(is_active=True),
+        empty_label=_('Select institution'),
+        label=_('Institution'),
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        }),
+        help_text=_('Institution for this role assignment (required for staff roles)')
+    )
+
     class Meta:
         model = UserRole
         fields = [
-            'user', 'role', 'is_primary', 'academic_session', 'context_id'
+            'user', 'role', 'institution', 'is_primary', 'academic_session', 'context_id'
         ]
         widgets = {
             'user': forms.Select(attrs={
@@ -436,19 +448,38 @@ class UserRoleAssignmentForm(forms.ModelForm):
         help_texts = {
             'is_primary': _('Designates the primary role for this user'),
             'context_id': _('Role context identifier (e.g., class_id for teachers)'),
+            'institution': _('Institution for this role assignment (auto-filled for existing mappings)')
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from apps.core.models import Institution
         self.fields['academic_session'].queryset = AcademicSession.objects.filter(status='active')
+
+        # If editing existing role, pre-select the user's institution if available
+        if self.instance.pk and self.instance.user:
+            # Check if user has institution mapping
+            institution_user = Institution.objects.filter(
+                users__id=self.instance.user.id
+            ).first()
+            if institution_user:
+                self.fields['institution'].initial = institution_user.id
 
     def clean(self):
         cleaned_data = super().clean()
         user = cleaned_data.get('user')
         role = cleaned_data.get('role')
+        institution = cleaned_data.get('institution')
         academic_session = cleaned_data.get('academic_session')
         context_id = cleaned_data.get('context_id')
         is_primary = cleaned_data.get('is_primary')
+
+        # Staff roles require institution selection
+        staff_role_types = Role.STAFF_ROLES
+        if role and role.role_type in staff_role_types and not institution:
+            raise ValidationError(
+                _('Institution is required for staff role assignments.')
+            )
 
         # Check for duplicate role assignments
         if user and role and academic_session:
@@ -460,7 +491,7 @@ class UserRoleAssignmentForm(forms.ModelForm):
             )
             if self.instance.pk:
                 duplicate_assignments = duplicate_assignments.exclude(pk=self.instance.pk)
-            
+
             if duplicate_assignments.exists():
                 raise ValidationError(
                     _("This user already has this role assignment for the selected context.")
@@ -851,6 +882,19 @@ class StudentApplicationForm(forms.ModelForm):
             'placeholder': _("Confirm parent's email address")
         })
     )
+    # Institution selection field with enhanced filtering
+    institution = forms.ModelChoiceField(
+        queryset=Institution.objects.filter(
+            is_active=True,
+            allows_online_enrollment=True
+        ).order_by('name'),
+        empty_label=_('Select an institution to apply to'),
+        label=_('Institution'),
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        }),
+        help_text=_('Choose the institution you want to apply to. Only active institutions accepting applications are shown.')
+    )
     
     class Meta:
         model = StudentApplication
@@ -859,7 +903,7 @@ class StudentApplicationForm(forms.ModelForm):
             'first_name', 'last_name', 'date_of_birth', 'gender', 'nationality',
 
             # Contact Information
-            'email', 'confirm_email', 'phone', 'address', 'city', 'state',
+            'email', 'confirm_email', 'phone', 'city', 'state',
             'postal_code', 'country',
 
             # Academic Information
@@ -871,14 +915,16 @@ class StudentApplicationForm(forms.ModelForm):
             'confirm_parent_email', 'parent_phone', 'parent_relationship',
 
             # Documents
-            'birth_certificate', 'previous_school_transcript', 'recommendation_letter', 'medical_report',
+            # Document fields removed from Meta.fields because they're not model fields
+            # They are handled as separate form-only FileFields when needed.
 
             # Additional Information
             'medical_conditions', 'special_needs', 'extracurricular_interests',
 
             # Application Details
-            'academic_session'
+            'institution', 'academic_session'
         ]
+
         widgets = {
             # Personal Information
             'first_name': forms.TextInput(attrs={
@@ -1183,14 +1229,28 @@ class StaffApplicationForm(forms.ModelForm):
             'placeholder': _('Confirm your email address')
         })
     )
-    # Override qualified_institution field to be a dropdown
-    qualified_institution = forms.ModelChoiceField(
-        queryset=Institution.objects.filter(is_active=True).order_by('name'),
-        empty_label=_('Select an institution'),
-        label=_('Qualified Institution'),
+    # Institution to apply to (where they want to work)
+    institution = forms.ModelChoiceField(
+        queryset=Institution.objects.filter(
+            is_active=True,
+            allows_online_enrollment=True
+        ).order_by('name'),
+        empty_label=_('Select an institution to apply to'),
+        label=_('Institution to Apply To'),
         widget=forms.Select(attrs={
             'class': 'form-control'
-        })
+        }),
+        help_text=_('Choose the institution you want to work at. Only active institutions accepting applications are shown.')
+    )
+    # Override qualified_institution field to be a text field (where they graduated from)
+    qualified_institution = forms.CharField(
+        max_length=200,
+        label=_('Institution Where You Graduated'),
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Name of the institution where you obtained your qualification')
+        }),
+        help_text=_('Enter the name of the institution where you obtained your highest qualification')
     )
     
     class Meta:
@@ -1198,17 +1258,17 @@ class StaffApplicationForm(forms.ModelForm):
         fields = [
             # Personal Information
             'first_name', 'last_name', 'date_of_birth', 'gender', 'nationality',
-            
+
             # Contact Information
-            'email', 'confirm_email', 'phone', 'address', 'city', 'state',
+            'email', 'confirm_email', 'phone', 'city', 'state',
             'postal_code', 'country',
-            
+
             # Professional Information
             'position_applied_for', 'position_type', 'expected_salary',
-            
+
             # Educational Background
             'highest_qualification', 'qualified_institution', 'year_graduated',
-            
+
             # Professional Experience
             'years_of_experience', 'previous_employer', 'previous_position',
 
@@ -1218,10 +1278,11 @@ class StaffApplicationForm(forms.ModelForm):
             # References
             'reference1_name', 'reference1_position', 'reference1_contact',
             'reference2_name', 'reference2_position', 'reference2_contact',
-            
+
             # Application Details
-            'academic_session'
+            'institution', 'academic_session'
         ]
+
         widgets = {
             # Personal Information
             'first_name': forms.TextInput(attrs={
@@ -1494,3 +1555,156 @@ class StaffApplicationForm(forms.ModelForm):
         # Remove confirmation field before saving
         self.cleaned_data.pop('confirm_email', None)
         return super().save(commit=commit)
+
+# apps/users/forms.py (ADD TO EXISTING forms.py)
+
+class InstitutionTransferRequestForm(forms.ModelForm):
+    """
+    Form for submitting institution transfer requests by students and staff.
+    """
+    class Meta:
+        model = InstitutionTransferRequest
+        fields = [
+            'transfer_type', 'requested_institution', 'request_reason',
+            'additional_notes', 'priority_level'
+        ]
+        widgets = {
+            'transfer_type': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'requested_institution': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'request_reason': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': _('Please explain why you want to transfer institutions...')
+            }),
+            'additional_notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': _('Any additional information that may support your request (optional)')
+            }),
+            'priority_level': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+        }
+        help_texts = {
+            'transfer_type': _('Select whether you are a student or staff member'),
+            'requested_institution': _('Choose the institution you wish to transfer to'),
+            'request_reason': _('Provide a clear reason for your transfer request'),
+            'priority_level': _('Select urgency level - urgent requests are prioritized')
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.transfer_type = kwargs.pop('transfer_type', None)
+        super().__init__(*args, **kwargs)
+
+        if self.user:
+            # Set transfer type based on user's role
+            if self.transfer_type == 'student':
+                self.fields['transfer_type'].initial = InstitutionTransferRequest.TransferType.STUDENT_TRANSFER
+                self.fields['transfer_type'].widget.attrs['disabled'] = True
+            elif self.transfer_type == 'staff':
+                self.fields['transfer_type'].initial = InstitutionTransferRequest.TransferType.STAFF_TRANSFER
+                self.fields['transfer_type'].widget.attrs['disabled'] = True
+
+            # Filter requested institutions (exclude user's current institutions)
+            from apps.core.models import InstitutionUser
+            current_institution_ids = InstitutionUser.objects.filter(
+                user=self.user,
+                is_primary=True
+            ).values_list('institution_id', flat=True)
+
+            self.fields['requested_institution'].queryset = Institution.objects.filter(
+                is_active=True
+            ).exclude(id__in=current_institution_ids)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        user = self.user
+        requested_institution = cleaned_data.get('requested_institution')
+
+        if not user:
+            raise forms.ValidationError(_('User information is required.'))
+
+        if requested_institution:
+            # Check if user is already associated with the requested institution
+            from apps.core.models import InstitutionUser
+            existing_association = InstitutionUser.objects.filter(
+                user=user,
+                institution=requested_institution
+            ).exists()
+
+            if existing_association:
+                raise forms.ValidationError(
+                    _('You are already associated with the requested institution.')
+                )
+
+        # Validate transfer type matches user's role
+        transfer_type = cleaned_data.get('transfer_type')
+        if transfer_type == InstitutionTransferRequest.TransferType.STUDENT_TRANSFER:
+            has_student_role = user.user_roles.filter(
+                role__role_type='student',
+                status='active'
+            ).exists()
+            if not has_student_role:
+                raise forms.ValidationError(_('You must be a student to submit a student transfer request.'))
+
+        elif transfer_type == InstitutionTransferRequest.TransferType.STAFF_TRANSFER:
+            has_staff_role = user.user_roles.filter(
+                role__role_type__in=Role.STAFF_ROLES,
+                status='active'
+            ).exists()
+            if not has_staff_role:
+                raise forms.ValidationError(_('You must be a staff member to submit a staff transfer request.'))
+
+        # Check for existing pending/approved transfer requests
+        existing_requests = InstitutionTransferRequest.objects.filter(
+            requesting_user=user,
+            request_status__in=[
+                InstitutionTransferRequest.RequestStatus.PENDING,
+                InstitutionTransferRequest.RequestStatus.UNDER_REVIEW,
+                InstitutionTransferRequest.RequestStatus.APPROVED
+            ]
+        )
+
+        if existing_requests.exists():
+            raise forms.ValidationError(
+                _('You already have a pending transfer request. Please wait for it to be processed before submitting a new one.')
+            )
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        """Save the transfer request and set related fields automatically."""
+        if not commit:
+            return super().save(commit=False)
+
+        transfer_request = super().save(commit=False)
+        transfer_request.requesting_user = self.user
+
+        # Set current institution (user's primary institution)
+        from apps.core.models import InstitutionUser
+        primary_institution = InstitutionUser.objects.filter(
+            user=self.user,
+            is_primary=True
+        ).first()
+
+        if primary_institution:
+            transfer_request.current_institution = primary_institution.institution
+
+        # Set academic session and current role if applicable
+        from apps.academics.models import AcademicSession
+        current_session = AcademicSession.objects.filter(is_current=True).first()
+        if current_session:
+            transfer_request.academic_session = current_session
+
+        # Set current role (primary role)
+        primary_role = self.user.user_roles.filter(is_primary=True, status='active').first()
+        if primary_role:
+            transfer_request.current_role = primary_role.role
+
+        transfer_request.save()
+        return transfer_request

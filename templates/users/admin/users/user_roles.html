@@ -295,7 +295,26 @@
                             </div>
                             {% endif %}
                         </div>
-                        
+
+                        {% if form.institution %}
+                        <div class="mb-3">
+                            <label for="{{ form.institution.id_for_label }}" class="form-label">
+                                {% trans "Institution" %}
+                                {% if not form.institution.required %}*
+                                {% endif %}
+                            </label>
+                            {{ form.institution }}
+                            {% if form.institution.help_text %}
+                            <div class="form-text">{{ form.institution.help_text }}</div>
+                            {% endif %}
+                            {% if form.institution.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.institution.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
                         <div class="mb-3">
                             <label for="{{ form.academic_session.id_for_label }}" class="form-label">
                                 {% trans "Academic Session" %}

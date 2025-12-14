@@ -268,37 +268,89 @@ class ExamUpdateView(LoginRequiredMixin, TeacherRequiredMixin, UpdateView):
 def exam_attendance(request, exam_id):
     """Manage exam attendance for students."""
     exam = get_object_or_404(Exam, id=exam_id)
-    
+
     if request.method == 'POST':
+        # Check if this is a bulk save operation (JSON data)
+        attendance_data_json = request.POST.get('attendance_data')
+        if attendance_data_json:
+            # Handle bulk save from JavaScript
+            try:
+                attendance_data = json.loads(attendance_data_json)
+                is_final = request.POST.get('is_final') == 'true'
+
+                created_count = 0
+                updated_count = 0
+
+                for student_id, data in attendance_data.items():
+                    student = get_object_or_404(Student, id=int(student_id))
+                    attendance, created = ExamAttendance.objects.update_or_create(
+                        exam=exam,
+                        student=student,
+                        defaults={
+                            'is_present': data.get('is_present', False),
+                            'late_minutes': data.get('late_minutes', 0),
+                            'remarks': data.get('remarks', '')
+                        }
+                    )
+
+                    if created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
+
+                # Additional processing if finalized
+                if is_final and not exam.is_locked_for_editing:
+                    exam.save()  # Could add locking logic here
+
+                return JsonResponse({
+                    'success': True,
+                    'created': created_count,
+                    'updated': updated_count,
+                    'message': f'Attendance {"finalized" if is_final else "saved"} successfully!'
+                })
+
+            except (json.JSONDecodeError, ValueError) as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid attendance data format'
+                }, status=400)
+
+        # Legacy: Handle individual student updates (for backward compatibility)
         student_id = request.POST.get('student_id')
-        is_present = request.POST.get('is_present') == 'true'
-        late_minutes = request.POST.get('late_minutes', 0)
-        remarks = request.POST.get('remarks', '')
-        
-        student = get_object_or_404(Student, id=student_id)
-        
-        attendance, created = ExamAttendance.objects.update_or_create(
-            exam=exam,
-            student=student,
-            defaults={
-                'is_present': is_present,
-                'late_minutes': late_minutes,
-                'remarks': remarks
-            }
-        )
-        
-        return JsonResponse({'success': True, 'created': created})
-    
+        if student_id:
+            is_present = request.POST.get('is_present') == 'true'
+            late_minutes = int(request.POST.get('late_minutes', 0))
+            remarks = request.POST.get('remarks', '')
+
+            student = get_object_or_404(Student, id=student_id)
+
+            attendance, created = ExamAttendance.objects.update_or_create(
+                exam=exam,
+                student=student,
+                defaults={
+                    'is_present': is_present,
+                    'late_minutes': late_minutes,
+                    'remarks': remarks
+                }
+            )
+
+            return JsonResponse({'success': True, 'created': created})
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'No valid data provided'
+            }, status=400)
+
     # GET request - show attendance page
     students = exam.academic_class.enrollments.filter(
         enrollment_status='active'
     ).select_related('student__user')
-    
+
     attendance_records = {
-        record.student_id: record 
+        record.student_id: record
         for record in ExamAttendance.objects.filter(exam=exam)
     }
-    
+
     context = {
         'exam': exam,
         'students': students,

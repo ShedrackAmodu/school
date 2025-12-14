@@ -10,19 +10,13 @@ from django.urls import reverse
 from django import forms
 from .models import (
     User, UserProfile, Role, UserRole, LoginHistory,
-    PasswordHistory, UserSession, ParentStudentRelationship, StudentApplication, StaffApplication
+    PasswordHistory, UserSession, ParentStudentRelationship, StudentApplication, StaffApplication,
+    InstitutionTransferRequest
 )
 from apps.core.models import Institution
 
 
-class StaffApplicationApprovalForm(forms.Form):
-    """Form for approving staff applications with institution selection."""
-    institution = forms.ModelChoiceField(
-        queryset=Institution.objects.filter(is_active=True),
-        empty_label=_("Select an institution"),
-        label=_("Assign to Institution"),
-        help_text=_("Select which institution this staff member should be assigned to.")
-    )
+# No longer needed - institution is now chosen by applicant
 
 
 @admin.register(StudentApplication)
@@ -277,7 +271,7 @@ class StaffApplicationAdmin(admin.ModelAdmin):
             actions['approve_applications_custom'] = (
                 self.approve_applications,
                 'approve_applications_custom',
-                _('Approve selected applications and assign to institution')
+                _('Approve selected applications using applicant chosen institutions')
             )
         return actions
 
@@ -303,66 +297,61 @@ class StaffApplicationAdmin(admin.ModelAdmin):
         return self.bulk_approval_view(request, queryset)
 
     def bulk_approval_view(self, request, queryset):
-        """Handle bulk approval of staff applications."""
+        """Handle bulk approval of staff applications using applicant's chosen institution."""
         if request.method == 'POST':
-            form = StaffApplicationApprovalForm(request.POST)
-            if form.is_valid():
-                institution = form.cleaned_data['institution']
-                approved_count = 0
-                skipped_count = 0
-                errors = []
+            approved_count = 0
+            skipped_count = 0
+            errors = []
 
-                for application in queryset:
-                    if application.application_status == StaffApplication.ApplicationStatus.APPROVED:
-                        skipped_count += 1
-                        continue
-                    elif application.application_status == StaffApplication.ApplicationStatus.PENDING:
-                        try:
-                            # Create user account and assign to institution
-                            user, temp_password = self.create_user_from_application(
-                                application, request.user, institution
-                            )
+            for application in queryset:
+                if application.application_status == StaffApplication.ApplicationStatus.APPROVED:
+                    skipped_count += 1
+                    continue
+                elif application.application_status == StaffApplication.ApplicationStatus.PENDING:
+                    try:
+                        # Create user account and assign to applicant's chosen institution
+                        user, temp_password = self.create_user_from_application(
+                            application, request.user
+                        )
 
-                            # Update application
-                            application.application_status = StaffApplication.ApplicationStatus.APPROVED
-                            application.reviewed_by = request.user
-                            application.reviewed_at = timezone.now()
-                            application.user_account = user
-                            application.save()
+                        # Update application
+                        application.application_status = StaffApplication.ApplicationStatus.APPROVED
+                        application.reviewed_by = request.user
+                        application.reviewed_at = timezone.now()
+                        application.user_account = user
+                        application.save()
 
-                            # Send approval email
-                            self.send_approval_email(application, user, temp_password)
+                        # Send approval email
+                        self.send_approval_email(application, user, temp_password)
 
-                            approved_count += 1
+                        approved_count += 1
 
-                        except Exception as e:
-                            errors.append(f"Error approving {application.application_number}: {str(e)}")
+                    except Exception as e:
+                        errors.append(f"Error approving {application.application_number}: {str(e)}")
 
-                # Show results
-                if approved_count:
-                    self.message_user(
-                        request,
-                        f'{approved_count} staff application(s) approved and assigned to {institution.name}.',
-                        messages.SUCCESS
-                    )
-                if skipped_count:
-                    self.message_user(
-                        request,
-                        f'{skipped_count} application(s) were already approved and were skipped.',
-                        messages.INFO
-                    )
-                if errors:
-                    for error in errors:
-                        self.message_user(request, error, messages.ERROR)
+            # Show results
+            if approved_count:
+                self.message_user(
+                    request,
+                    f'{approved_count} staff application(s) approved and assigned to their chosen institution(s).',
+                    messages.SUCCESS
+                )
+            if skipped_count:
+                self.message_user(
+                    request,
+                    f'{skipped_count} application(s) were already approved and were skipped.',
+                    messages.INFO
+                )
+            if errors:
+                for error in errors:
+                    self.message_user(request, error, messages.ERROR)
 
-                return redirect('admin:users_staffapplication_changelist')
-        else:
-            form = StaffApplicationApprovalForm()
+            return redirect('admin:users_staffapplication_changelist')
 
+        # Remove the form since no admin choice needed
         context = {
             'applications': queryset,
-            'form': form,
-            'title': _('Approve Staff Applications and Assign Institution'),
+            'title': _('Approve Staff Applications'),
             'action_name': 'approve_applications_custom',
             'selected_count': queryset.count(),
         }
@@ -383,47 +372,40 @@ class StaffApplicationAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def approve_single_application(self, request, application_id):
-        """View for approving a single staff application with institution selection."""
+        """View for approving a single staff application using applicant's chosen institution."""
         application = self.get_queryset(request).get(pk=application_id)
 
         if request.method == 'POST':
-            form = StaffApplicationApprovalForm(request.POST)
-            if form.is_valid():
-                institution = form.cleaned_data['institution']
+            try:
+                # Create user account and assign to applicant's chosen institution
+                user, temp_password = self.create_user_from_application(
+                    application, request.user
+                )
 
-                try:
-                    # Create user account and assign to institution
-                    user, temp_password = self.create_user_from_application(
-                        application, request.user, institution
-                    )
+                # Update application
+                application.application_status = StaffApplication.ApplicationStatus.APPROVED
+                application.reviewed_by = request.user
+                application.reviewed_at = timezone.now()
+                application.user_account = user
+                application.save()
 
-                    # Update application
-                    application.application_status = StaffApplication.ApplicationStatus.APPROVED
-                    application.reviewed_by = request.user
-                    application.reviewed_at = timezone.now()
-                    application.user_account = user
-                    application.save()
+                # Send approval email
+                self.send_approval_email(application, user, temp_password)
 
-                    # Send approval email
-                    self.send_approval_email(application, user, temp_password)
+                self.message_user(
+                    request,
+                    f'Staff application {application.application_number} approved and assigned to {application.qualified_institution}.',
+                    messages.SUCCESS
+                )
 
-                    self.message_user(
-                        request,
-                        f'Staff application {application.application_number} approved and assigned to {institution.name}.',
-                        messages.SUCCESS
-                    )
+                return redirect('admin:users_staffapplication_changelist')
 
-                    return redirect('admin:users_staffapplication_changelist')
+            except Exception as e:
+                self.message_user(request, f'Error: {str(e)}', messages.ERROR)
 
-                except Exception as e:
-                    self.message_user(request, f'Error: {str(e)}', messages.ERROR)
-                    form.add_error(None, str(e))
-        else:
-            form = StaffApplicationApprovalForm()
-
+        # No form needed since we use applicant's choice
         context = {
             'application': application,
-            'form': form,
             'title': f'Approve Application: {application.application_number}',
         }
 
@@ -466,10 +448,17 @@ class StaffApplicationAdmin(admin.ModelAdmin):
             'position_applied_for', 'academic_session', 'reviewed_by', 'user_account'
         )
 
-    def create_user_from_application(self, application, created_by, institution=None):
+    def create_user_from_application(self, application, created_by):
         """Create user account from staff application."""
         from .models import UserProfile, PasswordHistory, UserRole
         from apps.core.models import InstitutionUser
+        from django.core.exceptions import ValidationError
+
+        # Lookup the institution the applicant chose to work at
+        if not application.institution:
+            raise ValidationError(f"Application {application.application_number} does not have an institution specified.")
+
+        institution = application.institution
 
         # Create user
         user = User.objects.create_user(
@@ -513,23 +502,20 @@ class StaffApplicationAdmin(admin.ModelAdmin):
             profile.email = application.email
             profile.save()
 
-        # Generate employee ID if institution is provided
-        employee_id = None
-        if institution:
-            # Create institution-user relationship
-            institution_user, created = InstitutionUser.objects.get_or_create(
-                user=user,
-                institution=institution,
-                defaults={
-                    'is_primary': True,
-                    'employee_id': f'{application.position_applied_for.role_type}_{institution.code}_{user.id}',
-                }
-            )
-            if created:
-                employee_id = institution_user.employee_id
-                # Update profile with employee_id
-                profile.employee_id = employee_id
-                profile.save()
+        # Create institution-user relationship with applicant's chosen institution
+        institution_user, created = InstitutionUser.objects.get_or_create(
+            user=user,
+            institution=institution,
+            defaults={
+                'is_primary': True,
+                'employee_id': f'{application.position_applied_for.role_type}_{institution.code}_{user.id}',
+            }
+        )
+        if created:
+            employee_id = institution_user.employee_id
+            # Update profile with employee_id
+            profile.employee_id = employee_id
+            profile.save()
 
         # Assign the role from position_applied_for
         user_role = UserRole.objects.create(
@@ -1050,6 +1036,184 @@ class ParentStudentRelationshipAdmin(admin.ModelAdmin):
                 is_primary_contact=True
             ).exclude(pk=obj.pk).update(is_primary_contact=False)
         super().save_model(request, obj, form, change)
+
+
+@admin.register(InstitutionTransferRequest)
+class InstitutionTransferRequestAdmin(admin.ModelAdmin):
+    """
+    Admin interface for InstitutionTransferRequest model.
+    """
+    list_display = (
+        'request_number', 'requesting_user', 'transfer_type',
+        'current_institution', 'requested_institution', 'request_status',
+        'request_status_badge', 'created_at'
+    )
+    list_filter = (
+        'transfer_type', 'request_status', 'priority_level',
+        'current_institution', 'requested_institution', 'created_at'
+    )
+    search_fields = (
+        'request_number', 'requesting_user__email', 'requesting_user__first_name',
+        'requesting_user__last_name', 'request_reason'
+    )
+    readonly_fields = (
+        'request_number', 'requesting_user', 'transfer_type',
+        'current_institution', 'requested_institution', 'request_reason',
+        'additional_notes', 'request_status', 'reviewed_by', 'reviewed_at',
+        'review_notes', 'approval_date', 'transfer_completed_at',
+        'completed_by', 'created_at', 'updated_at'
+    )
+    list_per_page = 20
+    date_hierarchy = 'created_at'
+
+    fieldsets = (
+        (_('Transfer Request Details'), {
+            'fields': (
+                'request_number', 'transfer_type', 'requesting_user',
+                'current_institution', 'requested_institution'
+            )
+        }),
+        (_('Request Information'), {
+            'fields': ('request_reason', 'additional_notes', 'priority_level')
+        }),
+        (_('Status & Workflow'), {
+            'fields': ('request_status', 'reviewed_by', 'reviewed_at', 'review_notes')
+        }),
+        (_('Completion Details'), {
+            'fields': ('approval_date', 'transfer_completed_at', 'completed_by'),
+            'classes': ('collapse',)
+        }),
+        (_('Context Information'), {
+            'fields': ('academic_session', 'current_role'),
+            'classes': ('collapse',)
+        }),
+        (_('System Metadata'), {
+            'fields': ('status', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    actions = ['approve_requests', 'reject_requests', 'mark_under_review', 'complete_transfers']
+
+    def request_status_badge(self, obj):
+        """Return HTML badge for request status."""
+        status_colors = {
+            InstitutionTransferRequest.RequestStatus.PENDING: 'secondary',
+            InstitutionTransferRequest.RequestStatus.UNDER_REVIEW: 'warning',
+            InstitutionTransferRequest.RequestStatus.APPROVED: 'success',
+            InstitutionTransferRequest.RequestStatus.REJECTED: 'danger',
+            InstitutionTransferRequest.RequestStatus.COMPLETED: 'success',
+            InstitutionTransferRequest.RequestStatus.CANCELLED: 'secondary'
+        }
+        color = status_colors.get(obj.request_status, 'secondary')
+        return f'<span class="badge badge-{color}">{obj.get_request_status_display()}</span>'
+
+    request_status_badge.short_description = _('Status')
+    request_status_badge.allow_tags = True
+    request_status_badge.admin_order_field = 'request_status'
+
+    def approve_requests(self, request, queryset):
+        """Admin action to approve selected transfer requests."""
+        updated_count = 0
+        for transfer_request in queryset:
+            if transfer_request.can_be_approved_by(request.user):
+                try:
+                    transfer_request.approve(request.user)
+                    updated_count += 1
+                except Exception as e:
+                    self.message_user(
+                        request,
+                        f"Error approving {transfer_request.request_number}: {str(e)}",
+                        messages.ERROR
+                    )
+
+        if updated_count:
+            self.message_user(
+                request,
+                f'{updated_count} transfer request(s) approved successfully.',
+                messages.SUCCESS
+            )
+        else:
+            self.message_user(
+                request,
+                _('No transfer requests could be approved. Check your permissions or request status.'),
+                messages.WARNING
+            )
+
+    approve_requests.short_description = _('Approve selected requests')
+
+    def reject_requests(self, request, queryset):
+        """Admin action to reject selected transfer requests."""
+        if request.method == 'POST':
+            review_notes = request.POST.get('review_notes', '')
+            for transfer_request in queryset.filter(
+                request_status__in=[
+                    InstitutionTransferRequest.RequestStatus.PENDING,
+                    InstitutionTransferRequest.RequestStatus.UNDER_REVIEW
+                ]
+            ):
+                if transfer_request.can_be_approved_by(request.user):
+                    transfer_request.reject(request.user, review_notes)
+
+        self.message_user(
+            request,
+            f'{queryset.count()} transfer request(s) rejected.',
+            messages.WARNING
+        )
+    reject_requests.short_description = _('Reject selected requests')
+
+    def mark_under_review(self, request, queryset):
+        """Admin action to mark transfer requests as under review."""
+        updated = queryset.filter(
+            request_status=InstitutionTransferRequest.RequestStatus.PENDING
+        ).update(
+            request_status=InstitutionTransferRequest.RequestStatus.UNDER_REVIEW,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now()
+        )
+        self.message_user(
+            request,
+            f'{updated} transfer request(s) marked as under review.',
+            messages.INFO
+        )
+    mark_under_review.short_description = _('Mark as under review')
+
+    def complete_transfers(self, request, queryset):
+        """Admin action to complete approved transfer requests."""
+        updated_count = 0
+        for transfer_request in queryset.filter(
+            request_status=InstitutionTransferRequest.RequestStatus.APPROVED
+        ):
+            try:
+                transfer_request.complete_transfer(request.user)
+                # TODO: Actually perform the institution transfer logic
+                updated_count += 1
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Error completing {transfer_request.request_number}: {str(e)}",
+                    messages.ERROR
+                )
+
+        if updated_count:
+            self.message_user(
+                request,
+                f'{updated_count} transfer(s) completed successfully.',
+                messages.SUCCESS
+            )
+
+    complete_transfers.short_description = _('Complete approved transfers')
+
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of transfer requests to maintain audit trail."""
+        return False
+
+    def get_queryset(self, request):
+        """Optimize queryset for admin performance."""
+        return super().get_queryset(request).select_related(
+            'requesting_user', 'current_institution', 'requested_institution',
+            'reviewed_by', 'completed_by', 'academic_session', 'current_role'
+        )
 
 
 # NOTE: Custom UsersAdminSite removed. Models are registered with the

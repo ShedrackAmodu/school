@@ -133,10 +133,26 @@ def login_history(request):
             month_ago = timezone.now() - timezone.timedelta(days=30)
             login_entries = login_entries.filter(created_at__gte=month_ago)
 
+    # Pagination
+    paginator = Paginator(login_entries, 25)  # 25 items per page
+    page = request.GET.get('page')
+    login_entries_page = paginator.get_page(page)
+
+    context = {
+        'title': _('Login History'),
+        'login_entries': login_entries_page,
+        'form': form,
+        'active_tab': 'login_history',
+    }
+
+    return render(request, 'users/admin/login_history.html', context)
+
 def create_user_from_student_application(application, reviewed_by):
     """Create user account from approved student application."""
     try:
         with transaction.atomic():
+            from apps.core.models import Institution, InstitutionUser
+            
             # Generate temporary password
             characters = string.ascii_letters + string.digits + string.punctuation
             temporary_password = ''.join(secrets.choice(characters) for i in range(12))
@@ -223,6 +239,22 @@ def create_user_from_student_application(application, reviewed_by):
                 context_id=f"grade_{application.grade_applying_for}"
             )
             
+            # Map user to the institution they applied to
+            if application.institution:
+                institution_user, inst_created = InstitutionUser.objects.get_or_create(
+                    user=user,
+                    institution=application.institution,
+                    defaults={
+                        'is_primary': True,
+                        'employee_id': f'STU_{application.institution.code}_{application.application_number}',
+                    }
+                )
+                if not inst_created:
+                    # Update existing mapping to be primary
+                    institution_user.is_primary = True
+                    institution_user.save()
+                logger.info(f"Mapped student {user.email} to institution {application.institution.name}")
+            
             # Create parent relationship if parent email is different
             if application.parent_email and application.parent_email != application.email:
                 parent_user, created = User.objects.get_or_create(
@@ -260,6 +292,17 @@ def create_user_from_student_application(application, reviewed_by):
                     if not hasattr(parent_user, 'profile'):
                         UserProfile.objects.create(user=parent_user)
                 
+                # Map parent to the same institution as the student
+                if application.institution:
+                    InstitutionUser.objects.get_or_create(
+                        user=parent_user,
+                        institution=application.institution,
+                        defaults={
+                            'is_primary': True,
+                            'employee_id': f'PAR_{application.institution.code}_{parent_user.id}',
+                        }
+                    )
+                
                 # Create parent-student relationship
                 ParentStudentRelationship.objects.create(
                     parent=parent_user,
@@ -278,6 +321,8 @@ def create_user_from_staff_application(application, reviewed_by):
     """Create user account from approved staff application."""
     try:
         with transaction.atomic():
+            from apps.core.models import Institution, InstitutionUser, SequenceGenerator
+            
             # Generate temporary password
             characters = string.ascii_letters + string.digits + string.punctuation
             temporary_password = ''.join(secrets.choice(characters) for i in range(12))
@@ -291,7 +336,6 @@ def create_user_from_staff_application(application, reviewed_by):
                     'mobile': application.phone,
                     'is_active': True,
                     'is_verified': True,
-                    'status': 'active',
                 }
             )
 
@@ -304,7 +348,6 @@ def create_user_from_staff_application(application, reviewed_by):
                 user.mobile = application.phone
                 user.is_active = True
                 user.is_verified = True
-                user.status = 'active'
                 user.set_password(temporary_password) # Reset password for existing user
             user.save()
 
@@ -322,7 +365,6 @@ def create_user_from_staff_application(application, reviewed_by):
             profile.save()
 
             # Generate employee ID using SequenceGenerator
-            from apps.core.models import SequenceGenerator
             sequence, created = SequenceGenerator.objects.get_or_create(
                 sequence_type='employee_id',
                 defaults={
@@ -419,6 +461,22 @@ def create_user_from_staff_application(application, reviewed_by):
                 user.is_staff = True
                 user.save()
 
+            # Map user to the institution they applied to
+            if application.institution:
+                institution_user, inst_created = InstitutionUser.objects.get_or_create(
+                    user=user,
+                    institution=application.institution,
+                    defaults={
+                        'is_primary': True,
+                        'employee_id': employee_id,
+                    }
+                )
+                if not inst_created:
+                    # Update existing mapping to be primary
+                    institution_user.is_primary = True
+                    institution_user.save()
+                logger.info(f"Mapped staff {user.email} to institution {application.institution.name}")
+
             return user, temporary_password
 
     except Exception as e:
@@ -490,7 +548,7 @@ def send_approval_email(request, application, user, temporary_password):
         admission_number = user.student_profile.admission_number
 
     # Check if this was a staff application that went through interview process
-    had_interview = False
+    had_interview = False 
     interview_date = None
     if hasattr(application, 'interview_date') and application.interview_date:
         had_interview = True
@@ -1542,8 +1600,15 @@ def profile_view(request):
     profile = user.profile
 
     # Get user's application data if it exists
-    student_application = user.student_application.first()
-    staff_application = user.staff_application.first()
+    try:
+        student_application = user.student_application
+    except User.student_application.RelatedObjectDoesNotExist:
+        student_application = None
+
+    try:
+        staff_application = user.staff_application
+    except User.staff_application.RelatedObjectDoesNotExist:
+        staff_application = None
 
     if request.method == 'POST':
         user_form = UserUpdateForm(request.POST, instance=user)
@@ -1686,17 +1751,17 @@ def user_list(request):
     List all users with filtering and search capabilities.
     """
     users = User.objects.all().select_related('profile').prefetch_related('user_roles__role')
-    
+
     # Filtering
     role_filter = request.GET.get('role')
     status_filter = request.GET.get('status')
     search_query = request.GET.get('q')
-    
+
     if role_filter:
         users = users.filter(user_roles__role__role_type=role_filter)
-    
+
     if status_filter:
-        users = users.filter(status=status_filter)
+        users = users.filter(is_active=bool(status_filter == 'active'))
     
     if search_query:
         users = users.filter(
@@ -1762,8 +1827,15 @@ def user_detail(request, user_id):
     recent_logins = LoginHistory.objects.filter(user=user).order_by('-created_at')[:5]
 
     # Get user's application data if it exists
-    student_application = user.student_application.first()
-    staff_application = user.staff_application.first()
+    try:
+        student_application = user.student_application
+    except User.student_application.RelatedObjectDoesNotExist:
+        student_application = None
+
+    try:
+        staff_application = user.staff_application
+    except User.staff_application.RelatedObjectDoesNotExist:
+        staff_application = None
 
     # Determine status badge for application
     application_status_badge = 'secondary'
@@ -2060,11 +2132,11 @@ def user_toggle_status(request, user_id):
     """
     user = get_object_or_404(User, id=user_id)
 
-    if user.status == 'active':
-        user.status = 'inactive'
+    if user.is_active:
+        user.is_active = False
         action = 'deactivated'
     else:
-        user.status = 'active'
+        user.is_active = True
         action = 'activated'
 
     user.save()
@@ -2160,7 +2232,7 @@ def user_delete(request, user_id):
 # =============================================================================
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications'))
+@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications') or u.user_roles.filter(role__role_type='admin', status='active').exists())
 def pending_applications(request):
     """
     View and manage pending applications.
@@ -2182,7 +2254,7 @@ def pending_applications(request):
     return render(request, 'users/admin/applications/pending_applications.html', context)
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications'))
+@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications') or u.user_roles.filter(role__role_type='admin', status='active').exists())
 def approve_application(request, application_id, application_type):
     """
     Approve an application and create user account.
@@ -2264,7 +2336,7 @@ def approve_application(request, application_id, application_type):
     return redirect('users:pending_applications')
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications'))
+@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications') or u.user_roles.filter(role__role_type='admin', status='active').exists())
 def reject_application(request, application_id, application_type):
     """
     Reject an application with reason.
@@ -2315,7 +2387,7 @@ def reject_application(request, application_id, application_type):
     return redirect('users:pending_applications')
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications'))
+@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications') or u.user_roles.filter(role__role_type='admin', status='active').exists())
 def mark_application_under_review(request, application_id, application_type):
     """
     Mark an application as 'under_review' with optional notes.
@@ -2364,7 +2436,7 @@ def mark_application_under_review(request, application_id, application_type):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications'))
+@user_passes_test(lambda u: u.is_superuser or u.has_perm('users.approve_applications') or u.user_roles.filter(role__role_type='admin', status='active').exists())
 def schedule_interview(request, application_id):
     """
     Schedule interview for a staff application.
@@ -3054,10 +3126,10 @@ def user_bulk_action(request):
             try:
                 with transaction.atomic():
                     if action == 'activate':
-                        users.update(status='active')
+                        users.update(is_active=True)
                         message = _('Users activated successfully!')
                     elif action == 'deactivate':
-                        users.update(status='inactive')
+                        users.update(is_active=False)
                         message = _('Users deactivated successfully!')
                     elif action == 'assign_role':
                         role = form.cleaned_data['role']
@@ -3535,7 +3607,7 @@ def export_users(request):
     # Fields to export based on selection
     fields = [
         'email', 'first_name', 'last_name', 'mobile', 'is_active', 'is_verified',
-        'is_staff', 'is_superuser', 'status', 'last_login', 'created_at'
+        'is_staff', 'is_superuser', 'last_login', 'created_at'
     ]
 
     # Add profile fields if available
@@ -3548,7 +3620,7 @@ def export_users(request):
 
     field_titles = [
         _('Email'), _('First Name'), _('Last Name'), _('Mobile'), _('Active'),
-        _('Verified'), _('Staff'), _('Superuser'), _('Status'), _('Last Login'),
+        _('Verified'), _('Staff'), _('Superuser'), _('Last Login'),
         _('Created Date'), _('Date of Birth'), _('Gender'), _('Nationality'),
         _('Address'), _('City'), _('State'), _('Postal Code'), _('Country')
     ]
@@ -3747,7 +3819,7 @@ def get_application_counts(request):
     staff_count = StaffApplication.objects.filter(
         application_status__in=['pending', 'under_review']
     ).count()
-    
+
     return JsonResponse({
         'student_count': student_count,
         'staff_count': staff_count
@@ -3779,7 +3851,7 @@ def get_user_roles_ajax(request, user_id):
     """
     user = get_object_or_404(User, id=user_id)
     user_roles = user.user_roles.all().select_related('role')
-    
+
     roles_data = []
     for user_role in user_roles:
         roles_data.append({
@@ -3791,9 +3863,9 @@ def get_user_roles_ajax(request, user_id):
             'academic_session': user_role.academic_session.name if user_role.academic_session else None,
             'context_id': user_role.context_id,
         })
-    
+
     primary_roles = [role for role in roles_data if role['is_primary']]
-    
+
     return JsonResponse({
         'user_id': str(user.id),
         'roles': roles_data,
@@ -3869,6 +3941,395 @@ def upload_profile_picture(request):
         return JsonResponse({
             'success': False,
             'message': 'An error occurred while uploading the picture. Please try again.'
+        }, status=500)
+
+
+# =============================================================================
+# INSTITUTION TRANSFER REQUEST VIEWS
+# =============================================================================
+
+@login_required
+def institution_transfer_request_form(request, transfer_type=None):
+    """
+    View for students and staff to submit institution transfer requests.
+    """
+    user = request.user
+
+    # Determine transfer type from user's primary role if not specified
+    if not transfer_type:
+        primary_role = user.user_roles.filter(is_primary=True, status='active').first()
+        if primary_role and primary_role.role.role_type == 'student':
+            transfer_type = 'student'
+        elif primary_role and primary_role.role.role_type in Role.STAFF_ROLES:
+            transfer_type = 'staff'
+        else:
+            # Check any active role
+            any_role = user.user_roles.filter(status='active').first()
+            if any_role:
+                if any_role.role.role_type == 'student':
+                    transfer_type = 'student'
+                elif any_role.role.role_type in Role.STAFF_ROLES:
+                    transfer_type = 'staff'
+
+    # Validate user can submit this type of transfer request
+    if transfer_type == 'student':
+        can_submit = user.user_roles.filter(
+            role__role_type='student',
+            status='active'
+        ).exists()
+        transfer_type_display = _('Student Transfer')
+    elif transfer_type == 'staff':
+        can_submit = user.user_roles.filter(
+            role__role_type__in=Role.STAFF_ROLES,
+            status='active'
+        ).exists()
+        transfer_type_display = _('Staff Transfer')
+    else:
+        can_submit = False
+        transfer_type_display = _('Transfer Request')
+
+    if not can_submit:
+        messages.error(request, _('You are not eligible to submit this type of transfer request.'))
+        return redirect('users:dashboard')
+
+    if request.method == 'POST':
+        from .forms import InstitutionTransferRequestForm
+        form = InstitutionTransferRequestForm(request.POST, user=user, transfer_type=transfer_type)
+
+        if form.is_valid():
+            transfer_request = form.save()
+
+            # Log the transfer request submission
+            AuditLog.objects.create(
+                user=user,
+                action=AuditLog.ActionType.CREATE,
+                model_name='users.InstitutionTransferRequest',
+                object_id=str(transfer_request.id),
+                ip_address=get_client_ip(request),
+                details={
+                    'action': 'Institution transfer request submitted',
+                    'transfer_type': transfer_request.get_transfer_type_display(),
+                    'requested_institution': transfer_request.requested_institution.name
+                }
+            )
+
+            # Send notification emails
+            try:
+                # Notify admins
+                from apps.users.models import User
+                admin_users = User.objects.filter(
+                    Q(is_superuser=True) |
+                    Q(user_roles__role__role_type__in=['admin', 'principal'], user_roles__status='active')
+                ).distinct()
+
+                for admin in admin_users:
+                    # TODO: Send email notification to admin
+                    pass
+
+            except Exception as e:
+                logger.warning(f"Failed to send notification emails for transfer request {transfer_request.id}: {e}")
+
+            messages.success(request, _('Your transfer request has been submitted successfully and is pending review.'))
+            return redirect('users:user_transfer_requests')
+        else:
+            messages.error(request, _('Please correct the errors in the form.'))
+    else:
+        from .forms import InstitutionTransferRequestForm
+        form = InstitutionTransferRequestForm(user=user, transfer_type=transfer_type)
+
+    # Get user's current institution
+    from apps.core.models import InstitutionUser
+    current_institution_user = InstitutionUser.objects.filter(
+        user=user,
+        is_primary=True
+    ).select_related('institution').first()
+
+    context = {
+        'title': _('Submit Transfer Request'),
+        'form': form,
+        'transfer_type': transfer_type,
+        'transfer_type_display': transfer_type_display,
+        'current_institution': current_institution_user.institution if current_institution_user else None,
+        'page_title': f'{transfer_type_display} Request',
+    }
+
+    return render(request, 'users/transfer_request_form.html', context)
+
+
+@login_required
+def institution_transfer_requests_list(request):
+    """
+    View for users to see their own transfer requests.
+    """
+    user = request.user
+
+    transfer_requests = InstitutionTransferRequest.objects.filter(
+        requesting_user=user
+    ).select_related(
+        'current_institution', 'requested_institution',
+        'reviewed_by', 'completed_by', 'academic_session', 'current_role'
+    ).order_by('-created_at')
+
+    context = {
+        'title': _('My Transfer Requests'),
+        'transfer_requests': transfer_requests,
+        'page_title': _('My Transfer Requests'),
+    }
+
+    return render(request, 'users/user_transfer_requests.html', context)
+
+
+@login_required
+def institution_transfer_request_detail(request, request_id):
+    """
+    View details of a specific transfer request.
+    """
+    user = request.user
+    transfer_request = get_object_or_404(
+        InstitutionTransferRequest,
+        id=request_id,
+        requesting_user=user
+    )
+
+    context = {
+        'title': _('Transfer Request Details'),
+        'transfer_request': transfer_request,
+        'page_title': _('Transfer Request Details'),
+    }
+
+    return render(request, 'users/transfer_request_detail.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.user_roles.filter(role__role_type__in=['admin', 'principal'], status='active').exists())
+def admin_transfer_requests_list(request):
+    """
+    Admin view for managing all institution transfer requests.
+    """
+    transfer_requests = InstitutionTransferRequest.objects.all().select_related(
+        'requesting_user', 'current_institution', 'requested_institution',
+        'reviewed_by', 'completed_by', 'academic_session', 'current_role'
+    ).order_by('-created_at')
+
+    # Apply filters
+    status_filter = request.GET.get('status')
+    transfer_type_filter = request.GET.get('transfer_type')
+    search_query = request.GET.get('q')
+
+    if status_filter:
+        transfer_requests = transfer_requests.filter(request_status=status_filter)
+
+    if transfer_type_filter:
+        transfer_requests = transfer_requests.filter(transfer_type=transfer_type_filter)
+
+    if search_query:
+        transfer_requests = transfer_requests.filter(
+            Q(request_number__icontains=search_query) |
+            Q(requesting_user__email__icontains=search_query) |
+            Q(requesting_user__first_name__icontains=search_query) |
+            Q(requesting_user__last_name__icontains=search_query)
+        )
+
+    # Get statistics
+    stats = {
+        'total': InstitutionTransferRequest.objects.count(),
+        'pending': InstitutionTransferRequest.objects.filter(request_status='pending').count(),
+        'under_review': InstitutionTransferRequest.objects.filter(request_status='under_review').count(),
+        'approved': InstitutionTransferRequest.objects.filter(request_status='approved').count(),
+        'completed': InstitutionTransferRequest.objects.filter(request_status='completed').count(),
+        'rejected': InstitutionTransferRequest.objects.filter(request_status='rejected').count(),
+    }
+
+    context = {
+        'title': _('Manage Transfer Requests'),
+        'transfer_requests': transfer_requests,
+        'stats': stats,
+        'current_filters': {
+            'status': status_filter,
+            'transfer_type': transfer_type_filter,
+            'q': search_query,
+        },
+        'page_title': _('Institution Transfer Requests'),
+        'active_tab': 'transfer_requests',
+    }
+
+    return render(request, 'users/admin/transfer_requests_list.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.user_roles.filter(role__role_type__in=['admin', 'principal'], status='active').exists())
+def admin_approve_transfer_request(request, request_id):
+    """
+    Admin view to approve a transfer request.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
+
+    transfer_request = get_object_or_404(InstitutionTransferRequest, id=request_id)
+
+    if not transfer_request.can_be_approved_by(request.user):
+        return JsonResponse({
+            'success': False,
+            'message': 'You do not have permission to approve this request.'
+        }, status=403)
+
+    try:
+        review_notes = request.POST.get('review_notes', '')
+        transfer_request.approve(request.user, review_notes)
+
+        # Log the approval
+        AuditLog.objects.create(
+            user=request.user,
+            action=AuditLog.ActionType.UPDATE,
+            model_name='users.InstitutionTransferRequest',
+            object_id=str(transfer_request.id),
+            ip_address=get_client_ip(request),
+            details={
+                'action': 'Transfer request approved',
+                'request_number': transfer_request.request_number
+            }
+        )
+
+        # TODO: Send email notification to user
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Transfer request {transfer_request.request_number} has been approved.'
+        })
+
+    except Exception as e:
+        logger.error(f"Error approving transfer request {request_id}: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Error approving request: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.user_roles.filter(role__role_type__in=['admin', 'principal'], status='active').exists())
+def admin_reject_transfer_request(request, request_id):
+    """
+    Admin view to reject a transfer request.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
+
+    transfer_request = get_object_or_404(InstitutionTransferRequest, id=request_id)
+
+    if not transfer_request.can_be_approved_by(request.user):
+        return JsonResponse({
+            'success': False,
+            'message': 'You do not have permission to reject this request.'
+        }, status=403)
+
+    try:
+        review_notes = request.POST.get('review_notes', '')
+        transfer_request.reject(request.user, review_notes)
+
+        # Log the rejection
+        AuditLog.objects.create(
+            user=request.user,
+            action=AuditLog.ActionType.UPDATE,
+            model_name='users.InstitutionTransferRequest',
+            object_id=str(transfer_request.id),
+            ip_address=get_client_ip(request),
+            details={
+                'action': 'Transfer request rejected',
+                'request_number': transfer_request.request_number,
+                'review_notes': review_notes[:100]  # First 100 chars
+            }
+        )
+
+        # TODO: Send email notification to user
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Transfer request {transfer_request.request_number} has been rejected.'
+        })
+
+    except Exception as e:
+        logger.error(f"Error rejecting transfer request {request_id}: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Error rejecting request: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.user_roles.filter(role__role_type__in=['admin', 'principal'], status='active').exists())
+def admin_complete_transfer_request(request, request_id):
+    """
+    Admin view to complete an approved transfer request.
+    This involves actually transferring the user to the new institution.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
+
+    transfer_request = get_object_or_404(
+        InstitutionTransferRequest,
+        id=request_id,
+        request_status=InstitutionTransferRequest.RequestStatus.APPROVED
+    )
+
+    try:
+        with transaction.atomic():
+            user = transfer_request.requesting_user
+
+            # Update user's primary institution association
+            from apps.core.models import InstitutionUser
+            institution_user, created = InstitutionUser.objects.get_or_create(
+                user=user,
+                institution=transfer_request.requested_institution,
+                defaults={
+                    'is_primary': True,
+                    'employee_id': f"{transfer_request.transfer_type}_{transfer_request.requested_institution.code}_{user.id}",
+                }
+            )
+
+            if not created:
+                # Update existing association to be primary
+                institution_user.is_primary = True
+                institution_user.save()
+
+            # Remove primary flag from old institution association (if different)
+            if transfer_request.current_institution != transfer_request.requested_institution:
+                InstitutionUser.objects.filter(
+                    user=user,
+                    institution=transfer_request.current_institution,
+                    is_primary=True
+                ).update(is_primary=False)
+
+            # Mark the transfer request as completed
+            transfer_request.complete_transfer(request.user)
+
+            # Log the completion
+            AuditLog.objects.create(
+                user=request.user,
+                action=AuditLog.ActionType.UPDATE,
+                model_name='users.InstitutionTransferRequest',
+                object_id=str(transfer_request.id),
+                ip_address=get_client_ip(request),
+                details={
+                    'action': 'Transfer request completed',
+                    'request_number': transfer_request.request_number,
+                    'user_moved': f'{user.get_full_name()} ({user.email})',
+                    'from_institution': transfer_request.current_institution.name,
+                    'to_institution': transfer_request.requested_institution.name
+                }
+            )
+
+            # TODO: Send email notification to user about successful transfer
+
+            return JsonResponse({
+                'success': True,
+                'message': f'Transfer request {transfer_request.request_number} has been completed. User has been transferred to {transfer_request.requested_institution.name}.'
+            })
+
+    except Exception as e:
+        logger.error(f"Error completing transfer request {request_id}: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Error completing transfer: {str(e)}'
         }, status=500)
 
 # =============================================================================

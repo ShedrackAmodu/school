@@ -709,107 +709,330 @@ class ParentStudentRelationship(CoreBaseModel):
             ).exclude(pk=self.pk).update(is_primary_contact=False)
         super().save(*args, **kwargs)
 
-# Application Models
+# Institution Transfer Models
 
-class StudentApplication(CoreBaseModel):
+class InstitutionTransferRequest(CoreBaseModel):
     """
-    Model for student applications.
+    Model for tracking institution transfer requests by existing users.
     """
-    class ApplicationStatus(models.TextChoices):
-        PENDING = 'pending', _('Pending')
+    class TransferType(models.TextChoices):
+        STUDENT_TRANSFER = 'student_transfer', _('Student Transfer')
+        STAFF_TRANSFER = 'staff_transfer', _('Staff Transfer')
+
+    class RequestStatus(models.TextChoices):
+        PENDING = 'pending', _('Pending Review')
         UNDER_REVIEW = 'under_review', _('Under Review')
         APPROVED = 'approved', _('Approved')
         REJECTED = 'rejected', _('Rejected')
-        WAITLISTED = 'waitlisted', _('Waitlisted')
+        COMPLETED = 'completed', _('Transfer Completed')
+        CANCELLED = 'cancelled', _('Cancelled')
 
-    class GradeLevel(models.TextChoices):
-        PRESCHOOL = 'preschool', _('Preschool')
-        KINDERGARTEN = 'kindergarten', _('Kindergarten')
-        GRADE_1 = 'grade_1', _('Grade 1')
-        GRADE_2 = 'grade_2', _('Grade 2')
-        GRADE_3 = 'grade_3', _('Grade 3')
-        GRADE_4 = 'grade_4', _('Grade 4')
-        GRADE_5 = 'grade_5', _('Grade 5')
-        GRADE_6 = 'grade_6', _('Grade 6')
-        GRADE_7 = 'grade_7', _('Grade 7')
-        GRADE_8 = 'grade_8', _('Grade 8')
-        GRADE_9 = 'grade_9', _('Grade 9')
-        GRADE_10 = 'grade_10', _('Grade 10')
-        GRADE_11 = 'grade_11', _('Grade 11')
-        GRADE_12 = 'grade_12', _('Grade 12')
+    # Transfer Details
+    transfer_type = models.CharField(
+        _('transfer type'),
+        max_length=20,
+        choices=TransferType.choices
+    )
+    requesting_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='institution_transfer_requests',
+        verbose_name=_('requesting user')
+    )
+
+    # Institution Details
+    current_institution = models.ForeignKey(
+        'core.Institution',
+        on_delete=models.CASCADE,
+        related_name='outgoing_transfers',
+        verbose_name=_('current institution')
+    )
+    requested_institution = models.ForeignKey(
+        'core.Institution',
+        on_delete=models.CASCADE,
+        related_name='incoming_transfer_requests',
+        verbose_name=_('requested institution')
+    )
+
+    # Request Details
+    request_reason = models.TextField(
+        _('reason for transfer'),
+        help_text=_('Please explain why you want to transfer institutions')
+    )
+    additional_notes = models.TextField(
+        _('additional notes'),
+        blank=True,
+        help_text=_('Any additional information relevant to your transfer request')
+    )
+
+    # Status and Workflow
+    request_status = models.CharField(
+        _('request status'),
+        max_length=20,
+        choices=RequestStatus.choices,
+        default=RequestStatus.PENDING
+    )
+    priority_level = models.CharField(
+        _('priority level'),
+        max_length=10,
+        choices=[
+            ('low', _('Low')),
+            ('medium', _('Medium')),
+            ('high', _('High')),
+            ('urgent', _('Urgent'))
+        ],
+        default='medium'
+    )
+
+    # Approval Workflow
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_transfer_requests',
+        verbose_name=_('reviewed by')
+    )
+    reviewed_at = models.DateTimeField(_('reviewed at'), null=True, blank=True)
+    review_notes = models.TextField(_('review notes'), blank=True)
+    approval_date = models.DateTimeField(_('approval date'), null=True, blank=True)
+
+    # Transfer Completion
+    transfer_completed_at = models.DateTimeField(_('transfer completed at'), null=True, blank=True)
+    completed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='completed_transfers',
+        verbose_name=_('transfer completed by')
+    )
+
+    # Academic/Professional Context (for transfers)
+    academic_session = models.ForeignKey(
+        'academics.AcademicSession',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('academic session')
+    )
+    current_role = models.ForeignKey(
+        Role,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='current_transfer_requests',
+        verbose_name=_('current role/position'),
+        help_text=_('Current role at the institution')
+    )
+
+    # System fields
+    request_number = models.CharField(
+        _('request number'),
+        max_length=20,
+        unique=True,
+        blank=True
+    )
+
+    class Meta:
+        verbose_name = _('Institution Transfer Request')
+        verbose_name_plural = _('Institution Transfer Requests')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['requesting_user', 'request_status']),
+            models.Index(fields=['current_institution', 'requested_institution']),
+            models.Index(fields=['transfer_type', 'request_status']),
+            models.Index(fields=['request_number']),
+        ]
+
+    def __str__(self):
+        return f"{self.requesting_user.get_full_name()} - {self.current_institution.code} to {self.requested_institution.code}"
+
+    def save(self, *args, **kwargs):
+        if not self.request_number:
+            self.request_number = self.generate_request_number()
+        super().save(*args, **kwargs)
+
+    def generate_request_number(self):
+        """Generate unique request number."""
+        prefix_map = {
+            self.TransferType.STUDENT_TRANSFER: "STU",
+            self.TransferType.STAFF_TRANSFER: "STF"
+        }
+        prefix = prefix_map.get(self.transfer_type, "TRF")
+        year = timezone.now().strftime('%Y')
+
+        # Find the last request number for this year
+        last_request = InstitutionTransferRequest.objects.filter(
+            request_number__startswith=f"{prefix}{year}"
+        ).order_by('request_number').last()
+
+        if last_request:
+            try:
+                last_num = int(last_request.request_number[-4:])
+                new_num = last_num + 1
+            except (ValueError, IndexError):
+                new_num = 1
+        else:
+            new_num = 1
+
+        return f"{prefix}{year}{new_num:04d}"
+
+    @property
+    def can_be_approved_by(self, user):
+        """Check if a user can approve this transfer request."""
+        if not user.is_authenticated:
+            return False
+
+        # Superusers can approve anything
+        if user.is_superuser:
+            return True
+
+        # Check user's roles and institution permissions
+        user_institutions = user.institutions.filter(is_active=True)
+
+        # Can approve if user has admin role at either current or requested institution
+        has_admin_rights_current = user_institutions.filter(
+            id=self.current_institution.id
+        ).exists() and user.user_roles.filter(
+            role__role_type__in=['admin', 'principal', 'super_admin'],
+            status='active'
+        ).exists()
+
+        has_admin_rights_requested = user_institutions.filter(
+            id=self.requested_institution.id
+        ).exists() and user.user_roles.filter(
+            role__role_type__in=['admin', 'principal', 'super_admin'],
+            status='active'
+        ).exists()
+
+        return has_admin_rights_current or has_admin_rights_requested
+
+    def approve(self, approved_by, review_notes=""):
+        """Approve the transfer request."""
+        from django.utils import timezone
+
+        if self.request_status in [self.RequestStatus.APPROVED, self.RequestStatus.COMPLETED]:
+            raise ValueError("Transfer request is already approved or completed.")
+
+        self.request_status = self.RequestStatus.APPROVED
+        self.reviewed_by = approved_by
+        self.reviewed_at = timezone.now()
+        self.approval_date = timezone.now()
+        self.review_notes = review_notes
+        self.save()
+
+        # TODO: Trigger transfer completion process
+
+    def reject(self, rejected_by, review_notes=""):
+        """Reject the transfer request."""
+        from django.utils import timezone
+
+        if self.request_status in [self.RequestStatus.REJECTED, self.RequestStatus.COMPLETED]:
+            raise ValueError("Transfer request is already rejected or completed.")
+
+        self.request_status = self.RequestStatus.REJECTED
+        self.reviewed_by = rejected_by
+        self.reviewed_at = timezone.now()
+        self.review_notes = review_notes
+        self.save()
+
+    def complete_transfer(self, completed_by):
+        """Mark the transfer as completed."""
+        from django.utils import timezone
+
+        if self.request_status != self.RequestStatus.APPROVED:
+            raise ValueError("Cannot complete transfer that hasn't been approved.")
+
+        self.request_status = self.RequestStatus.COMPLETED
+        self.transfer_completed_at = timezone.now()
+        self.completed_by = completed_by
+        self.save()
+
+    @property
+    def status_badge_class(self):
+        """Return Bootstrap badge class for status."""
+        status_classes = {
+            self.RequestStatus.PENDING: 'secondary',
+            self.RequestStatus.UNDER_REVIEW: 'warning',
+            self.RequestStatus.APPROVED: 'success',
+            self.RequestStatus.REJECTED: 'danger',
+            self.RequestStatus.COMPLETED: 'success',
+            self.RequestStatus.CANCELLED: 'secondary'
+        }
+        return status_classes.get(self.request_status, 'secondary')
+
+    @property
+    def transfer_summary(self):
+        """Return a summary of the transfer request."""
+        return {
+            'request_number': self.request_number,
+            'user': self.requesting_user.get_full_name(),
+            'from_institution': str(self.current_institution),
+            'to_institution': str(self.requested_institution),
+            'status': self.get_request_status_display(),
+            'requested_at': self.created_at,
+            'transfer_type': self.get_transfer_type_display()
+        }
+
+
+# Application Models
+
+class ApplicationStatus(models.TextChoices):
+    PENDING = 'pending', _('Pending')
+    UNDER_REVIEW = 'under_review', _('Under Review')
+    APPROVED = 'approved', _('Approved')
+    REJECTED = 'rejected', _('Rejected')
+    INTERVIEW_SCHEDULED = 'interview_scheduled', _('Interview Scheduled')
+
+
+class StudentApplication(CoreBaseModel, AddressModel):
+    """
+    Model for student applications from public/guest users.
+    """
 
     # Personal Information
-    first_name = models.CharField(_('first name'), max_length=100)
-    last_name = models.CharField(_('last name'), max_length=100)
+    first_name = models.CharField(_('first name'), max_length=50)
+    last_name = models.CharField(_('last name'), max_length=50)
+    email = models.EmailField(_('email address'), unique=True)
+    phone = models.CharField(_('phone number'), max_length=20, blank=True)
     date_of_birth = models.DateField(_('date of birth'))
     gender = models.CharField(
         _('gender'),
         max_length=20,
-        choices=UserProfile.GENDER_CHOICES
+        choices=[
+            ('male', _('Male')),
+            ('female', _('Female')),
+            ('other', _('Other')),
+        ]
     )
-    nationality = models.CharField(_('nationality'), max_length=100)
-    
-    # Contact Information
-    email = models.EmailField(_('email address'))
-    phone = models.CharField(_('phone number'), max_length=20)
-    address = models.TextField(_('address'))
-    city = models.CharField(_('city'), max_length=100)
-    state = models.CharField(_('state/province'), max_length=100)
-    postal_code = models.CharField(_('postal code'), max_length=20)
-    country = models.CharField(_('country'), max_length=100)
-    
+    nationality = models.CharField(_('nationality'), max_length=50)
+
     # Academic Information
-    grade_applying_for = models.CharField(
-        _('grade applying for'),
-        max_length=20,
-        choices=GradeLevel.choices
-    )
-    previous_school = models.CharField(_('previous school'), max_length=200, blank=True)
+    grade_applying_for = models.CharField(_('grade applying for'), max_length=20)
+    previous_school = models.CharField(_('previous school'), max_length=100, blank=True)
     previous_grade = models.CharField(_('previous grade'), max_length=20, blank=True)
     academic_achievements = models.TextField(_('academic achievements'), blank=True)
-    
+    medical_conditions = models.TextField(_('medical conditions'), blank=True)
+    special_needs = models.TextField(_('special educational needs'), blank=True)
+    extracurricular_interests = models.TextField(_('extracurricular interests'), blank=True)
+
     # Parent/Guardian Information
-    parent_first_name = models.CharField(_("parent's first name"), max_length=100)
-    parent_last_name = models.CharField(_("parent's last name"), max_length=100)
-    parent_email = models.EmailField(_("parent's email"))
-    parent_phone = models.CharField(_("parent's phone"), max_length=20)
+    parent_first_name = models.CharField(_('parent first name'), max_length=50)
+    parent_last_name = models.CharField(_('parent last name'), max_length=50)
+    parent_email = models.EmailField(_('parent email'))
+    parent_phone = models.CharField(_('parent phone'), max_length=20)
     parent_relationship = models.CharField(
-        _('relationship to student'),
+        _('parent relationship'),
         max_length=20,
-        choices=ParentStudentRelationship.RelationshipType.choices
-    )
-    
-    # Documents
-    birth_certificate = models.FileField(
-        _('birth certificate'),
-        upload_to='student_applications/birth_certificates/%Y/%m/%d/',
-        blank=True,
-        help_text=_('Upload birth certificate (PDF, JPG, PNG)')
-    )
-    previous_school_transcript = models.FileField(
-        _('previous school transcript'),
-        upload_to='student_applications/transcripts/%Y/%m/%d/',
-        blank=True,
-        help_text=_('Upload academic transcript from previous school (PDF)')
-    )
-    recommendation_letter = models.FileField(
-        _('recommendation letter'),
-        upload_to='student_applications/recommendations/%Y/%m/%d/',
-        blank=True,
-        help_text=_('Upload recommendation letter (PDF, DOC, DOCX)')
-    )
-    medical_report = models.FileField(
-        _('medical report'),
-        upload_to='student_applications/medical_reports/%Y/%m/%d/',
-        blank=True,
-        help_text=_('Upload medical report if applicable (PDF)')
+        choices=[
+            ('father', _('Father')),
+            ('mother', _('Mother')),
+            ('guardian', _('Guardian')),
+            ('other', _('Other')),
+        ]
     )
 
-    # Additional Information
-    medical_conditions = models.TextField(_('medical conditions'), blank=True)
-    special_needs = models.TextField(_('special needs'), blank=True)
-    extracurricular_interests = models.TextField(_('extracurricular interests'), blank=True)
-    
     # Application Details
     application_status = models.CharField(
         _('application status'),
@@ -825,7 +1048,7 @@ class StudentApplication(CoreBaseModel):
         verbose_name=_('academic session')
     )
     application_date = models.DateTimeField(_('application date'), auto_now_add=True)
-    
+
     # Review Information
     reviewed_by = models.ForeignKey(
         User,
@@ -837,7 +1060,7 @@ class StudentApplication(CoreBaseModel):
     )
     reviewed_at = models.DateTimeField(_('reviewed at'), null=True, blank=True)
     review_notes = models.TextField(_('review notes'), blank=True)
-    
+
     # System fields
     application_number = models.CharField(
         _('application number'),
@@ -845,13 +1068,24 @@ class StudentApplication(CoreBaseModel):
         unique=True,
         blank=True
     )
-    user_account = models.ForeignKey(
+    user_account = models.OneToOneField(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='student_application',
         verbose_name=_('user account')
+    )
+
+    # Institution field - where the student is applying to study
+    institution = models.ForeignKey(
+        'core.Institution',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='student_applications',
+        verbose_name=_('institution'),
+        help_text=_('The institution the student is applying to study at')
     )
 
     class Meta:
@@ -862,10 +1096,11 @@ class StudentApplication(CoreBaseModel):
             models.Index(fields=['application_status', 'application_date']),
             models.Index(fields=['email']),
             models.Index(fields=['application_number']),
+            models.Index(fields=['institution']),
         ]
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} - {self.grade_applying_for}"
+        return f"{self.first_name} {self.last_name} - Application {self.application_number}"
 
     def save(self, *args, **kwargs):
         if not self.application_number:
@@ -873,28 +1108,17 @@ class StudentApplication(CoreBaseModel):
         super().save(*args, **kwargs)
 
     def generate_application_number(self):
-        """Generate unique application number."""
-        prefix = "STU"
-        year = timezone.now().strftime('%Y')
-        last_app = StudentApplication.objects.filter(
-            application_number__startswith=f"{prefix}{year}"
-        ).order_by('application_number').last()
-        
-        if last_app:
-            last_num = int(last_app.application_number[-4:])
-            new_num = last_num + 1
-        else:
-            new_num = 1
-            
-        return f"{prefix}{year}{new_num:04d}"
+        """Generate unique application number using SequenceGenerator."""
+        from apps.core.models import SequenceGenerator
+        sequence, created = SequenceGenerator.objects.get_or_create(
+            sequence_type='student_application',
+            defaults={'prefix': 'STU', 'padding': 4, 'reset_frequency': 'yearly'}
+        )
+        return sequence.get_next_number()
 
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
-
-    @property
-    def parent_full_name(self):
-        return f"{self.parent_first_name} {self.parent_last_name}"
 
     @property
     def age(self):
@@ -906,55 +1130,46 @@ class StudentApplication(CoreBaseModel):
         return None
 
 
-class StaffApplication(CoreBaseModel):
+class StaffApplication(CoreBaseModel, AddressModel):
     """
-    Model for staff applications.
+    Model for staff applications from public/guest users.
     """
-    class ApplicationStatus(models.TextChoices):
-        PENDING = 'pending', _('Pending')
-        UNDER_REVIEW = 'under_review', _('Under Review')
-        APPROVED = 'approved', _('Approved')
-        REJECTED = 'rejected', _('Rejected')
-        INTERVIEW_SCHEDULED = 'interview_scheduled', _('Interview Scheduled')
 
     class PositionType(models.TextChoices):
-        FULL_TIME = 'full_time', _('Full Time')
-        PART_TIME = 'part_time', _('Part Time')
-        CONTRACT = 'contract', _('Contract')
-        VOLUNTEER = 'volunteer', _('Volunteer')
+        TEACHING = 'teaching', _('Teaching Staff')
+        ADMINISTRATIVE = 'administrative', _('Administrative Staff')
+        SUPPORT = 'support', _('Support Staff')
+        TECHNICAL = 'technical', _('Technical Staff')
 
     # Personal Information
-    first_name = models.CharField(_('first name'), max_length=100)
-    last_name = models.CharField(_('last name'), max_length=100)
+    first_name = models.CharField(_('first name'), max_length=50)
+    last_name = models.CharField(_('last name'), max_length=50)
+    email = models.EmailField(_('email address'), unique=True)
+    phone = models.CharField(_('phone number'), max_length=20, blank=True)
     date_of_birth = models.DateField(_('date of birth'))
     gender = models.CharField(
         _('gender'),
         max_length=20,
-        choices=UserProfile.GENDER_CHOICES
+        choices=[
+            ('male', _('Male')),
+            ('female', _('Female')),
+            ('other', _('Other')),
+        ]
     )
-    nationality = models.CharField(_('nationality'), max_length=100)
-    
-    # Contact Information
-    email = models.EmailField(_('email address'))
-    phone = models.CharField(_('phone number'), max_length=20)
-    address = models.TextField(_('address'))
-    city = models.CharField(_('city'), max_length=100)
-    state = models.CharField(_('state/province'), max_length=100)
-    postal_code = models.CharField(_('postal code'), max_length=20)
-    country = models.CharField(_('country'), max_length=100)
-    
+    nationality = models.CharField(_('nationality'), max_length=50)
+
     # Professional Information
     position_applied_for = models.ForeignKey(
         Role,
         on_delete=models.CASCADE,
-        limit_choices_to={'role_type__in': Role.STAFF_ROLES, 'status': 'active'},
-        verbose_name=_('position applied for')
+        verbose_name=_('position applied for'),
+        help_text=_('The position/role the applicant is applying for')
     )
     position_type = models.CharField(
         _('position type'),
         max_length=20,
         choices=PositionType.choices,
-        default=PositionType.FULL_TIME
+        default=PositionType.TEACHING
     )
     expected_salary = models.DecimalField(
         _('expected salary'),
@@ -963,17 +1178,17 @@ class StaffApplication(CoreBaseModel):
         null=True,
         blank=True
     )
-    
+
     # Educational Background
-    highest_qualification = models.CharField(_('highest qualification'), max_length=200)
-    qualified_institution = models.CharField(_('institution'), max_length=200)
+    highest_qualification = models.CharField(_('highest qualification'), max_length=100)
+    institution = models.CharField(_('institution'), max_length=200, help_text=_('Institution where qualification was obtained'))
     year_graduated = models.PositiveIntegerField(_('year graduated'))
-    
+
     # Professional Experience
     years_of_experience = models.PositiveIntegerField(_('years of experience'), default=0)
     previous_employer = models.CharField(_('previous employer'), max_length=200, blank=True)
     previous_position = models.CharField(_('previous position'), max_length=200, blank=True)
-    
+
     # Documents
     cv = models.FileField(
         _('curriculum vitae'),
@@ -992,16 +1207,16 @@ class StaffApplication(CoreBaseModel):
         blank=True,
         help_text=_('Upload relevant certificates (optional)')
     )
-    
+
     # References
     reference1_name = models.CharField(_('reference 1 name'), max_length=100)
     reference1_position = models.CharField(_('reference 1 position'), max_length=100)
     reference1_contact = models.CharField(_('reference 1 contact'), max_length=100)
-    
+
     reference2_name = models.CharField(_('reference 2 name'), max_length=100, blank=True)
     reference2_position = models.CharField(_('reference 2 position'), max_length=100, blank=True)
     reference2_contact = models.CharField(_('reference 2 contact'), max_length=100, blank=True)
-    
+
     # Application Details
     application_status = models.CharField(
         _('application status'),
@@ -1017,7 +1232,8 @@ class StaffApplication(CoreBaseModel):
         verbose_name=_('academic session')
     )
     application_date = models.DateTimeField(_('application date'), auto_now_add=True)
-    
+    interview_date = models.DateTimeField(_('interview date'), null=True, blank=True)
+
     # Review Information
     reviewed_by = models.ForeignKey(
         User,
@@ -1029,8 +1245,7 @@ class StaffApplication(CoreBaseModel):
     )
     reviewed_at = models.DateTimeField(_('reviewed at'), null=True, blank=True)
     review_notes = models.TextField(_('review notes'), blank=True)
-    interview_date = models.DateTimeField(_('interview date'), null=True, blank=True)
-    
+
     # System fields
     application_number = models.CharField(
         _('application number'),
@@ -1038,13 +1253,24 @@ class StaffApplication(CoreBaseModel):
         unique=True,
         blank=True
     )
-    user_account = models.ForeignKey(
+    user_account = models.OneToOneField(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='staff_application',
         verbose_name=_('user account')
+    )
+
+    # Institution field - where the staff member is applying to work
+    institution = models.ForeignKey(
+        'core.Institution',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff_applications',
+        verbose_name=_('institution'),
+        help_text=_('The institution the applicant is applying to work at')
     )
 
     class Meta:
@@ -1091,14 +1317,14 @@ class StaffApplication(CoreBaseModel):
     def clean(self):
         """Validate file types and sizes."""
         from django.core.exceptions import ValidationError
-        
+
         # CV validation
         if self.cv:
             valid_extensions = ['.pdf', '.doc', '.docx']
             ext = str(self.cv.name).lower().split('.')[-1]
             if f'.{ext}' not in valid_extensions:
                 raise ValidationError({'cv': _('Only PDF, DOC, and DOCX files are allowed for CV.')})
-            
+
             if self.cv.size > 5 * 1024 * 1024:  # 5MB limit
                 raise ValidationError({'cv': _('CV file size must not exceed 5MB.')})
 
@@ -1249,7 +1475,19 @@ def create_user_profile(sender, instance, created, **kwargs):
     Automatically create user profile when a new user is created.
     """
     if created:
-        UserProfile.objects.create(user=instance)
+        from apps.core.models import Institution
+        # Get or create default institution for superuser
+        institution = Institution.objects.filter(is_active=True).first()
+        if not institution:
+            # Create a default institution if none exists
+            institution = Institution.objects.create(
+                name="Default Institution",
+                code="DEFAULT",
+                institution_type="high_school",
+                ownership_type="private",
+                is_active=True
+            )
+        UserProfile.objects.create(user=instance, institution=institution)
 
 
 @receiver(post_save, sender=User)
@@ -1265,6 +1503,7 @@ def save_user_profile(sender, instance, **kwargs):
 def auto_map_user_to_institution(sender, instance, created, **kwargs):
     """
     Automatically map users to institutions when roles are assigned.
+    Respects existing institution mappings from applications and prevents conflicts.
     """
     from apps.core.models import Institution, InstitutionUser
 
@@ -1283,35 +1522,66 @@ def auto_map_user_to_institution(sender, instance, created, **kwargs):
         ).first()
 
         if not existing_mapping:
-            # Try to find an appropriate institution
-            # First, check if there are any active institutions
-            default_institution = Institution.objects.filter(
-                is_active=True
-            ).first()
+            # First, try to get institution from user's approved application
+            preferred_institution = None
 
-            if default_institution:
-                # Create institution-user mapping
-                institution_user, created = InstitutionUser.objects.get_or_create(
-                    user=instance.user,
-                    institution=default_institution,
-                    defaults={
-                        'is_primary': True,
-                        'employee_id': f'{instance.role.role_type}_{default_institution.code}_{instance.user.id}',
-                    }
-                )
+            # Check staff application first (most reliable source)
+            staff_application = StaffApplication.objects.filter(
+                user_account=instance.user,
+                application_status='approved'
+            ).order_by('-reviewed_at').first()
 
-                if created:
-                    # Update user profile with employee ID
-                    if hasattr(instance.user, 'profile') and instance.user.profile:
-                        instance.user.profile.employee_id = institution_user.employee_id
-                        instance.user.profile.save()
+            if staff_application and staff_application.institution:
+                preferred_institution = staff_application.institution
+
+            # If no preferred institution from applications, check existing mappings
+            if not preferred_institution:
+                any_existing_mapping = InstitutionUser.objects.filter(
+                    user=instance.user
+                ).first()
+                if any_existing_mapping:
+                    preferred_institution = any_existing_mapping.institution
+
+            # If still no institution, use a default active institution
+            if not preferred_institution:
+                preferred_institution = Institution.objects.filter(
+                    is_active=True
+                ).first()
+
+            if preferred_institution:
+                # Create institution-user mapping with proper error handling
+                try:
+                    institution_user, inst_created = InstitutionUser.objects.get_or_create(
+                        user=instance.user,
+                        institution=preferred_institution,
+                        defaults={
+                            'is_primary': True,
+                            'employee_id': f'{instance.role.role_type}_{preferred_institution.code}_{instance.user.id}',
+                        }
+                    )
+
+                    if inst_created:
+                        # Update user profile with employee ID
+                        if hasattr(instance.user, 'profile') and instance.user.profile:
+                            instance.user.profile.employee_id = institution_user.employee_id
+                            instance.user.profile.save()
+
+                        logger.info(f"Auto-mapped user {instance.user.email} to institution {preferred_institution.name}")
+                    else:
+                        logger.info(f"User {instance.user.email} already mapped to {preferred_institution.name}")
+
+                except Exception as e:
+                    logger.error(f"Failed to auto-map user {instance.user.email} to institution: {e}")
 
 @receiver(post_save, sender=UserRole)
 def sync_permissions_on_role_save(sender, instance, **kwargs):
     """
     Sync user permissions when a role is assigned or updated.
     """
-    sync_user_permissions(instance.user)
+    try:
+        sync_user_permissions(instance.user)
+    except Exception as e:
+        logger.error(f"Failed to sync permissions for user {instance.user.email}: {e}")
 
 
 @receiver(post_delete, sender=UserRole)
@@ -1319,7 +1589,10 @@ def sync_permissions_on_role_delete(sender, instance, **kwargs):
     """
     Sync user permissions when a role is removed.
     """
-    sync_user_permissions(instance.user)
+    try:
+        sync_user_permissions(instance.user)
+    except Exception as e:
+        logger.error(f"Failed to sync permissions for user {instance.user.email}: {e}")
 
 
 @receiver(post_save, sender=UserProfile)

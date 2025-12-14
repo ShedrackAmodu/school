@@ -1040,10 +1040,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!validateAllAttendance()) {
             return;
         }
-        
+
         // Set the default option
         document.getElementById(`save${defaultOption.charAt(0).toUpperCase() + defaultOption.slice(1)}Option`).checked = true;
-        saveOptionsModal.show();
+
+        // Ensure modal is properly initialized and show it
+        const modalElement = document.getElementById('saveOptionsModal');
+        if (modalElement) {
+            const bsModal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static',
+                keyboard: false
+            });
+            bsModal.show();
+        }
     }
 
     function confirmSave() {
@@ -1237,32 +1246,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showToast(message, type = 'info') {
+        // Create unique container for each toast to avoid z-index conflicts
+        const containerId = `toast-container-${Date.now()}`;
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1060'; // Higher than modals but below tooltips
+        toastContainer.id = containerId;
+
         const toast = document.createElement('div');
-        toast.className = `toast align-items-center text-bg-${type === 'error' ? 'danger' : type} border-0`;
+        toast.className = `toast align-items-center text-bg-${type === 'error' ? 'danger' : type} border-0 fade`;
         toast.setAttribute('role', 'alert');
         toast.setAttribute('aria-live', 'assertive');
         toast.setAttribute('aria-atomic', 'true');
-        
+
         toast.innerHTML = `
             <div class="d-flex">
                 <div class="toast-body">${message}</div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
         `;
-        
-        let toastContainer = document.querySelector('.toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            document.body.appendChild(toastContainer);
-        }
-        
+
         toastContainer.appendChild(toast);
-        const bsToast = new bootstrap.Toast(toast);
+        document.body.appendChild(toastContainer);
+
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 3000
+        });
+
+        // Show the toast
         bsToast.show();
-        
+
+        // Clean up after hide
         toast.addEventListener('hidden.bs.toast', function() {
-            toast.remove();
+            toastContainer.remove();
         });
     }
 });

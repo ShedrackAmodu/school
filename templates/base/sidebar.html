@@ -54,11 +54,41 @@
             <!-- Quick Actions -->
             {% if user.is_authenticated %}
             <div class="quick-actions p-3 border-bottom">
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#quickActionModal">
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-plus-circle me-1"></i>
                         {% trans "Quick Action" %}
                     </button>
+                    <ul class="dropdown-menu">
+                        <!-- Student Quick Actions -->
+                        {% if is_student %}
+                        <li><a class="dropdown-item" href="{% url 'assessment:assignment_list' %}"><i class="bi bi-journal-text me-2"></i>{% trans "Assignments" %}</a></li>
+                        <li><a class="dropdown-item" href="{% url 'assessment:student_marks' %}"><i class="bi bi-graph-up me-2"></i>{% trans "View Marks" %}</a></li>
+                        {% endif %}
+
+                        <!-- Teacher Quick Actions -->
+                        {% if is_teacher %}
+                        <li><a class="dropdown-item" href="{% url 'attendance:bulk_class_select' %}"><i class="bi bi-clipboard-check me-2"></i>{% trans "Take Attendance" %}</a></li>
+                        <li><a class="dropdown-item" href="{% url 'assessment:grading_overview' %}"><i class="bi bi-pencil-square me-2"></i>{% trans "Enter Grades" %}</a></li>
+                        {% endif %}
+
+                        <!-- Parent Quick Actions -->
+                        {% if is_parent %}
+                        <li><a class="dropdown-item" href="{% url 'communication:notification_list' %}"><i class="bi bi-bell me-2"></i>{% trans "Check Updates" %}</a></li>
+                        <li><a class="dropdown-item" href="{% url 'finance:student_invoices' %}"><i class="bi bi-receipt me-2"></i>{% trans "Fee Status" %}</a></li>
+                        {% endif %}
+
+                        <!-- Admin Quick Actions -->
+                        {% if can_manage_users %}
+                        <li><a class="dropdown-item" href="{% url 'users:user_create' %}"><i class="bi bi-person-plus me-2"></i>{% trans "Add User" %}</a></li>
+                        <li><a class="dropdown-item" href="{% url 'users:pending_applications' %}"><i class="bi bi-person-check me-2"></i>{% trans "Applications" %}</a></li>
+                        {% endif %}
+
+                        <!-- Common Quick Actions -->
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'communication:notification_list' %}"><i class="bi bi-bell me-2"></i>{% trans "Notifications" %}</a></li>
+                        <li><a class="dropdown-item" href="{% url 'support:home' %}"><i class="bi bi-headset me-2"></i>{% trans "Get Help" %}</a></li>
+                    </ul>
                 </div>
             </div>
             {% endif %}
@@ -474,103 +504,21 @@
     </div>
 </aside>
 
-<!-- Quick Action Modal -->
-<div class="modal fade" id="quickActionModal" tabindex="-1" aria-labelledby="quickActionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="quickActionModalLabel">{% trans "Quick Actions" %}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row g-2">
-                    <!-- Student Quick Actions -->
-                    {% if is_student %}
-                    <div class="col-6">
-                        <a href="{% url 'assessment:assignment_list' %}" class="btn btn-outline-primary w-100 h-100 py-3">
-                            <i class="bi bi-journal-text d-block mb-1"></i>
-                            <small>{% trans "Assignments" %}</small>
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        {% comment %} <a href="{% url 'assessment:student_marks' %}" class="btn btn-outline-success w-100 h-100 py-3"> {% endcomment %}
-                            <i class="bi bi-graph-up d-block mb-1"></i>
-                            <small>{% trans "View Marks" %}</small>
-                        </a>
-                    </div>
-                    {% endif %}
 
-                    <!-- Teacher Quick Actions -->
-                    {% if is_teacher %}
-                    <div class="col-6">
-                        {% comment %} <a href="{% url 'academics:attendance_management' %}" class="btn btn-outline-primary w-100 h-100 py-3"> {% endcomment %}
-                            <i class="bi bi-clipboard-check d-block mb-1"></i>
-                            <small>{% trans "Take Attendance" %}</small>
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        {% comment %} <a href="{% url 'academics:grade_management' %}" class="btn btn-outline-success w-100 h-100 py-3"> {% endcomment %}
-                            <i class="bi bi-pencil-square d-block mb-1"></i>
-                            <small>{% trans "Enter Grades" %}</small>
-                        </a>
-                    </div>
-                    {% endif %}
-
-                    <!-- Parent Quick Actions -->
-                    {% if is_parent %}
-                    <div class="col-6">
-                        <a href="{% url 'academics:parent_progress' %}" class="btn btn-outline-primary w-100 h-100 py-3">
-                            <i class="bi bi-graph-up d-block mb-1"></i>
-                            <small>{% trans "Progress Report" %}</small>
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'finance:student_invoices' %}" class="btn btn-outline-success w-100 h-100 py-3">
-                            <i class="bi bi-receipt d-block mb-1"></i>
-                            <small>{% trans "Fee Status" %}</small>
-                        </a>
-                    </div>
-                    {% endif %}
-
-                    <!-- Admin Quick Actions -->
-                    {% if can_manage_users %}
-                    <div class="col-6">
-                        <a href="{% url 'users:user_create' %}" class="btn btn-outline-info w-100 h-100 py-3">
-                            <i class="bi bi-person-plus d-block mb-1"></i>
-                            <small>{% trans "Add User" %}</small>
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'users:pending_applications' %}" class="btn btn-outline-warning w-100 h-100 py-3">
-                            <i class="bi bi-person-check d-block mb-1"></i>
-                            <small>{% trans "Applications" %}</small>
-                        </a>
-                    </div>
-                    {% endif %}
-
-                    <!-- Common Quick Actions -->
-                    <div class="col-6">
-                        <a href="{% url 'communication:notification_list' %}" class="btn btn-outline-info w-100 h-100 py-3">
-                            <i class="bi bi-bell d-block mb-1"></i>
-                            <small>{% trans "Notifications" %}</small>
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{% url 'support:home' %}" class="btn btn-outline-info w-100 h-100 py-3">
-                            <i class="bi bi-headset d-block mb-1"></i>
-                            <small>{% trans "Get Help" %}</small>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Mobile Sidebar Overlay -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <style>
+/* Ensure modal takes precedence over sidebar */
+.modal {
+    z-index: 1070 !important;
+}
+
+.modal-backdrop {
+    z-index: 1060 !important;
+}
+
 .sidebar {
     width: 280px;
     min-height: 100vh;
@@ -815,7 +763,7 @@
         const sidebarToggle = document.querySelector('.sidebar-toggle');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
         const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
-        
+
         // Sidebar toggle functionality
         if (sidebarToggle) {
             sidebarToggle.addEventListener('click', function() {
@@ -824,7 +772,7 @@
                 this.querySelector('i').classList.toggle('bi-chevron-right');
             });
         }
-        
+
         // Mobile sidebar overlay
         if (sidebarOverlay) {
             sidebarOverlay.addEventListener('click', function() {
@@ -832,6 +780,19 @@
                 this.classList.remove('show');
             });
         }
+
+        // Ensure sidebar overlay is hidden when quick action modal opens
+        document.addEventListener('show.bs.modal', function (event) {
+            if (event.target.id === 'quickActionModal') {
+                if (sidebarOverlay) {
+                    sidebarOverlay.classList.remove('show');
+                    sidebarOverlay.style.display = 'none';
+                }
+                if (sidebar) {
+                    sidebar.classList.remove('show');
+                }
+            }
+        });
         
         // Enhanced dropdown interactions
         dropdownToggles.forEach(toggle => {

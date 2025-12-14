@@ -47,10 +47,10 @@ class Command(BaseCommand):
             'transport_manager', 'hostel_warden'
         ]
 
-        # Users with staff roles but no institution mapping
+        # Users with staff roles but no primary institution mapping
         unmapped_users = User.objects.filter(
             Q(user_roles__role__role_type__in=staff_role_types, user_roles__status='active') &
-            ~Q(institution_memberships__isnull=False)
+            ~Q(institution_memberships__is_primary=True)
         ).distinct()
 
         if not unmapped_users:

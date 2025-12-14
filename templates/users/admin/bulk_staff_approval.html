@@ -16,30 +16,32 @@
 <div class="module">
     <h1>{% trans "Bulk Approve Staff Applications" %}</h1>
 
-    <p>Please select an institution to assign all selected staff members to:</p>
+    <p>The selected applications will be approved using the institutions chosen by each applicant:</p>
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <div class="form-row">
-            <div class="fieldBox field-institution">
-                <label for="{{ form.institution.id_for_label }}">Institution:</label>
-                {{ form.institution }}
-                {% if form.institution.errors %}
-                    <div class="errorlist">{{ form.institution.errors }}</div>
-                {% endif %}
-                {% if form.institution.help_text %}
-                    <div class="help">{{ form.institution.help_text }}</div>
-                {% endif %}
-            </div>
-        </div>
-
         <h3>{% trans "Applications to be approved:" %}</h3>
-        <ul>
-            {% for application in applications %}
-                <li>{{ application.application_number }} - {{ application.full_name }} ({{ application.position_applied_for.name }})</li>
-            {% endfor %}
-        </ul>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>{% trans "Application Number" %}</th>
+                    <th>{% trans "Full Name" %}</th>
+                    <th>{% trans "Position" %}</th>
+                    <th>{% trans "Chosen Institution" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for application in applications %}
+                    <tr>
+                        <td>{{ application.application_number }}</td>
+                        <td>{{ application.full_name }}</td>
+                        <td>{{ application.position_applied_for.name }}</td>
+                        <td>{% if application.institution %}{{ application.institution.name }} ({{ application.institution.code }}){% else %}<span class='text-warning'>Not specified</span>{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
         <div class="submit-row">
             <input type="submit" value="{% trans 'Approve All Applications' %}" class="default">

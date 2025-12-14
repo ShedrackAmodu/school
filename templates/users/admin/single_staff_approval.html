@@ -47,18 +47,18 @@
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <div class="form-row">
-            <div class="fieldBox field-institution">
-                <label for="{{ form.institution.id_for_label }}">Institution:</label>
-                {{ form.institution }}
-                {% if form.institution.errors %}
-                    <div class="errorlist">{{ form.institution.errors }}</div>
-                {% endif %}
-                {% if form.institution.help_text %}
-                    <div class="help">{{ form.institution.help_text }}</div>
-                {% endif %}
-            </div>
+    <div class="form-row">
+        <div class="fieldBox field-institution">
+            <label>Application Institution:</label>
+            <p><strong>{% if application.institution %}{{ application.institution.name }} ({{ application.institution.code }}){% else %}Not specified{% endif %}</strong></p>
+            <p class="help">The institution the applicant wants to work at. Profile shows education institution separately.</p>
         </div>
+        <div class="fieldBox field-education">
+            <label>Education Institution:</label>
+            <p><strong>{{ application.qualified_institution|default:"Not specified" }}</strong></p>
+            <p class="help">The institution where the applicant obtained their qualification.</p>
+        </div>
+    </div>
 
         <div class="submit-row">
             <input type="submit" value="{% trans 'Approve Application' %}" class="default">
