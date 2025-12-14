@@ -1195,6 +1195,177 @@ class PrincipalCommunicationView(LoginRequiredMixin, View):
         return render(request, 'principal/principal_communication.html', context)
 
 
+class SuperAdminEntityView(MultiInstitutionMixin, LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Super Administrator view for comprehensive entity management across institutions.
+    Displays teachers, students, classes, departments, sessions, and enrollments
+    with institution-based filtering.
+    """
+    permission_required = 'core.view_institution'  # Could be more specific
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+
+        # Check if user is super admin
+        if not (user.is_superuser or user.user_roles.filter(role__role_type='super_admin').exists()):
+            messages.error(request, _("You don't have permission to access the super admin entity management."))
+            return redirect('users:dashboard')
+
+        from apps.academics.models import (
+            AcademicSession, Department, Class, Student, Teacher, Enrollment
+        )
+        from apps.users.models import User, Role
+
+        # Get institution filter from request, remove default 'all'
+        institution_filter = request.GET.get('institution')
+        selected_institution = None
+
+        # Get accessible institutions for this user
+        if user.is_superuser:
+            accessible_institutions = Institution.objects.filter(is_active=True)
+        else:
+            # Get institutions the user has access to
+            try:
+                from .middleware import get_user_accessible_institutions
+                accessible_institutions = get_user_accessible_institutions(user)
+            except ImportError:
+                # Fallback if middleware not available
+                accessible_institutions = Institution.objects.filter(
+                    is_active=True,
+                    users=user
+                )
+
+        institutions = accessible_institutions.order_by('name')
+
+        # Default to first institution if none selected
+        if not institution_filter and institutions.exists():
+            selected_institution = institutions.first()
+            institution_filter = str(selected_institution.id)
+        elif institution_filter:
+            try:
+                selected_institution = institutions.get(id=institution_filter, is_active=True)
+            except Institution.DoesNotExist:
+                if institutions.exists():
+                    selected_institution = institutions.first()
+                    institution_filter = str(selected_institution.id)
+                    messages.warning(request, _("Selected institution not found or access denied. Defaulting to first accessible institution."))
+                else:
+                    messages.error(request, _("No accessible institutions found."))
+                    return redirect('users:dashboard')
+
+        # Filter querysets by selected institution
+        if selected_institution:
+            student_qs = Student.objects.filter(institution=selected_institution)
+            teacher_qs = Teacher.objects.filter(institution=selected_institution)
+            class_qs = Class.objects.filter(institution=selected_institution)
+            department_qs = Department.objects.filter(institution=selected_institution)
+            session_qs = AcademicSession.objects.filter(institution=selected_institution)
+            enrollment_qs = Enrollment.objects.filter(institution=selected_institution)
+        else:
+            # Fallback if no institutions
+            student_qs = Student.objects.none()
+            teacher_qs = Teacher.objects.none()
+            class_qs = Class.objects.none()
+            department_qs = Department.objects.none()
+            session_qs = AcademicSession.objects.none()
+            enrollment_qs = Enrollment.objects.none()
+
+        # Apply additional filters if present
+        search_query = request.GET.get('search', '')
+
+        # Students
+        students = student_qs.filter(status='active').select_related('user', 'student_profile')
+        if search_query:
+            students = students.filter(
+                Q(user__first_name__icontains=search_query) |
+                Q(user__last_name__icontains=search_query) |
+                Q(student_id__icontains=search_query) |
+                Q(admission_number__icontains=search_query)
+            )
+        students = students.order_by('user__last_name', 'user__first_name')[:50]  # Limit for performance
+
+        # Teachers
+        teachers = teacher_qs.filter(status='active').select_related('user', 'department')
+        if search_query:
+            teachers = teachers.filter(
+                Q(user__first_name__icontains=search_query) |
+                Q(user__last_name__icontains=search_query) |
+                Q(teacher_id__icontains=search_query) |
+                Q(employee_id__icontains=search_query)
+            )
+        teachers = teachers.order_by('user__last_name', 'user__first_name')[:50]
+
+        # Classes
+        classes = class_qs.filter(status='active').select_related('grade_level', 'class_teacher', 'academic_session')
+        if search_query:
+            classes = classes.filter(
+                Q(name__icontains=search_query) |
+                Q(code__icontains=search_query)
+            )
+        classes = classes.order_by('grade_level__name', 'name')[:50]
+
+        # Departments
+        departments = department_qs.filter(status='active')
+        if search_query:
+            departments = departments.filter(
+                Q(name__icontains=search_query) |
+                Q(code__icontains=search_query)
+            )
+        departments = departments.order_by('name')[:50]
+
+        # Sessions
+        sessions = session_qs.filter(status='active')
+        if search_query:
+            sessions = sessions.filter(name__icontains=search_query)
+        sessions = sessions.order_by('-start_date')[:50]
+
+        # Enrollments
+        enrollments = enrollment_qs.filter(status='active').select_related(
+            'student__user', 'class_enrolled', 'academic_session'
+        )
+        if search_query:
+            enrollments = enrollments.filter(
+                Q(student__user__first_name__icontains=search_query) |
+                Q(student__user__last_name__icontains=search_query) |
+                Q(class_enrolled__name__icontains=search_query)
+            )
+        enrollments = enrollments.order_by('class_enrolled__name', 'roll_number')[:100]
+
+        # Get entity counts
+        entity_counts = {
+            'students': student_qs.filter(status='active').count(),
+            'teachers': teacher_qs.filter(status='active').count(),
+            'classes': class_qs.filter(status='active').count(),
+            'departments': department_qs.filter(status='active').count(),
+            'sessions': session_qs.filter(status='active').count(),
+            'enrollments': enrollment_qs.filter(status='active').count(),
+        }
+
+        # The institutions variable is already set above as accessible institutions
+
+        context = {
+            'selected_institution': selected_institution,
+            'institutions': institutions,
+            'institution_filter': institution_filter,
+            'search_query': search_query,
+
+            # Data
+            'students': students,
+            'teachers': teachers,
+            'classes': classes,
+            'departments': departments,
+            'sessions': sessions,
+            'enrollments': enrollments,
+
+            # Counts
+            'entity_counts': entity_counts,
+
+            'page_title': _('Super Admin Entity Management'),
+        }
+
+        return render(request, 'core/dashboard/super_admin_entities.html', context)
+
+
 # API endpoints for institutions
 
 def get_institution_config_value(request, institution_code, config_key):
@@ -1243,11 +1414,304 @@ def institution_statistics_api(request):
     return JsonResponse(data)
 
 
-class GlobalSearchView(LoginRequiredMixin, View):
+class GlobalSearchView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Global search view that searches across multiple models based on user query and filter.
+    Results are filtered based on user's permissions and roles.
     """
     template_name = 'core/search/results.html'
+    permission_required = 'core.view_institution'  # Basic permission to access search
+
+    def has_permission(self):
+        """
+        Override to allow search based on user roles.
+        Any authenticated user can search, but results are filtered by permissions.
+        """
+        return self.request.user.is_authenticated
+
+    def get_accessible_students(self):
+        """
+        Get queryset of students the current user can access.
+        """
+        user = self.request.user
+
+        # Super admin can see all students
+        if user.is_superuser or user.user_roles.filter(role__role_type='super_admin').exists():
+            from apps.academics.models import Student
+            return Student.objects.all()
+
+        # Admin can see students in their accessible institutions
+        if user.user_roles.filter(role__role_type__in=['admin', 'principal']).exists():
+            from apps.academics.models import Student
+            try:
+                from .middleware import get_user_accessible_institutions
+                accessible_institutions = get_user_accessible_institutions(user)
+                return Student.objects.filter(institution__in=accessible_institutions)
+            except ImportError:
+                # Fallback - return all students (shouldn't happen in production)
+                return Student.objects.all()
+
+        # Teachers can see students in their classes
+        if user.user_roles.filter(role__role_type='teacher').exists():
+            from apps.academics.models import Student, SubjectAssignment
+            # Get classes where teacher is assigned subjects
+            teacher_assignments = SubjectAssignment.objects.filter(
+                teacher__user=user,
+                status='active'
+            ).values_list('class_assigned', flat=True)
+            return Student.objects.filter(
+                class_enrollments__class_enrolled__in=teacher_assignments,
+                class_enrollments__status='active'
+            ).distinct()
+
+        # Parents can see only their children
+        if user.user_roles.filter(role__role_type='parent').exists():
+            from apps.users.models import ParentStudentRelationship
+            from apps.academics.models import Student
+            # Get students linked to this parent
+            parent_students = ParentStudentRelationship.objects.filter(
+                parent=user,
+                status='active'
+            ).values_list('student', flat=True)
+            return Student.objects.filter(user__in=parent_students)
+
+        # Students can see only themselves
+        if user.user_roles.filter(role__role_type='student').exists():
+            from apps.academics.models import Student
+            return Student.objects.filter(user=user)
+
+        # Default: no students accessible
+        from apps.academics.models import Student
+        return Student.objects.none()
+
+    def get_accessible_teachers(self):
+        """
+        Get queryset of teachers the current user can access.
+        """
+        user = self.request.user
+        from apps.academics.models import Teacher
+
+        # Super admin and admin can see all teachers
+        if (user.is_superuser or
+            user.user_roles.filter(role__role_type__in=['super_admin', 'admin', 'principal']).exists()):
+            return Teacher.objects.all()
+
+        # Teachers and students in same institution can see teachers
+        try:
+            from .middleware import get_user_accessible_institutions
+            accessible_institutions = get_user_accessible_institutions(user)
+            return Teacher.objects.filter(institution__in=accessible_institutions)
+        except ImportError:
+            # Fallback
+            return Teacher.objects.all()
+
+    def get_accessible_classes(self):
+        """
+        Get queryset of classes the current user can access.
+        """
+        user = self.request.user
+        from apps.academics.models import Class
+
+        # Super admin can see all classes
+        if user.is_superuser or user.user_roles.filter(role__role_type='super_admin').exists():
+            return Class.objects.all()
+
+        # Admin/principal can see classes in their accessible institutions
+        if user.user_roles.filter(role__role_type__in=['admin', 'principal']).exists():
+            try:
+                from .middleware import get_user_accessible_institutions
+                accessible_institutions = get_user_accessible_institutions(user)
+                return Class.objects.filter(institution__in=accessible_institutions)
+            except ImportError:
+                return Class.objects.all()
+
+        # Teachers can see their assigned classes
+        if user.user_roles.filter(role__role_type='teacher').exists():
+            from apps.academics.models import SubjectAssignment
+            teacher_assignments = SubjectAssignment.objects.filter(
+                teacher__user=user,
+                status='active'
+            ).values_list('class_assigned', flat=True)
+            return Class.objects.filter(id__in=teacher_assignments)
+
+        # Students can see their enrolled classes
+        if user.user_roles.filter(role__role_type='student').exists():
+            from apps.academics.models import Enrollment
+            student_class_ids = Enrollment.objects.filter(
+                student__user=user,
+                status='active'
+            ).values_list('class_enrolled', flat=True)
+            return Class.objects.filter(id__in=student_class_ids)
+
+        # Parents can see their children's classes
+        if user.user_roles.filter(role__role_type='parent').exists():
+            from apps.users.models import ParentStudentRelationship
+            from apps.academics.models import Enrollment
+            # Get classes where parent's children are enrolled
+            parent_students = ParentStudentRelationship.objects.filter(
+                parent=user,
+                status='active'
+            ).values_list('student', flat=True)
+            class_ids = Enrollment.objects.filter(
+                student__in=parent_students,
+                status='active'
+            ).values_list('class_enrolled', flat=True)
+            return Class.objects.filter(id__in=class_ids)
+
+        # Default: no classes accessible
+        return Class.objects.none()
+
+    def get_accessible_subjects(self):
+        """
+        Get queryset of subjects the current user can access.
+        """
+        user = self.request.user
+        from apps.academics.models import Subject
+
+        # Super admin can see all subjects
+        if user.is_superuser or user.user_roles.filter(role__role_type='super_admin').exists():
+            return Subject.objects.all()
+
+        # Admin/principal can see subjects in their accessible institutions
+        if user.user_roles.filter(role__role_type__in=['admin', 'principal']).exists():
+            try:
+                from .middleware import get_user_accessible_institutions
+                accessible_institutions = get_user_accessible_institutions(user)
+                return Subject.objects.filter(institution__in=accessible_institutions)
+            except ImportError:
+                return Subject.objects.all()
+
+        # Teachers can see subjects they're assigned to
+        if user.user_roles.filter(role__role_type='teacher').exists():
+            from apps.academics.models import SubjectAssignment
+            subject_ids = SubjectAssignment.objects.filter(
+                teacher__user=user,
+                status='active'
+            ).values_list('subject', flat=True)
+            return Subject.objects.filter(id__in=subject_ids)
+
+        # Students/parents can see subjects from their classes
+        accessible_classes = self.get_accessible_classes()
+        subject_ids = []
+        from apps.academics.models import SubjectAssignment, Enrollment
+
+        # For students: get subjects from enrolled classes
+        if user.user_roles.filter(role__role_type='student').exists():
+            enrollments = Enrollment.objects.filter(
+                student__user=user,
+                status='active'
+            )
+            for enrollment in enrollments:
+                assignments = SubjectAssignment.objects.filter(
+                    class_assigned=enrollment.class_enrolled,
+                    status='active'
+                ).values_list('subject', flat=True)
+                subject_ids.extend(assignments)
+
+        # For parents: get subjects from children's classes
+        elif user.user_roles.filter(role__role_type='parent').exists():
+            from apps.users.models import ParentStudentRelationship
+            parent_students = ParentStudentRelationship.objects.filter(
+                parent=user,
+                status='active'
+            ).values_list('student', flat=True)
+            enrollments = Enrollment.objects.filter(
+                student__in=parent_students,
+                status='active'
+            )
+            for enrollment in enrollments:
+                assignments = SubjectAssignment.objects.filter(
+                    class_assigned=enrollment.class_enrolled,
+                    status='active'
+                ).values_list('subject', flat=True)
+                subject_ids.extend(assignments)
+
+        if subject_ids:
+            return Subject.objects.filter(id__in=set(subject_ids))
+
+        return Subject.objects.none()
+
+    def get_accessible_exams(self):
+        """
+        Get queryset of exams the current user can access.
+        """
+        from apps.assessment.models import Exam
+        accessible_classes = self.get_accessible_classes()
+
+        # Limit exams to accessible classes
+        return Exam.objects.filter(academic_class__in=accessible_classes)
+
+    def get_accessible_assignments(self):
+        """
+        Get queryset of assignments the current user can access.
+        """
+        from apps.assessment.models import Assignment
+
+        # Students can only see assignments for their classes
+        user = self.request.user
+        accessible_classes = self.get_accessible_classes()
+
+        return Assignment.objects.filter(academic_class__in=accessible_classes)
+
+    def get_accessible_invoices(self):
+        """
+        Get queryset of invoices the current user can access.
+        """
+        from apps.finance.models import Invoice
+        user = self.request.user
+
+        # Parents can see invoices for their children
+        if user.user_roles.filter(role__role_type='parent').exists():
+            from apps.users.models import ParentStudentRelationship
+            parent_students = ParentStudentRelationship.objects.filter(
+                parent=user,
+                status='active'
+            ).values_list('student', flat=True)
+            return Invoice.objects.filter(student__in=parent_students)
+
+        # Students can see their own invoices
+        if user.user_roles.filter(role__role_type='student').exists():
+            return Invoice.objects.filter(student__user=user)
+
+        # Staff and admins can see invoices for students they can access
+        accessible_students = self.get_accessible_students()
+        return Invoice.objects.filter(student__in=accessible_students)
+
+    def get_accessible_payments(self):
+        """
+        Get queryset of payments the current user can access.
+        """
+        from apps.finance.models import Payment
+        user = self.request.user
+
+        # Parents can see payments for their children
+        if user.user_roles.filter(role__role_type='parent').exists():
+            from apps.users.models import ParentStudentRelationship
+            parent_students = ParentStudentRelationship.objects.filter(
+                parent=user,
+                status='active'
+            ).values_list('student', flat=True)
+            return Payment.objects.filter(student__in=parent_students)
+
+        # Students can see their own payments
+        if user.user_roles.filter(role__role_type='student').exists():
+            return Payment.objects.filter(student__user=user)
+
+        # Staff and admins can see payments for students they can access
+        accessible_students = self.get_accessible_students()
+        return Payment.objects.filter(student__in=accessible_students)
+
+    def get_accessible_documents(self):
+        """
+        Get queryset of documents the current user can access.
+        """
+        # All authenticated users can search documents (library access)
+        try:
+            from apps.library.models import Book, BookCopy
+            # For now, return all documents - could be filtered by institution later
+            return Book.objects.all()
+        except ImportError:
+            return []
 
     def get(self, request):
         query = request.GET.get('q', '').strip()
@@ -1257,6 +1721,11 @@ class GlobalSearchView(LoginRequiredMixin, View):
             'students': [],
             'teachers': [],
             'classes': [],
+            'subjects': [],
+            'exams': [],
+            'assignments': [],
+            'invoices': [],
+            'payments': [],
             'documents': [],
         }
 
@@ -1267,6 +1736,16 @@ class GlobalSearchView(LoginRequiredMixin, View):
                 results['teachers'] = self.search_teachers(query)
             if filter_type in ['all', 'classes']:
                 results['classes'] = self.search_classes(query)
+            if filter_type in ['all', 'subjects']:
+                results['subjects'] = self.search_subjects(query)
+            if filter_type in ['all', 'exams']:
+                results['exams'] = self.search_exams(query)
+            if filter_type in ['all', 'assignments']:
+                results['assignments'] = self.search_assignments(query)
+            if filter_type in ['all', 'invoices']:
+                results['invoices'] = self.search_invoices(query)
+            if filter_type in ['all', 'payments']:
+                results['payments'] = self.search_payments(query)
             if filter_type in ['all', 'documents']:
                 results['documents'] = self.search_documents(query)
 
@@ -1281,44 +1760,120 @@ class GlobalSearchView(LoginRequiredMixin, View):
         return render(request, self.template_name, context)
 
     def search_students(self, query):
-        """Search for students across relevant fields."""
-        from apps.users.models import User
+        """Search for students across comprehensive fields including parent emails."""
+        accessible_students = self.get_accessible_students()
 
-        return User.objects.filter(
-            Q(user_roles__role__role_type='student') &
-            (
-                Q(first_name__icontains=query) |
-                Q(last_name__icontains=query) |
-                Q(email__icontains=query) |
-                Q(profile__student_id__icontains=query) |
-                Q(profile__phone_primary__icontains=query)
-            )
-        ).distinct().select_related('profile')[:10]
+        return accessible_students.filter(
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(user__email__icontains=query) |
+            Q(user__mobile__icontains=query) |
+            # Student profile fields
+            Q(student_id__icontains=query) |
+            Q(admission_number__icontains=query) |
+            Q(place_of_birth__icontains=query) |
+            Q(blood_group__icontains=query) |
+            Q(nationality__icontains=query) |
+            Q(religion__icontains=query) |
+            Q(student_type__icontains=query) |
+            Q(previous_school__icontains=query) |
+            # Parent/Guardian fields - THIS IS KEY FOR YOUR REQUEST!
+            Q(father_name__icontains=query) |
+            Q(father_email__icontains=query) |
+            Q(father_phone__icontains=query) |
+            Q(mother_name__icontains=query) |
+            Q(mother_email__icontains=query) |
+            Q(mother_phone__icontains=query) |
+            Q(guardian_name__icontains=query) |
+            Q(guardian_email__icontains=query) |
+            Q(guardian_phone__icontains=query) |
+            # Address fields (from AddressModel)
+            Q(address_line_1__icontains=query) |
+            Q(address_line_2__icontains=query) |
+            Q(city__icontains=query) |
+            Q(state__icontains=query) |
+            Q(postal_code__icontains=query) |
+            Q(country__icontains=query) |
+            # User profile fields (from profile)
+            Q(user__profile__phone__icontains=query) |
+            Q(user__profile__emergency_contact__icontains=query) |
+            Q(user__profile__emergency_phone__icontains=query)
+        ).distinct().select_related('user__profile')[:20]
 
     def search_teachers(self, query):
         """Search for teachers/staff across relevant fields."""
-        from apps.users.models import User
+        accessible_teachers = self.get_accessible_teachers()
 
-        return User.objects.filter(
-            Q(user_roles__role__role_type__in=['teacher', 'staff', 'admin']) &
-            (
-                Q(first_name__icontains=query) |
-                Q(last_name__icontains=query) |
-                Q(email__icontains=query) |
-                Q(profile__employee_id__icontains=query) |
-                Q(profile__phone_primary__icontains=query)
-            )
-        ).distinct().select_related('profile')[:10]
+        # Filter the accessible teachers by the search query
+        return accessible_teachers.filter(
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(user__email__icontains=query) |
+            Q(employee_id__icontains=query) |
+            Q(user__profile__phone__icontains=query)
+        ).distinct().select_related('user__profile')[:10]
 
     def search_classes(self, query):
         """Search for classes across relevant fields."""
-        from apps.academics.models import Class
+        accessible_classes = self.get_accessible_classes()
 
-        return Class.objects.filter(
+        return accessible_classes.filter(
             Q(name__icontains=query) |
-            Q(class_code__icontains=query) |
-            Q(class_stream__stream_name__icontains=query)
+            Q(code__icontains=query)
         ).distinct().select_related('academic_session', 'class_teacher')[:10]
+
+    def search_subjects(self, query):
+        """Search for subjects across relevant fields."""
+        accessible_subjects = self.get_accessible_subjects()
+
+        return accessible_subjects.filter(
+            Q(name__icontains=query) |
+            Q(code__icontains=query) |
+            Q(description__icontains=query)
+        ).distinct().select_related('department')[:10]
+
+    def search_exams(self, query):
+        """Search for exams across relevant fields."""
+        accessible_exams = self.get_accessible_exams()
+
+        return accessible_exams.filter(
+            Q(name__icontains=query) |
+            Q(code__icontains=query) |
+            Q(subject__name__icontains=query)
+        ).distinct().select_related('exam_type', 'subject', 'academic_class')[:10]
+
+    def search_assignments(self, query):
+        """Search for assignments across relevant fields."""
+        accessible_assignments = self.get_accessible_assignments()
+
+        return accessible_assignments.filter(
+            Q(title__icontains=query) |
+            Q(description__icontains=query) |
+            Q(subject__name__icontains=query)
+        ).distinct().select_related('subject', 'teacher', 'academic_class')[:10]
+
+    def search_invoices(self, query):
+        """Search for invoices across relevant fields."""
+        accessible_invoices = self.get_accessible_invoices()
+
+        return accessible_invoices.filter(
+            Q(invoice_number__icontains=query) |
+            Q(student__user__first_name__icontains=query) |
+            Q(student__user__last_name__icontains=query) |
+            Q(student__student_id__icontains=query)
+        ).distinct().select_related('student__user')[:10]
+
+    def search_payments(self, query):
+        """Search for payments across relevant fields."""
+        accessible_payments = self.get_accessible_payments()
+
+        return accessible_payments.filter(
+            Q(payment_number__icontains=query) |
+            Q(reference_number__icontains=query) |
+            Q(student__user__first_name__icontains=query) |
+            Q(student__user__last_name__icontains=query) |
+            Q(student__student_id__icontains=query)
+        ).distinct().select_related('student__user', 'invoice')[:10]
 
     def search_documents(self, query):
         """Search for documents/books across relevant fields."""
@@ -1356,7 +1911,7 @@ class GlobalSearchView(LoginRequiredMixin, View):
                     documents.append({
                         'type': 'book_copy',
                         'object': copy,
-                        'url': reverse('library:book_borrow_detail', kwargs={'pk': copy.pk})
+                        'url': reverse('library:book_detail', kwargs={'pk': copy.book.pk})
                     })
                     seen_books.add(copy.book.id)
 

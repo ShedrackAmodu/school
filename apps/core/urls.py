@@ -24,6 +24,7 @@ urlpatterns = [
 
     # Admin Dashboards
     path('dashboard/', views.SuperAdminDashboardView.as_view(), name='super_admin_dashboard'),
+    path('entities/', views.SuperAdminEntityView.as_view(), name='super_admin_entities'),
     path('school-dashboard/', views.SchoolAdminDashboardView.as_view(), name='school_admin_dashboard'),
 
     # Principal Views

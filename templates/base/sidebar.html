@@ -797,24 +797,29 @@
         // Enhanced dropdown interactions
         dropdownToggles.forEach(toggle => {
             toggle.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                if (!href) return; // Skip if no href attribute
+
                 // Prevent default if it's a hash link
-                if (this.getAttribute('href') === '#') {
+                if (href === '#') {
                     e.preventDefault();
                 }
-                
-                const targetId = this.getAttribute('href').substring(1);
+
+                const targetId = href.substring(1);
                 const target = document.getElementById(targetId);
-                
-                // Close other dropdowns when opening a new one (optional)
-                if (!target.classList.contains('show')) {
-                    document.querySelectorAll('.list-unstyled.show').forEach(openDropdown => {
-                        if (openDropdown.id !== targetId) {
-                            const bsCollapse = new bootstrap.Collapse(openDropdown, {
-                                toggle: false
-                            });
-                            bsCollapse.hide();
-                        }
-                    });
+
+                if (target) {
+                    // Close other dropdowns when opening a new one (optional)
+                    if (!target.classList.contains('show')) {
+                        document.querySelectorAll('.list-unstyled.show').forEach(openDropdown => {
+                            if (openDropdown.id !== targetId) {
+                                const bsCollapse = new bootstrap.Collapse(openDropdown, {
+                                    toggle: false
+                                });
+                                bsCollapse.hide();
+                            }
+                        });
+                    }
                 }
             });
             

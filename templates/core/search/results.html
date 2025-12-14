@@ -13,8 +13,10 @@
                     <h1 class="h3 mb-1">{% trans "Search Results" %}</h1>
                     {% if query %}
                         <p class="text-muted mb-0">
-                            {% blocktrans with query as query count total_results as total %}
-                                Found {{ total }} result{{ total|pluralize }} for "{{ query }}"
+                            {% blocktrans with query=query count total_results as total %}
+                                Found {{ total }} result for "{{ query }}"
+                            {% plural %}
+                                Found {{ total }} results for "{{ query }}"
                             {% endblocktrans %}
                         </p>
                     {% endif %}
@@ -35,7 +37,7 @@
                     <div class="card-body text-center py-5">
                         <i class="bi bi-search text-muted" style="font-size: 4rem;"></i>
                         <h3 class="text-muted mt-3">{% trans "Enter a search term to find results" %}</h3>
-                        <p class="text-muted">{% trans "Search across students, teachers, classes, and documents" %}</p>
+                        <p class="text-muted">{% trans "Search across students, teachers, classes, subjects, exams, assignments, invoices, payments, and documents" %}</p>
                     </div>
                 </div>
             {% else %}
@@ -80,6 +82,51 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link {% if filter_type == 'subjects' %}active{% endif %}"
+                                   href="?q={{ query|urlencode }}&filter=subjects">
+                                    {% trans "Subjects" %}
+                                    {% if filter_type == 'subjects' %}
+                                        <span class="badge bg-primary ms-1">{{ results.subjects|length }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if filter_type == 'exams' %}active{% endif %}"
+                                   href="?q={{ query|urlencode }}&filter=exams">
+                                    {% trans "Exams" %}
+                                    {% if filter_type == 'exams' %}
+                                        <span class="badge bg-primary ms-1">{{ results.exams|length }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if filter_type == 'assignments' %}active{% endif %}"
+                                   href="?q={{ query|urlencode }}&filter=assignments">
+                                    {% trans "Assignments" %}
+                                    {% if filter_type == 'assignments' %}
+                                        <span class="badge bg-primary ms-1">{{ results.assignments|length }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if filter_type == 'invoices' %}active{% endif %}"
+                                   href="?q={{ query|urlencode }}&filter=invoices">
+                                    {% trans "Invoices" %}
+                                    {% if filter_type == 'invoices' %}
+                                        <span class="badge bg-primary ms-1">{{ results.invoices|length }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if filter_type == 'payments' %}active{% endif %}"
+                                   href="?q={{ query|urlencode }}&filter=payments">
+                                    {% trans "Payments" %}
+                                    {% if filter_type == 'payments' %}
+                                        <span class="badge bg-primary ms-1">{{ results.payments|length }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link {% if filter_type == 'documents' %}active{% endif %}"
                                    href="?q={{ query|urlencode }}&filter=documents">
                                     {% trans "Documents" %}
@@ -119,7 +166,7 @@
                             <div class="card-body p-0">
                                 <div class="list-group list-group-flush">
                                     {% for student in results.students %}
-                                        <a href="{% url 'users:profile_detail' student.id %}"
+                                        <a href="{% url 'users:user_detail' student.id %}"
                                            class="list-group-item list-group-item-action">
                                             <div class="d-flex align-items-center">
                                                 <div class="avatar avatar-sm bg-primary text-white rounded-circle me-3">
@@ -159,7 +206,7 @@
                             <div class="card-body p-0">
                                 <div class="list-group list-group-flush">
                                     {% for teacher in results.teachers %}
-                                        <a href="{% url 'users:profile_detail' teacher.id %}"
+                                        <a href="{% url 'users:user_detail' teacher.id %}"
                                            class="list-group-item list-group-item-action">
                                             <div class="d-flex align-items-center">
                                                 <div class="avatar avatar-sm bg-success text-white rounded-circle me-3">
@@ -218,6 +265,177 @@
                                                             {% trans "Class Teacher" %}: {{ class_obj.class_teacher.get_full_name }}
                                                         {% endif %}
                                                         {% if class_obj.academic_session %} • {{ class_obj.academic_session.name }}{% endif %}
+                                                    </p>
+                                                </div>
+                                                <i class="bi bi-chevron-right text-muted"></i>
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if filter_type in 'all,subjects' and results.subjects %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-book me-2"></i>
+                                    {% trans "Subjects" %}
+                                    <span class="badge bg-secondary ms-1">{{ results.subjects|length }}</span>
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for subject in results.subjects %}
+                                        <a href="{% url 'academics:subject_detail' subject.pk %}"
+                                           class="list-group-item list-group-item-action">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="bi bi-book"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ subject.name }}</h6>
+                                                    <p class="text-muted mb-0 small">
+                                                        {% trans "Code" %}: {{ subject.code }}
+                                                        {% if subject.department %} • {{ subject.department.name }}{% endif %}
+                                                    </p>
+                                                </div>
+                                                <i class="bi bi-chevron-right text-muted"></i>
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if filter_type in 'all,exams' and results.exams %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-calendar-check me-2"></i>
+                                    {% trans "Exams" %}
+                                    <span class="badge bg-secondary ms-1">{{ results.exams|length }}</span>
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for exam in results.exams %}
+                                        <a href="{% url 'assessment:exam_detail' exam.pk %}"
+                                           class="list-group-item list-group-item-action">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="bi bi-calendar-check"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ exam.name }}</h6>
+                                                    <p class="text-muted mb-0 small">
+                                                        {{ exam.subject.name }} • {{ exam.exam_type.name }} • {{ exam.exam_date }}
+                                                    </p>
+                                                </div>
+                                                <i class="bi bi-chevron-right text-muted"></i>
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if filter_type in 'all,assignments' and results.assignments %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-journal-text me-2"></i>
+                                    {% trans "Assignments" %}
+                                    <span class="badge bg-secondary ms-1">{{ results.assignments|length }}</span>
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for assignment in results.assignments %}
+                                        <a href="{% url 'assessment:assignment_detail' assignment.pk %}"
+                                           class="list-group-item list-group-item-action">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="bi bi-journal-text"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ assignment.title }}</h6>
+                                                    <p class="text-muted mb-0 small">
+                                                        {% trans "Due" %}: {{ assignment.due_date }} • {{ assignment.subject.name }}
+                                                    </p>
+                                                </div>
+                                                <i class="bi bi-chevron-right text-muted"></i>
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if filter_type in 'all,invoices' and results.invoices %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-receipt me-2"></i>
+                                    {% trans "Invoices" %}
+                                    <span class="badge bg-secondary ms-1">{{ results.invoices|length }}</span>
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for invoice in results.invoices %}
+                                        <a href="{% url 'finance:invoice_detail' invoice.pk %}"
+                                           class="list-group-item list-group-item-action">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="bi bi-receipt"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ invoice.invoice_number }}</h6>
+                                                    <p class="text-muted mb-0 small">
+                                                        {{ invoice.student.user.get_full_name }} • {{ invoice.total_amount }} • {{ invoice.status }}
+                                                    </p>
+                                                </div>
+                                                <i class="bi bi-chevron-right text-muted"></i>
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if filter_type in 'all,payments' and results.payments %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-cash me-2"></i>
+                                    {% trans "Payments" %}
+                                    <span class="badge bg-secondary ms-1">{{ results.payments|length }}</span>
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for payment in results.payments %}
+                                        <a href="{% url 'finance:payment_detail' payment.pk %}"
+                                           class="list-group-item list-group-item-action">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="bi bi-cash"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ payment.payment_number }}</h6>
+                                                    <p class="text-muted mb-0 small">
+                                                        {{ payment.student.user.get_full_name }} • ${{ payment.amount }} • {{ payment.status }}
                                                     </p>
                                                 </div>
                                                 <i class="bi bi-chevron-right text-muted"></i>

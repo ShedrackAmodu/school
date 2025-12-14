@@ -84,7 +84,7 @@ class DashboardView(AccountantRequiredMixin, View):
         
         # Recent Payments
         recent_payments = Payment.objects.filter(
-            academic_session=current_session
+            invoice__academic_session=current_session
         ).select_related('student__user', 'invoice').order_by('-payment_date')[:5]
         
         # Expense Summary

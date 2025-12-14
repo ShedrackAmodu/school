@@ -569,22 +569,32 @@ class ParentStudentRelationshipForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        # Limit choices to users with appropriate roles
+
+        # Filter by user's accessible institutions
+        from apps.core.middleware import get_user_accessible_institutions
         from apps.users.models import Role
-        parent_role = Role.objects.filter(role_type=Role.RoleType.PARENT).first()
-        student_role = Role.objects.filter(role_type=Role.RoleType.STUDENT).first()
-        
+
+        accessible_institutions = get_user_accessible_institutions(user) if user else Institution.objects.none()
+
+        parent_role = Role.objects.filter(role_type=Role.RoleType.PARENT, status='active').first()
+        student_role = Role.objects.filter(role_type=Role.RoleType.STUDENT, status='active').first()
+
         if parent_role:
             self.fields['parent'].queryset = User.objects.filter(
                 user_roles__role=parent_role,
-                is_active=True
+                user_roles__status='active',
+                is_active=True,
+                institution_user__institution__in=accessible_institutions
             ).distinct()
-        
+
         if student_role:
             self.fields['student'].queryset = User.objects.filter(
                 user_roles__role=student_role,
-                is_active=True
+                user_roles__status='active',
+                is_active=True,
+                institution_user__institution__in=accessible_institutions
             ).distinct()
 
     def clean(self):
@@ -630,8 +640,21 @@ class LoginHistorySearchForm(forms.Form):
         ('custom', _('Custom Range')),
     ]
 
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        # Filter users by institution
+        from apps.core.middleware import get_user_accessible_institutions
+        accessible_institutions = get_user_accessible_institutions(user) if user else Institution.objects.none()
+
+        self.fields['user'].queryset = User.objects.filter(
+            is_active=True,
+            institution_user__institution__in=accessible_institutions
+        ).distinct()
+
     user = forms.ModelChoiceField(
-        queryset=User.objects.filter(is_active=True),
+        queryset=User.objects.none(),  # Will be set in __init__
         required=False,
         label=_('User'),
         widget=forms.Select(attrs={'class': 'form-control'})
@@ -710,8 +733,20 @@ class UserBulkActionForm(forms.Form):
         ('send_email', _('Send email to selected users')),
     ]
 
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        # Filter users by institution
+        from apps.core.middleware import get_user_accessible_institutions
+        accessible_institutions = get_user_accessible_institutions(user) if user else Institution.objects.none()
+
+        self.fields['users'].queryset = User.objects.filter(
+            institution_user__institution__in=accessible_institutions
+        ).distinct()
+
     users = forms.ModelMultipleChoiceField(
-        queryset=User.objects.all(),
+        queryset=User.objects.none(),  # Will be set in __init__
         widget=forms.SelectMultiple(attrs={
             'class': 'form-control',
             'size': 10

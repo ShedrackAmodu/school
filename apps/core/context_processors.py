@@ -1,28 +1,53 @@
-from .middleware import get_current_institution
+import logging
+from .middleware import get_current_institution, get_user_accessible_institutions
+from .models import Institution
+
+logger = logging.getLogger(__name__)
 
 
 def tenant_context(request):
     """
-    Context processor to add current institution information to all templates.
+    Context processor for tenant/multi-tenancy information (legacy function).
     """
-    institution = get_current_institution()
+    current_inst = get_current_institution()
+    user_institutions = []
 
-    context = {
-        'current_institution': institution,
-        'institution_name': institution.name if institution else None,
-        'institution_code': institution.code if institution else None,
-        'institution_short_name': institution.short_name if institution else None,
+    if request.user.is_authenticated:
+        user_institutions = get_user_accessible_institutions(request.user)
+
+    return {
+        'tenant_institution': current_inst,
+        'user_institutions': user_institutions,
+        'multi_tenant_enabled': True,
     }
 
-    # Add branding information if institution exists
-    if institution:
-        context.update({
-            'institution_logo': institution.logo if hasattr(institution, 'logo') else None,
-            'institution_theme': getattr(institution, 'theme', {}).get('primary_color', '#007bff'),
-            'institution_timezone': institution.timezone,
-            'institution_website': institution.website,
-            'institution_email': institution.email,
-            'institution_phone': institution.phone,
-        })
 
-    return context
+def current_institution(request):
+    """
+    Context processor to add current institution information to all template contexts.
+    """
+    try:
+        institution = get_current_institution()
+
+        if institution:
+            return {
+                'current_institution': institution,
+                'institution_code': institution.code,
+                'institution_name': institution.name,
+                'institution_theme': getattr(institution, 'theme', None),
+            }
+        else:
+            return {
+                'current_institution': None,
+                'institution_code': None,
+                'institution_name': None,
+                'institution_theme': None,
+            }
+    except Exception as e:
+        logger.warning(f"Error in current_institution context processor: {e}")
+        return {
+            'current_institution': None,
+            'institution_code': None,
+            'institution_name': None,
+            'institution_theme': None,
+        }

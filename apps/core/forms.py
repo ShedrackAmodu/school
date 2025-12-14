@@ -9,8 +9,34 @@ from .models import (
     SystemConfig, SequenceGenerator, Institution, InstitutionConfig
 )
 from apps.academics.models import AcademicSession,Holiday,FileAttachment
+from .middleware import get_user_accessible_institutions
 
-class AcademicSessionForm(forms.ModelForm):
+
+class InstitutionFormMixin:
+    """
+    Mixin for ModelForms that filter related fields by user's accessible institutions.
+    Automatically filters Institution-related querysets and other related models.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        if self.user and not self.user.is_superuser:
+            # Get user's accessible institutions
+            accessible_institutions = get_user_accessible_institutions(self.user)
+
+            # Filter Institution fields
+            for field_name, field in self.fields.items():
+                if hasattr(field, 'queryset') and field.queryset is not None:
+                    model = field.queryset.model
+                    if model == Institution:
+                        field.queryset = field.queryset.filter(id__in=accessible_institutions.values_list('id', flat=True))
+                    # Automatically filter models that inherit from CoreBaseModel
+                    elif hasattr(model, 'institution'):
+                        field.queryset = field.queryset.filter(institution__in=accessible_institutions)
+
+class AcademicSessionForm(InstitutionFormMixin, forms.ModelForm):
     """
     Form for creating and updating AcademicSession instances.
     """
@@ -332,7 +358,7 @@ class InstitutionConfigOverrideForm(forms.Form):
                 )
 
 
-class HolidayForm(forms.ModelForm):
+class HolidayForm(InstitutionFormMixin, forms.ModelForm):
     """
     Form for creating and updating Holiday instances.
     """
@@ -617,9 +643,19 @@ class BulkNotificationForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+
+        # Filter users by institution
+        from apps.core.middleware import get_user_accessible_institutions
         from apps.users.models import User, Role
-        self.fields['specific_users'].queryset = User.objects.filter(is_active=True)
+
+        accessible_institutions = get_user_accessible_institutions(user) if user else Institution.objects.none()
+        self.fields['specific_users'].queryset = User.objects.filter(
+            is_active=True,
+            institution_user__institution__in=accessible_institutions
+        ).distinct()
+
         self.fields['user_roles'].choices = [
             (role.role_type, role.name) for role in Role.objects.filter(status='active')
         ]

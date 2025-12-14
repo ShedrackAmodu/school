@@ -103,6 +103,7 @@ TEMPLATES = [
                     "django.contrib.messages.context_processors.messages",
                     "django.contrib.sites.context_processors.site",
                     'apps.core.context_processors.tenant_context',
+                    'apps.core.context_processors.current_institution',
                     'apps.communication.context_processors.notification_count',
                     'apps.users.context_processors.user_roles',
                 ],

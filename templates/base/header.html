@@ -52,7 +52,7 @@
                         <span class="input-group-text bg-light border-end-0">
                             <i class="bi bi-search"></i>
                         </span>
-                        <input type="search" class="form-control border-start-0" name="q"
+                        <input type="text" class="form-control border-start-0" name="q"
                                placeholder="{% trans 'Search students, teachers, classes...' %}"
                                aria-label="{% trans 'Search' %}">
                         <button class="btn btn-outline-secondary" type="submit">
@@ -67,6 +67,11 @@
                             <li><a class="dropdown-item search-filter-option" href="#" data-filter="students">{% trans "Students" %}</a></li>
                             <li><a class="dropdown-item search-filter-option" href="#" data-filter="teachers">{% trans "Teachers" %}</a></li>
                             <li><a class="dropdown-item search-filter-option" href="#" data-filter="classes">{% trans "Classes" %}</a></li>
+                            <li><a class="dropdown-item search-filter-option" href="#" data-filter="subjects">{% trans "Subjects" %}</a></li>
+                            <li><a class="dropdown-item search-filter-option" href="#" data-filter="exams">{% trans "Exams" %}</a></li>
+                            <li><a class="dropdown-item search-filter-option" href="#" data-filter="assignments">{% trans "Assignments" %}</a></li>
+                            <li><a class="dropdown-item search-filter-option" href="#" data-filter="invoices">{% trans "Invoices" %}</a></li>
+                            <li><a class="dropdown-item search-filter-option" href="#" data-filter="payments">{% trans "Payments" %}</a></li>
                             <li><a class="dropdown-item search-filter-option" href="#" data-filter="documents">{% trans "Documents" %}</a></li>
                         </ul>
                     </div>
@@ -467,7 +472,7 @@ document.addEventListener('DOMContentLoaded', function() {
             filterInput.value = filter;
 
             // Update search placeholder based on filter
-            const searchInput = searchForm.querySelector('input[type="search"]');
+            const searchInput = searchForm.querySelector('input[name="q"]');
             switch(filter) {
                 case 'students':
                     searchInput.placeholder = "{% trans 'Search students...' %}";
@@ -477,6 +482,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                 case 'classes':
                     searchInput.placeholder = "{% trans 'Search classes...' %}";
+                    break;
+                case 'subjects':
+                    searchInput.placeholder = "{% trans 'Search subjects...' %}";
+                    break;
+                case 'exams':
+                    searchInput.placeholder = "{% trans 'Search exams...' %}";
+                    break;
+                case 'assignments':
+                    searchInput.placeholder = "{% trans 'Search assignments...' %}";
+                    break;
+                case 'invoices':
+                    searchInput.placeholder = "{% trans 'Search invoices...' %}";
+                    break;
+                case 'payments':
+                    searchInput.placeholder = "{% trans 'Search payments...' %}";
                     break;
                 case 'documents':
                     searchInput.placeholder = "{% trans 'Search documents...' %}";

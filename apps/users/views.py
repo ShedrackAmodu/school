@@ -81,46 +81,50 @@ def can_assign_roles(user):
     ).exists()
 
 
-@login_required
-@user_passes_test(lambda u: u.is_superuser or u.is_staff)
 def login_history(request):
     """
     View login history with search and filtering capabilities.
     """
     from django.core.paginator import Paginator
-    
-    # Get login history queryset
-    login_entries = LoginHistory.objects.select_related('user').order_by('-created_at')
-    
+
+    # Get login history queryset filtered by institution
+    login_entries = LoginHistory.objects.filter(
+        user__current_institution=request.user.current_institution
+    ).select_related('user').order_by('-created_at')
+
     # Filter by user if specified (for user detail page link)
     user_id = request.GET.get('user')
     if user_id:
         try:
-            user = User.objects.get(id=user_id)
+            user = User.objects.get(id=user_id, current_institution=request.user.current_institution)
             login_entries = login_entries.filter(user=user)
         except User.DoesNotExist:
             messages.error(request, _('User not found.'))
             return redirect('users:user_list')
-    
+
     # Apply form filters
     form = LoginHistorySearchForm(request.GET)
     if form.is_valid():
-        # User filter
+        # User filter - ensure user belongs to same institution
         if form.cleaned_data['user']:
-            login_entries = login_entries.filter(user=form.cleaned_data['user'])
-        
+            if form.cleaned_data['user'].current_institution == request.user.current_institution:
+                login_entries = login_entries.filter(user=form.cleaned_data['user'])
+            else:
+                # Don't show login history for users from other institutions
+                pass
+
         # Success filter
         if form.cleaned_data['was_successful'] != '':
             if form.cleaned_data['was_successful'] == 'true':
                 login_entries = login_entries.filter(was_successful=True)
             elif form.cleaned_data['was_successful'] == 'false':
                 login_entries = login_entries.filter(was_successful=False)
-        
+
         # Date range filter
         start_date = form.cleaned_data.get('start_date')
         end_date = form.cleaned_data.get('end_date')
         date_range = form.cleaned_data.get('date_range')
-        
+
         if date_range == 'custom' and start_date and end_date:
             login_entries = login_entries.filter(created_at__date__range=[start_date, end_date])
         elif date_range == 'today':
@@ -1750,7 +1754,10 @@ def user_list(request):
     """
     List all users with filtering and search capabilities.
     """
-    users = User.objects.all().select_related('profile').prefetch_related('user_roles__role')
+    # Filter users by institution for multitenancy
+    users = User.objects.filter(
+        current_institution=request.user.current_institution
+    ).select_related('profile').prefetch_related('user_roles__role')
 
     # Filtering
     role_filter = request.GET.get('role')
@@ -1762,7 +1769,7 @@ def user_list(request):
 
     if status_filter:
         users = users.filter(is_active=bool(status_filter == 'active'))
-    
+
     if search_query:
         users = users.filter(
             Q(email__icontains=search_query) |
@@ -1770,11 +1777,14 @@ def user_list(request):
             Q(last_name__icontains=search_query) |
             Q(mobile__icontains=search_query)
         )
-    
+
+    # Also filter roles by institution if they've been scoped
+    roles = Role.objects.all()  # Roles are typically shared, but filterable by institution if needed
+
     context = {
         'title': _('User Management'),
         'users': users.distinct(),
-        'roles': Role.objects.all(),
+        'roles': roles,
         'active_tab': 'users',
     }
     return render(request, 'users/admin/users/user_list.html', context)
@@ -1818,7 +1828,7 @@ def user_detail(request, user_id):
     """
     User detail view with all related information.
     """
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(User, id=user_id, current_institution=request.user.current_institution)
 
     # Security check - staff can only view, superuser can edit
     can_edit = request.user.is_superuser
@@ -3351,6 +3361,7 @@ def staff_list(request):
     """
     staff_roles = Role.objects.exclude(role_type__in=['student', 'parent']).values_list('id', flat=True)
     staff_users = User.objects.filter(
+        current_institution=request.user.current_institution,  # Filter by institution for multitenancy
         user_roles__role__id__in=staff_roles,
         is_active=True
     ).distinct().select_related('profile').prefetch_related('user_roles__role')
@@ -3385,7 +3396,7 @@ def staff_detail(request, user_id):
     """
     Staff member detail view with profile and role management.
     """
-    staff_member = get_object_or_404(User, id=user_id)
+    staff_member = get_object_or_404(User, id=user_id, current_institution=request.user.current_institution)
 
     # Ensure the user is actually a staff member
     if not staff_member.user_roles.filter(role__role_type__in=Role.STAFF_ROLES).exists():
