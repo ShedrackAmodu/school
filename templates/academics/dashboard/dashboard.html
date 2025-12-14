@@ -6,8 +6,542 @@
     <h4 class="mb-4">{% trans "Academic Overview" %}</h4>
 
     {% if user.is_authenticated %}
-        {% if user.user_roles.all.0.role.role_type == 'student' %}
-            <!-- Student Dashboard Content -->
+        <!-- Category Filter Tabs -->
+        {% if tab_data %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+                    {% for category_key, tab_info in tab_data.items %}
+                    <li class="nav-item" role="presentation">
+                        <a href="?dashboard_category={{ category_key }}&session_id={{ filter_session_id }}&subject_id={{ filter_subject_id }}&class_id={{ filter_class_id }}{% if is_super_admin_context %}&super_admin=true&institution={{ institution_filter }}{% endif %}"
+                           class="nav-link{% if tab_info.active %} active{% endif %}"
+                           id="{{ category_key }}-tab"
+                           data-bs-toggle="tab"
+                           role="tab"
+                           aria-controls="{{ category_key }}"
+                           aria-selected="{% if tab_info.active %}true{% else %}false{% endif %}">
+                            <i class="fas {{ tab_info.icon }} me-2"></i>
+                            {{ tab_info.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+
+                <!-- School/Institution Filter for Super Admin -->
+                {% if is_super_admin_context %}
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label for="institution_filter" class="form-label small">School/Institution</label>
+                        <select class="form-select form-select-sm" id="institution_filter" onchange="updateFilters()">
+                            <option value="">All Institutions</option>
+                            {% for institution in institutions %}
+                                <option value="{{ institution.id }}"{% if selected_institution and institution_filter == institution.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ institution.name }} ({{ institution.code }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="session_filter" class="form-label small">Academic Session</label>
+                        <select class="form-select form-select-sm" id="session_filter" onchange="updateFilters()">
+                            <option value="">All Sessions</option>
+                            {% for session in sessions %}
+                                <option value="{{ session.id }}"{% if filter_session_id == session.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ session.name }} ({{ session.start_date|date:"Y" }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Regular Filter Controls for Teachers -->
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <label for="session_filter" class="form-label small">Academic Session</label>
+                        <select class="form-select form-select-sm" id="session_filter" onchange="updateFilters()">
+                            <option value="">All Sessions</option>
+                            {% for session in sessions %}
+                                <option value="{{ session.id }}"{% if filter_session_id == session.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ session.name }} ({{ session.start_date|date:"Y" }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% if user.user_roles.all.0.role.role_type == 'teacher' %}
+                    <div class="col-md-4">
+                        <label for="subject_filter" class="form-label small">Subject</label>
+                        <select class="form-select form-select-sm" id="subject_filter" onchange="updateFilters()">
+                            <option value="">All Subjects</option>
+                            {% for subject in subjects %}
+                                <option value="{{ subject.id }}"{% if filter_subject_id == subject.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ subject.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="class_filter" class="form-label small">Class</label>
+                        <select class="form-select form-select-sm" id="class_filter" onchange="updateFilters()">
+                            <option value="">All Classes</option>
+                            {% for class_obj in classes %}
+                                <option value="{{ class_obj.id }}"{% if filter_class_id == class_obj.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ class_obj.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <script>
+        function updateFilters() {
+            const category = new URLSearchParams(window.location.search).get('dashboard_category') || 'schools';
+            const sessionId = document.getElementById('session_filter').value;
+            let url = `?dashboard_category=${category}`;
+
+            {% if is_super_admin_context %}
+            const institutionId = document.getElementById('institution_filter').value;
+            url += '&super_admin=true';
+            if (institutionId) url += `&institution=${institutionId}`;
+            {% else %}
+            const subjectId = document.getElementById('subject_filter') ? document.getElementById('subject_filter').value : '';
+            const classId = document.getElementById('class_filter') ? document.getElementById('class_filter').value : '';
+            if (subjectId) url += `&subject_id=${subjectId}`;
+            if (classId) url += `&class_id=${classId}`;
+            {% endif %}
+
+            if (sessionId) url += `&session_id=${sessionId}`;
+
+            window.location.href = url;
+        }
+        </script>
+
+        {% if category_filter == 'schools' and user.user_roles.all.0.role.role_type == 'student' %}
+            <!-- Student Schools Dashboard Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "School Activities & Info" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-book fs-1 text-primary mb-2"></i>
+                                <h6>{% trans "Current Class" %}</h6>
+                                {% if current_class %}
+                                    <p class="text-muted small mb-2">{{ current_class.name }}</p>
+                                    <a href="{% url 'academics:class_detail' pk=current_class.pk %}" class="btn btn-primary btn-sm">{% trans "View Class" %}</a>
+                                {% else %}
+                                    <p class="text-muted small mb-2">{% trans "Not enrolled in a class." %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-journal-check fs-1 text-success mb-2"></i>
+                                <h6>{% trans "Recent Grades" %}</h6>
+                                {% if recent_grades %}
+                                    <ul class="list-unstyled text-muted small mb-2">
+                                        {% for grade in recent_grades %}
+                                            <li>{{ grade.subject.name }}: {{ grade.overall_grade }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                    <a href="{% url 'academics:student_report' student_id=student.pk %}" class="btn btn-success btn-sm">{% trans "View All Grades" %}</a>
+                                {% else %}
+                                    <p class="text-muted small mb-2">{% trans "No recent grades." %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-clipboard-data fs-1 text-warning mb-2"></i>
+                                <h6>{% trans "Attendance Stats" %}</h6>
+                                {% if attendance_stats %}
+                                    <p class="text-muted small mb-2">{% trans "Present" %}: {{ attendance_stats.present }}%, {% trans "Absent" %}: {{ attendance_stats.absent }}%, {% trans "Late" %}: {{ attendance_stats.late }}%</p>
+                                {% else %}
+                                    <p class="text-muted small mb-2">{% trans "No attendance data." %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif category_filter == 'academics' and user.user_roles.all.0.role.role_type == 'student' %}
+            <!-- Student Academic Performance Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "Academic Performance & Records" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-clipboard-data fs-1 text-info mb-2"></i>
+                                <h6>{% trans "Academic Records" %}</h6>
+                                <p class="text-muted small mb-2">{% trans "View detailed academic history" %}</p>
+                                <a href="{% url 'academics:student_academic_records' %}" class="btn btn-info btn-sm">{% trans "View Records" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-journal-check fs-1 text-success mb-2"></i>
+                                <h6>{% trans "Academic Grades" %}</h6>
+                                {% if performance_stats %}
+                                    <p class="text-muted small mb-2">{% trans "Avg" %}: {{ performance_stats.average_percentage }}%</p>
+                                    <p class="text-muted small mb-2">{% trans "Exams" %}: {{ performance_stats.total_exams }}</p>
+                                {% else %}
+                                    <p class="text-muted small mb-2">{% trans "No performance stats." %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-calendar-week fs-1 text-warning mb-2"></i>
+                                <h6>{% trans "My Timetable" %}</h6>
+                                <p class="text-muted small mb-2">{% trans "View your class schedule" %}</p>
+                                <a href="{% url 'academics:student_timetable' %}" class="btn btn-warning btn-sm">{% trans "View Timetable" %}</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif category_filter == 'other' and user.user_roles.all.0.role.role_type == 'student' %}
+            <!-- Student Other Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "Additional Resources & Materials" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-journal-text fs-1 text-danger mb-2"></i>
+                                <h6>{% trans "Upcoming Assignments" %}</h6>
+                                {% if upcoming_assignments %}
+                                    <ul class="list-unstyled text-muted small mb-2">
+                                        {% for assignment in upcoming_assignments %}
+                                            <li>{{ assignment.title }} ({{ assignment.publish_date|date:"M d" }})</li>
+                                        {% endfor %}
+                                    </ul>
+                                    <a href="{% url 'assessment:assignment_list' %}" class="btn btn-danger btn-sm">{% trans "View All Assignments" %}</a>
+                                {% else %}
+                                    <p class="text-muted small mb-2">{% trans "No upcoming assignments." %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-bookmark-star fs-1 text-info mb-2"></i>
+                                <h6>{% trans " materials" %}</h6>
+                                <p class="text-muted small mb-2">{% trans "Access learning materials" %}</p>
+                                <a href="{% url 'academics:student_materials' %}" class="btn btn-info btn-sm">{% trans "View Materials" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-journal-bookmark-fill fs-1 text-secondary mb-2"></i>
+                                <h6>{% trans "Study Resources" %}</h6>
+                                <p class="text-muted small mb-2">{% trans "Additional study materials" %}</p>
+                                <a href="{% url 'library:student_library' %}" class="btn btn-secondary btn-sm">{% trans "Library" %}</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif category_filter == 'schools' and user.user_roles.all.0.role.role_type == 'teacher' %}
+            <!-- Teacher Schools Dashboard Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "School Management & Classes" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-person-badge fs-1 text-primary mb-2"></i>
+                                <h6>{% trans "My Assignments" %}</h6>
+                                {% if current_assignments %}
+                                    <ul class="list-unstyled text-muted small mb-2">
+                                        {% for assignment in current_assignments %}
+                                            <li>{{ assignment.subject.name }} ({{ assignment.class_assigned.name }})</li>
+                                        {% endfor %}
+                                    </ul>
+                                    <a href="{% url 'academics:subject_list' %}" class="btn btn-primary btn-sm">{% trans "View All Assignments" %}</a>
+                                {% else %}
+                                    <p class="text-muted small mb-2">{% trans "No current assignments." %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-people fs-1 text-success mb-2"></i>
+                                <h6>{% trans "Total Students" %}</h6>
+                                <p class="text-muted small mb-2">{{ total_students }} {% trans "students across my classes" %}</p>
+                                <a href="{% url 'academics:student_list' %}" class="btn btn-success btn-sm">{% trans "View Students" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-calendar-event fs-1 text-info mb-2"></i>
+                                <h6>{% trans "Upcoming Classes" %}</h6>
+                                {% if upcoming_classes %}
+                                    <ul class="list-unstyled text-muted small mb-2">
+                                        {% for class_entry in upcoming_classes %}
+                                            <li>{{ class_entry.subject.name }} ({{ class_entry.start_time|time:"H:i" }})</li>
+                                        {% endfor %}
+                                    </ul>
+                                    <a href="{% url 'academics:teacher_timetable' %}" class="btn btn-info btn-sm">{% trans "View Timetable" %}</a>
+                                {% else %}
+                                    <p class="text-muted small mb-2">{% trans "No upcoming classes today." %}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif category_filter == 'academics' and user.user_roles.all.0.role.role_type == 'teacher' %}
+            <!-- Teacher Academic Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "Academic Assessment & Grading" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-pencil-square fs-1 text-warning mb-2"></i>
+                                <h6>{% trans "Pending Grading" %}</h6>
+                                <p class="text-muted small mb-2">{{ pending_grading }} {% trans "items to grade" %}</p>
+                                <a href="{% url 'assessment:assignment_list' %}" class="btn btn-warning btn-sm">{% trans "Go to Grading" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-graph-up fs-1 text-success mb-2"></i>
+                                <h6>{% trans "Performance" %}</h6>
+                                <p class="text-muted small mb-2">{% trans "View class performance" %}</p>
+                                <a href="{% url 'academics:class_list' %}" class="btn btn-success btn-sm">{% trans "View Classes" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-file-earmark-text fs-1 text-info mb-2"></i>
+                                <h6>{% trans "Assignments" %}</h6>
+                                <p class="text-muted small mb-2">{% trans "Create and manage assignments" %}</p>
+                                <a href="{% url 'assessment:assignment_create' %}" class="btn btn-info btn-sm">{% trans "New Assignment" %}</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif category_filter == 'other' and user.user_roles.all.0.role.role_type == 'teacher' %}
+            <!-- Teacher Other Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "Teaching Materials & Resources" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-transparent border-0">
+                                    <h6 class="card-title mb-0">{% trans "Quick Actions" %}</h6>
+                                </div>
+                                <div class="card-body d-flex flex-wrap gap-2">
+                                    <a href="{% url 'academics:material_create' %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-plus-circle me-1"></i> {% trans "Create Class Material" %}
+                                    </a>
+                                    <a href="#" class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-pencil-fill me-1"></i> {% trans "Enter Grades" %}
+                                    </a>
+                                    <a href="#" class="btn btn-outline-info btn-sm">
+                                        <i class="bi bi-clipboard-check me-1"></i> {% trans "Manage Attendance" %}
+                                    </a>
+                                    <a href="{% url 'academics:timetable_create' %}" class="btn btn-outline-warning btn-sm">
+                                        <i class="bi bi-calendar-plus me-1"></i> {% trans "Add Timetable" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif category_filter == 'schools' and user.is_staff %}
+            <!-- Staff/Admin Schools Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "School Management Overview" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-person-lines-fill fs-1 text-primary mb-2"></i>
+                                <h6>{% trans "Total Students" %}</h6>
+                                <p class="text-muted small mb-2">{{ total_students }}</p>
+                                <a href="{% url 'academics:student_list' %}" class="btn btn-primary btn-sm">{% trans "View Students" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-person-video3 fs-1 text-success mb-2"></i>
+                                <h6>{% trans "Total Teachers" %}</h6>
+                                <p class="text-muted small mb-2">{{ total_teachers }}</p>
+                                <a href="{% url 'academics:teacher_list' %}" class="btn btn-success btn-sm">{% trans "View Teachers" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-house-door fs-1 text-info mb-2"></i>
+                                <h6>{% trans "Total Classes" %}</h6>
+                                <p class="text-muted small mb-2">{{ total_classes }}</p>
+                                <a href="{% url 'academics:class_list' %}" class="btn btn-info btn-sm">{% trans "View Classes" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-book fs-1 text-warning mb-2"></i>
+                                <h6>{% trans "Total Subjects" %}</h6>
+                                <p class="text-muted small mb-2">{{ total_subjects }}</p>
+                                <a href="{% url 'academics:subject_list' %}" class="btn btn-warning btn-sm">{% trans "View Subjects" %}</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-transparent border-0">
+                                    <h6 class="card-title mb-0">{% trans "Recent Enrollments" %}</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if recent_enrollments %}
+                                        <ul class="list-group list-group-flush">
+                                            {% for enrollment in recent_enrollments %}
+                                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                    {{ enrollment.student.user.full_name }} - {{ enrollment.class_enrolled.name }}
+                                                    <span class="badge bg-secondary">{{ enrollment.enrollment_date|date:"M d, Y" }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                        <div class="text-end mt-3">
+                                            <a href="{% url 'academics:enrollment_list' %}" class="btn btn-outline-primary btn-sm">{% trans "View All Enrollments" %}</a>
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted text-center">{% trans "No recent enrollments." %}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-transparent border-0">
+                                    <h6 class="card-title mb-0">{% trans "Upcoming Holidays" %}</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if upcoming_holidays %}
+                                        <ul class="list-group list-group-flush">
+                                            {% for holiday in upcoming_holidays %}
+                                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                    {{ holiday.name }}
+                                                    <span class="badge bg-info">{{ holiday.date|date:"M d, Y" }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                        <div class="text-end mt-3">
+                                            <a href="{% url 'academics:academic_calendar' %}" class="btn btn-outline-primary btn-sm">{% trans "View Calendar" %}</a>
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted text-center">{% trans "No upcoming holidays." %}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif category_filter == 'academics' and user.is_staff %}
+            <!-- Staff/Admin Academic Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "Academic Administration & Assessment" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-journal-text fs-1 text-primary mb-2"></i>
+                                <h6>{% trans "Assessments" %}</h6>
+                                {% if total_assignments %}
+                                    <p class="text-muted small mb-2">{{ total_assignments }} {% trans "published assignments" %}</p>
+                                {% else %}
+                                    <p class="text-muted small mb-2">{% trans "Manage academic assessments" %}</p>
+                                {% endif %}
+                                <a href="{% url 'assessment:admin_exam_list' %}" class="btn btn-primary btn-sm">{% trans "Manage Assessments" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-calculator fs-1 text-success mb-2"></i>
+                                <h6>{% trans "Grading & Results" %}</h6>
+                                <p class="text-muted small mb-2">{% trans "Manage grading systems" %}</p>
+                                <a href="{% url 'assessment:grade_scale_list' %}" class="btn btn-success btn-sm">{% trans "Grade Scales" %}</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="bi bi-bar-chart fs-1 text-info mb-2"></i>
+                                <h6>{% trans "Academic Reports" %}</h6>
+                                <p class="text-muted small mb-2">{% trans "Generate academic reports" %}</p>
+                                <a href="{% url 'academics:class_report' class_id=1 %}" class="btn btn-info btn-sm">{% trans "View Reports" %}</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif category_filter == 'other' and user.is_staff %}
+            <!-- Staff/Admin Other Content -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">{% trans "System Setup & Configuration" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-transparent border-0">
+                                    <h6 class="card-title mb-0">{% trans "Quick Actions" %}</h6>
+                                </div>
+                                <div class="card-body d-flex flex-wrap gap-2">
+                                    <a href="{% url 'academics:session_create' %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-calendar-plus me-1"></i> {% trans "Add Session" %}
+                                    </a>
+                                    <a href="{% url 'academics:department_create' %}" class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-building-add me-1"></i> {% trans "Add Department" %}
+                                    </a>
+                                    <a href="{% url 'academics:subject_create' %}" class="btn btn-outline-info btn-sm">
+                                        <i class="bi bi-book-half me-1"></i> {% trans "Add Subject" %}
+                                    </a>
+                                    <a href="{% url 'academics:class_create' %}" class="btn btn-outline-warning btn-sm">
+                                        <i class="bi bi-house-add me-1"></i> {% trans "Add Class" %}
+                                    </a>
+                                    <a href="{% url 'academics:bulk_enrollment' %}" class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-person-plus-fill me-1"></i> {% trans "Bulk Enroll" %}
+                                    </a>
+                                    <a href="{% url 'academics:timetable_list' %}" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-table me-1"></i> {% trans "Manage Timetable" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif user.user_roles.all.0.role.role_type == 'student' %}
+            <!-- Student Dashboard Content (Default/Fallback) -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-transparent border-0">
                     <h5 class="card-title mb-0">{% trans "My Student Dashboard" %}</h5>
@@ -91,7 +625,7 @@
                 </div>
             </div>
         {% elif user.user_roles.all.0.role.role_type == 'teacher' %}
-            <!-- Teacher Dashboard Content -->
+            <!-- Teacher Dashboard Content (Fallback) -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-transparent border-0">
                     <h5 class="card-title mb-0">{% trans "My Teacher Dashboard" %}</h5>
@@ -191,7 +725,7 @@
                 </div>
             </div>
         {% elif user.is_staff %}
-            <!-- Staff/Admin Dashboard Content -->
+            <!-- Staff/Admin Dashboard Content (Fallback) -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-transparent border-0">
                     <h5 class="card-title mb-0">{% trans "Academic Administration Dashboard" %}</h5>
@@ -312,6 +846,253 @@
                     </div>
                 </div>
             </div>
+        {% endif %}
+
+        <!-- Super Admin Context Content Display -->
+        {% if is_super_admin_context %}
+            <!-- Super Admin Institution Overview Content -->
+            {% if category_filter == 'schools' %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="card-title mb-0">
+                            {% if selected_institution %}
+                                {% trans "Institution Overview" %} - {{ selected_institution.name }}
+                            {% else %}
+                                {% trans "Multi-Institution Overview" %}
+                            {% endif %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-person-lines-fill fs-1 text-primary mb-2"></i>
+                                    <h6>{% trans "Total Students" %}</h6>
+                                    <p class="text-muted small mb-2">{{ total_students }}</p>
+                                    <a href="{% url 'academics:student_list' %}" class="btn btn-primary btn-sm">{% trans "View Students" %}</a>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-person-video3 fs-1 text-success mb-2"></i>
+                                    <h6>{% trans "Total Teachers" %}</h6>
+                                    <p class="text-muted small mb-2">{{ total_teachers }}</p>
+                                    <a href="{% url 'academics:teacher_list' %}" class="btn btn-success btn-sm">{% trans "View Teachers" %}</a>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-house-door fs-1 text-info mb-2"></i>
+                                    <h6>{% trans "Total Classes" %}</h6>
+                                    <p class="text-muted small mb-2">{{ total_classes }}</p>
+                                    <a href="{% url 'academics:class_list' %}" class="btn btn-info btn-sm">{% trans "View Classes" %}</a>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-book fs-1 text-warning mb-2"></i>
+                                    <h6>{% trans "Total Enrollments" %}</h6>
+                                    <p class="text-muted small mb-2">{{ total_enrollments }}</p>
+                                    <a href="{% url 'academics:enrollment_list' %}" class="btn btn-warning btn-sm">{% trans "View Enrollments" %}</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% if recent_enrollments %}
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-transparent border-0">
+                                        <h6 class="card-title mb-0">{% trans "Recent Enrollments" %}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-group list-group-flush">
+                                            {% for enrollment in recent_enrollments %}
+                                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                    {{ enrollment.student.user.full_name }} - {{ enrollment.class_enrolled.name }}
+                                                    <span class="badge bg-secondary">{{ enrollment.enrollment_date|date:"M d, Y" }}</span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                        <div class="text-end mt-3">
+                                            <a href="{% url 'academics:enrollment_list' %}" class="btn btn-outline-primary btn-sm">{% trans "View All Enrollments" %}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% elif category_filter == 'academics' %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="card-title mb-0">
+                            {% if selected_institution %}
+                                {% trans "Academic Performance" %} - {{ selected_institution.name }}
+                            {% else %}
+                                {% trans "Multi-Institution Academic Performance" %}
+                            {% endif %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if performance_stats %}
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-clipboard-data fs-1 text-info mb-2"></i>
+                                    <h6>{% trans "Average Performance" %}</h6>
+                                    <p class="text-muted small mb-2">{{ performance_stats.average_percentage }}%</p>
+                                    <p class="text-muted small">{% trans "Across exams" %}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-bar-chart fs-1 text-success mb-2"></i>
+                                    <h6>{% trans "Total Assessments" %}</h6>
+                                    <p class="text-muted small mb-2">{{ performance_stats.total_assessments }}</p>
+                                    <p class="text-muted small">{% trans "Completed" %}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-book fs-1 text-warning mb-2"></i>
+                                    <h6>{% trans "Total Subjects" %}</h6>
+                                    <p class="text-muted small mb-2">{{ total_subjects }}</p>
+                                    <a href="{% url 'academics:subject_list' %}" class="btn btn-warning btn-sm">{% trans "View Subjects" %}</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if recent_results %}
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-transparent border-0">
+                                        <h6 class="card-title mb-0">{% trans "Recent Assessment Results" %}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>{% trans "Exam" %}</th>
+                                                        <th>{% trans "Class" %}</th>
+                                                        <th>{% trans "Average Score" %}</th>
+                                                        <th>{% trans "Date" %}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for result in recent_results %}
+                                                        <tr>
+                                                            <td>{{ result.exam_type.name }}</td>
+                                                            <td>{{ result.academic_class.name }}</td>
+                                                            <td>{{ result.percentage|floatformat:1 }}%</td>
+                                                            <td>{{ result.exam_date|date:"M d, Y" }}</td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% elif category_filter == 'other' %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="card-title mb-0">
+                            {% if selected_institution %}
+                                {% trans "Resources & Materials" %} - {{ selected_institution.name }}
+                            {% else %}
+                                {% trans "Multi-Institution Resources" %}
+                            {% endif %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-journal-text fs-1 text-danger mb-2"></i>
+                                    <h6>{% trans "Recent Assignments" %}</h6>
+                                    <p class="text-muted small mb-2">{{ recent_assignments|length }}</p>
+                                    <a href="{% url 'assessment:assignment_list' %}" class="btn btn-danger btn-sm">{% trans "View Assignments" %}</a>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-bookmark-star fs-1 text-info mb-2"></i>
+                                    <h6>{% trans "Class Materials" %}</h6>
+                                    <p class="text-muted small mb-2">{{ recent_materials|length }}</p>
+                                    <a href="{% url 'academics:material_list' %}" class="btn btn-info btn-sm">{% trans "View Materials" %}</a>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="text-center p-3 border rounded bg-light">
+                                    <i class="bi bi-calendar-week fs-1 text-secondary mb-2"></i>
+                                    <h6>{% trans "Total Departments" %}</h6>
+                                    <p class="text-muted small mb-2">{{ total_departments }}</p>
+                                    <a href="{% url 'academics:department_list' %}" class="btn btn-secondary btn-sm">{% trans "View Departments" %}</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% if recent_assignments or recent_materials %}
+                        <div class="row mt-3">
+                            {% if recent_assignments %}
+                            <div class="col-md-6">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-transparent border-0">
+                                        <h6 class="card-title mb-0">{% trans "Recent Assignments" %}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-group list-group-flush">
+                                            {% for assignment in recent_assignments %}
+                                                <li class="list-group-item">
+                                                    <div class="d-flex justify-content-between">
+                                                        <div>
+                                                            <strong>{{ assignment.title }}</strong><br>
+                                                            <small class="text-muted">{{ assignment.subject.name }} - {{ assignment.academic_class.name }}</small>
+                                                        </div>
+                                                        <small class="text-muted">{{ assignment.due_date|date:"M d" }}</small>
+                                                    </div>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if recent_materials %}
+                            <div class="col-md-6">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-transparent border-0">
+                                        <h6 class="card-title mb-0">{% trans "Recent Materials" %}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul class="list-group list-group-flush">
+                                            {% for material in recent_materials %}
+                                                <li class="list-group-item">
+                                                    <div class="d-flex justify-content-between">
+                                                        <div>
+                                                            <strong>{{ material.title }}</strong><br>
+                                                            <small class="text-muted">{{ material.subject.name }} - {{ material.class_assigned.name }}</small>
+                                                        </div>
+                                                        <small class="text-muted">{{ material.publish_date|date:"M d" }}</small>
+                                                    </div>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         {% endif %}
     {% else %}
         <div class="alert alert-warning" role="alert">

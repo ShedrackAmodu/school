@@ -29,6 +29,43 @@
         </div>
     </div>
 
+    <!-- Category Filter Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <form method="get" class="d-inline">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="font-weight-bold text-primary mb-3">
+                                <i class="fas fa-filter"></i> {% trans "Dashboard Category" %}
+                            </h6>
+                            <div class="btn-group btn-group-toggle flex-wrap" data-toggle="buttons">
+                                {% with current_category=request.GET.dashboard_category|default:"system" %}
+                                <label class="btn btn-outline-primary btn-sm {% if current_category == 'system' %}active{% endif %}">
+                                    <input type="radio" name="dashboard_category" value="system" {% if current_category == 'system' %}checked{% endif %}> {% trans "System Overview" %}
+                                </label>
+                                <label class="btn btn-outline-success btn-sm {% if current_category == 'academic' %}active{% endif %}">
+                                    <input type="radio" name="dashboard_category" value="academic" {% if current_category == 'academic' %}checked{% endif %}> {% trans "Academic Focus" %}
+                                </label>
+                                <label class="btn btn-outline-info btn-sm {% if current_category == 'finance' %}active{% endif %}">
+                                    <input type="radio" name="dashboard_category" value="finance" {% if current_category == 'finance' %}checked{% endif %}> {% trans "Financial Focus" %}
+                                </label>
+                                {% endwith %}
+                            </div>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter"></i> {% trans "Apply Filter" %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Institution Selection Section (for multi-institution awareness) -->
     {% if can_switch_institutions %}
         <div class="row mb-4">

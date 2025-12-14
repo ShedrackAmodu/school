@@ -753,82 +753,324 @@ class AcademicsDashboardView(AcademicsAccessMixin, View):
         context = {}
         user = request.user
 
+        # Check if this is super admin access (coming from super admin dashboard)
+        is_super_admin_context = request.GET.get('super_admin') == 'true'
+        context['is_super_admin_context'] = is_super_admin_context
+
         # Common context for all users
         current_session = AcademicSession.objects.filter(is_current=True).first()
         context['current_session'] = current_session
 
-        # Role-specific context
-        if hasattr(user, 'student_profile'):
-            context.update(self._get_student_context(user))
+        # Get category filter from GET parameters
+        category_filter = request.GET.get('dashboard_category', 'schools')
+
+        # Validate category filter
+        valid_categories = ['schools', 'academics', 'other']
+        if category_filter not in valid_categories:
+            category_filter = 'schools'
+        context['category_filter'] = category_filter
+
+        # Get filter parameters
+        session_id = request.GET.get('session_id')
+        subject_id = request.GET.get('subject_id')
+        class_id = request.GET.get('class_id')
+
+        # Super admin institution filter
+        institution_filter = request.GET.get('institution')
+        selected_institution = None
+
+        if is_super_admin_context:
+            # Get accessible institutions for super admin
+            from apps.core.models import Institution
+            accessible_institutions = Institution.objects.filter(is_active=True)
+            institutions = accessible_institutions.order_by('name')
+            context['institutions'] = institutions
+            context['institution_filter'] = institution_filter
+
+            # Default to first institution if none selected
+            if not institution_filter and institutions.exists():
+                selected_institution = institutions.first()
+                institution_filter = str(selected_institution.id)
+                context['selected_institution'] = selected_institution
+
+            # Override current_institution for filtering queries
+            if institution_filter:
+                try:
+                    selected_institution = institutions.get(id=institution_filter, is_active=True)
+                    context['selected_institution'] = selected_institution
+                except Institution.DoesNotExist:
+                    if institutions.exists():
+                        selected_institution = institutions.first()
+                        context['selected_institution'] = selected_institution
+
+        # Add filter values to context for template
+        context['filter_session_id'] = session_id
+        context['filter_subject_id'] = subject_id
+        context['filter_class_id'] = class_id
+
+        # Add data for filter dropdowns
+        context['sessions'] = AcademicSession.objects.all().order_by('-start_date')
+        if hasattr(user, 'teacher_profile'):
+            context['subjects'] = user.teacher_profile.subjects.filter(status='active')
+            context['classes'] = Class.objects.filter(
+                subject_assignments__teacher=user.teacher_profile,
+                status='active'
+            ).distinct()
+        elif is_super_admin_context and selected_institution:
+            # For super admin, show all subjects and classes from selected institution
+            from apps.core.models import Institution
+            context['institutions'] = Institution.objects.filter(is_active=True).order_by('name')
+            context['subjects'] = Subject.objects.filter(institution=selected_institution, status='active')
+            context['classes'] = Class.objects.filter(institution=selected_institution, status='active')
+
+        # Update tab_data for super admin
+        if is_super_admin_context:
+            tab_data = {
+                'schools': {'active': category_filter == 'schools', 'name': 'Institution Overview', 'icon': 'fas fa-school'},
+                'academics': {'active': category_filter == 'academics', 'name': 'Academic Performance', 'icon': 'fas fa-graduation-cap'},
+                'other': {'active': category_filter == 'other', 'name': 'Resources & Materials', 'icon': 'fas fa-layer-group'}
+            }
+        else:
+            tab_data = {
+                'schools': {'active': category_filter == 'schools', 'name': 'Schools', 'icon': 'fas fa-school'},
+                'academics': {'active': category_filter == 'academics', 'name': 'Academics', 'icon': 'fas fa-graduation-cap'},
+                'other': {'active': category_filter == 'other', 'name': 'Other', 'icon': 'fas fa-layer-group'}
+            }
+        context['tab_data'] = tab_data
+
+        # Role-specific context based on selected category
+        if is_super_admin_context and selected_institution:
+            context.update(self._get_super_admin_context(request, user, category_filter, selected_institution, current_session))
+        elif hasattr(user, 'student_profile'):
+            context.update(self._get_student_context(request, user, category_filter))
         elif hasattr(user, 'teacher_profile'):
-            context.update(self._get_teacher_context(user))
+            context.update(self._get_teacher_context(request, user, category_filter))
         elif user.is_staff:
-            context.update(self._get_staff_context(user))
+            context.update(self._get_staff_context(request, user, category_filter))
 
         return render(request, 'academics/dashboard/dashboard.html', context)
     
-    def _get_student_context(self, user):
+    def _get_student_context(self, request, user, category_filter):
         """Get context for student dashboard."""
+        session_id = request.GET.get('session_id')
+        subject_id = request.GET.get('subject_id')
+        class_id = request.GET.get('class_id')
+
         student = user.student_profile
         current_enrollment = student.enrollments.filter(
             academic_session__is_current=True
         ).first()
-        
-        return {
+
+        if session_id:
+            try:
+                selected_session = AcademicSession.objects.get(id=session_id)
+            except AcademicSession.DoesNotExist:
+                selected_session = current_enrollment.academic_session if current_enrollment else None
+        else:
+            selected_session = current_enrollment.academic_session if current_enrollment else None
+
+        context = {
             'student': student,
             'current_class': current_enrollment.class_enrolled if current_enrollment else None,
-            'recent_grades': AcademicRecord.objects.filter(
-                student=student
-            ).order_by('-academic_session__start_date')[:5],
-            'upcoming_assignments': ClassMaterial.objects.filter(
-                class_assigned=current_enrollment.class_enrolled if current_enrollment else None,
-                publish_date__gte=timezone.now()
-            )[:5],
-            'attendance_stats': self._get_student_attendance_stats(student),
+            'selected_session': selected_session,
         }
-    
-    def _get_teacher_context(self, user):
+
+        # Category-specific data
+        if category_filter == 'schools':
+            # Filter academic records by selected session
+            recent_grades = AcademicRecord.objects.filter(student=student)
+            if selected_session:
+                recent_grades = recent_grades.filter(academic_session=selected_session)
+            recent_grades = recent_grades.order_by('-academic_session__start_date')[:5]
+
+            # Filter attendance stats by selected session
+            attendance_stats = self._get_student_attendance_stats(student, selected_session)
+
+            context.update({
+                'recent_grades': recent_grades,
+                'upcoming_assignments': ClassMaterial.objects.filter(
+                    class_assigned=current_enrollment.class_enrolled if current_enrollment else None,
+                    publish_date__gte=timezone.now()
+                )[:5],
+                'attendance_stats': attendance_stats,
+            })
+        elif category_filter == 'academics':
+            # Academic performance focus
+            recent_grades = AcademicRecord.objects.filter(student=student)
+            if selected_session:
+                recent_grades = recent_grades.filter(academic_session=selected_session)
+            recent_grades = recent_grades.order_by('-academic_session__start_date')[:10]
+
+            performance_stats = self._get_performance_stats(student, selected_session)
+
+            context.update({
+                'recent_grades': recent_grades,
+                'performance_stats': performance_stats,
+            })
+        elif category_filter == 'other':
+            # Library, announcements, etc.
+            context.update({
+                'upcoming_assignments': ClassMaterial.objects.filter(
+                    class_assigned=current_enrollment.class_enrolled if current_enrollment else None,
+                    publish_date__gte=timezone.now()
+                )[:5],
+                'attendance_stats': self._get_student_attendance_stats(student, selected_session),
+            })
+
+        return context
+
+    def _get_teacher_context(self, request, user, category_filter):
         """Get context for teacher dashboard."""
+        session_id = request.GET.get('session_id')
+        subject_id = request.GET.get('subject_id')
+        class_id = request.GET.get('class_id')
+
         teacher = user.teacher_profile
         current_assignments = teacher.subject_assignments.filter(
             academic_session__is_current=True
         )
-        
-        return {
+
+        if session_id:
+            try:
+                selected_session = AcademicSession.objects.get(id=session_id)
+            except AcademicSession.DoesNotExist:
+                selected_session = AcademicSession.objects.filter(is_current=True).first()
+        else:
+            selected_session = AcademicSession.objects.filter(is_current=True).first()
+
+        # Filter assignments by selected session and subject if provided
+        filtered_assignments = teacher.subject_assignments.filter(
+            academic_session=selected_session
+        ) if selected_session else teacher.subject_assignments.all()
+
+        if subject_id:
+            try:
+                subject = Subject.objects.get(id=subject_id)
+                filtered_assignments = filtered_assignments.filter(subject=subject)
+            except Subject.DoesNotExist:
+                pass
+
+        if class_id:
+            try:
+                class_obj = Class.objects.get(id=class_id)
+                filtered_assignments = filtered_assignments.filter(class_assigned=class_obj)
+            except Class.DoesNotExist:
+                pass
+
+        context = {
             'teacher': teacher,
-            'current_assignments': current_assignments,
-            'total_students': self._get_teacher_student_count(teacher),
-            'upcoming_classes': Timetable.objects.filter(
-                teacher=teacher,
-                day_of_week=timezone.now().strftime('%A').lower()
-            ).order_by('start_time'),
-            'pending_grading': self._get_pending_grading_count(teacher),
+            'current_assignments': filtered_assignments,
+            'selected_session': selected_session,
         }
-    
-    def _get_staff_context(self, user):
+
+        # Category-specific data
+        if category_filter == 'schools':
+            # Filter student count and upcoming classes by selected session
+            context.update({
+                'total_students': self._get_teacher_student_count(teacher, selected_session),
+                'upcoming_classes': Timetable.objects.filter(
+                    teacher=teacher,
+                    academic_session=selected_session,
+                    day_of_week=timezone.now().strftime('%A').lower()
+                ).order_by('start_time') if selected_session else [],
+            })
+        elif category_filter == 'academics':
+            context.update({
+                'pending_grading': self._get_pending_grading_count(teacher, selected_session),
+                'total_students': self._get_teacher_student_count(teacher, selected_session),
+            })
+        elif category_filter == 'other':
+            # Communication, materials, etc.
+            context.update({
+                'upcoming_classes': Timetable.objects.filter(
+                    teacher=teacher,
+                    academic_session=selected_session,
+                    day_of_week=timezone.now().strftime('%A').lower()
+                ).order_by('start_time') if selected_session else [],
+            })
+
+        return context
+
+    def _get_staff_context(self, request, user, category_filter):
         """Get context for staff dashboard."""
-        return {
+        session_id = request.GET.get('session_id')
+        subject_id = request.GET.get('subject_id')
+        class_id = request.GET.get('class_id')
+
+        if session_id:
+            try:
+                selected_session = AcademicSession.objects.get(id=session_id)
+            except AcademicSession.DoesNotExist:
+                selected_session = AcademicSession.objects.filter(is_current=True).first()
+        else:
+            selected_session = AcademicSession.objects.filter(is_current=True).first()
+
+        base_stats = {
             'total_students': Student.objects.filter(status='active').count(),
             'total_teachers': Teacher.objects.filter(status='active').count(),
             'total_classes': Class.objects.filter(status='active').count(),
-            'recent_enrollments': Enrollment.objects.filter(
-                enrollment_status='active'
-            ).order_by('-enrollment_date')[:10],
-            'upcoming_holidays': Holiday.objects.filter(
-                date__gte=timezone.now().date()
-            ).order_by('date')[:5],
         }
+
+        # Category-specific data
+        if category_filter == 'schools':
+            # Focus on school management - filter by session if selected
+            context = base_stats.copy()
+            recent_enrollments = Enrollment.objects.filter(enrollment_status='active')
+            if selected_session:
+                recent_enrollments = recent_enrollments.filter(academic_session=selected_session)
+            recent_enrollments = recent_enrollments.order_by('-enrollment_date')[:10]
+
+            upcoming_holidays = Holiday.objects.filter(date__gte=timezone.now().date())
+            if selected_session:
+                upcoming_holidays = upcoming_holidays.filter(academic_session=selected_session)
+            upcoming_holidays = upcoming_holidays.order_by('date')[:5]
+
+            context.update({
+                'recent_enrollments': recent_enrollments,
+                'upcoming_holidays': upcoming_holidays,
+            })
+        elif category_filter == 'academics':
+            # Focus on academic data
+            context = base_stats.copy()
+            from apps.assessment.models import Assignment
+
+            assignments_query = Assignment.objects.filter(is_published=True)
+            if selected_session:
+                assignments_query = assignments_query.filter(academic_class__academic_session=selected_session)
+
+            recent_enrollments = Enrollment.objects.filter(enrollment_status='active')
+            if selected_session:
+                recent_enrollments = recent_enrollments.filter(academic_session=selected_session)
+            recent_enrollments = recent_enrollments.order_by('-enrollment_date')[:10]
+
+            context.update({
+                'total_assignments': assignments_query.count(),
+                'recent_enrollments': recent_enrollments,
+            })
+        elif category_filter == 'other':
+            # Focus on additional items like reports, calendar
+            context = base_stats.copy()
+            upcoming_holidays = Holiday.objects.filter(date__gte=timezone.now().date())
+            if selected_session:
+                upcoming_holidays = upcoming_holidays.filter(academic_session=selected_session)
+            upcoming_holidays = upcoming_holidays.order_by('date')[:5]
+
+            context.update({
+                'upcoming_holidays': upcoming_holidays,
+            })
+
+        return context
     
-    def _get_student_attendance_stats(self, student):
+    def _get_student_attendance_stats(self, student, selected_session=None):
         """Calculate student attendance statistics."""
         from apps.attendance.models import DailyAttendance
 
-        # Get current session attendance
-        current_session = AcademicSession.objects.filter(is_current=True).first()
-        if current_session:
+        # Use selected session or default to current
+        session_filter = selected_session or AcademicSession.objects.filter(is_current=True).first()
+        if session_filter:
             attendance_records = DailyAttendance.objects.filter(
                 student=student,
-                academic_session=current_session
+                attendance_session__academic_session=session_filter
             )
 
             total_days = attendance_records.count()
@@ -849,27 +1091,148 @@ class AcademicsDashboardView(AcademicsAccessMixin, View):
 
         return {'present': 0, 'absent': 0, 'late': 0}
     
-    def _get_teacher_student_count(self, teacher):
+    def _get_teacher_student_count(self, teacher, selected_session=None):
         """Get total students taught by teacher."""
+        session_filter = selected_session or AcademicSession.objects.filter(is_current=True).first()
+        if not session_filter:
+            return 0
+
         classes = Class.objects.filter(
             subject_assignments__teacher=teacher,
-            subject_assignments__academic_session__is_current=True
+            subject_assignments__academic_session=session_filter
         ).distinct()
-        
+
         return Enrollment.objects.filter(
             class_enrolled__in=classes,
             enrollment_status='active'
         ).count()
-    
-    def _get_pending_grading_count(self, teacher):
+
+    def _get_super_admin_context(self, request, user, category_filter, selected_institution, current_session):
+        """Get context for super admin dashboard."""
+        context = {}
+
+        # Filter data by selected institution
+        from apps.core.models import Institution
+
+        # Common filter for selected institution
+        institution_filter = {'institution': selected_institution} if selected_institution else {}
+
+        if category_filter == 'schools':
+            # Institution overview statistics
+            total_students = Student.objects.filter(**institution_filter, status='active').count()
+            total_teachers = Teacher.objects.filter(**institution_filter, status='active').count()
+            total_classes = Class.objects.filter(**institution_filter, status='active').count()
+
+            recent_enrollments = Enrollment.objects.filter(
+                enrollment_status='active',
+                academic_session=current_session
+            ).select_related('student__user', 'class_enrolled').order_by('-enrollment_date')[:10]
+
+            # Calculate total enrollments for current session
+            total_enrollments = Enrollment.objects.filter(
+                academic_session=current_session,
+                enrollment_status='active'
+            ).count() if current_session else 0
+
+            context.update({
+                'total_students': total_students,
+                'total_teachers': total_teachers,
+                'total_classes': total_classes,
+                'total_enrollments': total_enrollments,
+                'recent_enrollments': recent_enrollments,
+            })
+
+        elif category_filter == 'academics':
+            # Academic performance statistics
+            if current_session:
+                from apps.assessment.models import Mark
+
+                # Get all marks for the selected institution in current session
+                marks_query = Mark.objects.filter(
+                    exam__academic_class__academic_session=current_session
+                )
+
+                if selected_institution:
+                    marks_query = marks_query.filter(
+                        exam__academic_class__institution=selected_institution
+                    )
+
+                if marks_query.exists():
+                    total_assessments = marks_query.count()
+                    average_percentage = marks_query.aggregate(avg=models.Avg('percentage'))['avg'] or 0
+
+                    performance_stats = {
+                        'average_percentage': round(average_percentage, 1),
+                        'total_assessments': total_assessments
+                    }
+
+                    # Recent results (latest exam results)
+                    recent_results = marks_query.select_related(
+                        'exam__subject', 'exam__exam_type', 'student__user'
+                    ).order_by('-exam__exam_date')[:10]
+
+                    context.update({
+                        'performance_stats': performance_stats,
+                        'recent_results': recent_results,
+                    })
+            else:
+                context.update({
+                    'performance_stats': {'average_percentage': 0, 'total_assessments': 0},
+                    'recent_results': [],
+                })
+
+        elif category_filter == 'other':
+            # Resources and materials
+            if current_session:
+                # Recent assignments from this institution
+                recent_assignments = Assignment.objects.filter(
+                    academic_class__academic_session=current_session,
+                    is_published=True
+                ).select_related('subject', 'teacher', 'academic_class').order_by('-created_at')[:10]
+
+                if selected_institution:
+                    recent_assignments = recent_assignments.filter(academic_class__institution=selected_institution)
+
+                # Recent materials
+                recent_materials = ClassMaterial.objects.filter(
+                    is_public=True,
+                    publish_date__gte=current_session.start_date
+                ).select_related('subject', 'teacher', 'class_assigned').order_by('-publish_date')[:10]
+
+                if selected_institution:
+                    recent_materials = recent_materials.filter(class_assigned__institution=selected_institution)
+
+                # Total departments for this institution
+                total_departments = Department.objects.filter(**institution_filter, status='active').count()
+
+                context.update({
+                    'recent_assignments': recent_assignments,
+                    'recent_materials': recent_materials,
+                    'total_departments': total_departments,
+                })
+            else:
+                context.update({
+                    'recent_assignments': [],
+                    'recent_materials': [],
+                    'total_departments': 0,
+                })
+
+        return context
+
+    def _get_pending_grading_count(self, teacher, selected_session=None):
         """Get count of assignments pending grading."""
-        # Count assignments that are submitted but not yet graded
-        return Assignment.objects.filter(
+        query = Assignment.objects.filter(
             teacher=teacher,
             is_published=True,
             student__isnull=False, # Ensure it's a student submission
             submission_status__in=[Assignment.SubmissionStatus.SUBMITTED, Assignment.SubmissionStatus.LATE, Assignment.SubmissionStatus.UNDER_REVIEW]
-        ).count()
+        )
+
+        if selected_session:
+            # Filter assignments by session if provided
+            query = query.filter(academic_class__academic_session=selected_session)
+
+        return query.count()
 
 
 # =============================================================================

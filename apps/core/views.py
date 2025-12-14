@@ -614,6 +614,20 @@ class SuperAdminDashboardView(MultiInstitutionMixin, LoginRequiredMixin, Permiss
     permission_required = 'core.view_institution'  # Could be more specific
 
     def get(self, request, *args, **kwargs):
+        # Get dashboard category from URL parameter
+        dashboard_category = request.GET.get('dashboard_category', 'system')
+
+        # If academic category is selected, redirect to academics dashboard with super admin flag
+        if dashboard_category == 'academic':
+            from django.urls import reverse
+            academic_url = reverse('academics:dashboard')
+            # Pass super admin context parameters
+            params = request.GET.copy()
+            params['super_admin'] = 'true'
+            if params:
+                academic_url += '?' + params.urlencode()
+            return redirect(academic_url)
+
         # Institution statistics
         total_institutions = Institution.objects.count()
         active_institutions = Institution.objects.filter(is_active=True).count()
@@ -654,6 +668,7 @@ class SuperAdminDashboardView(MultiInstitutionMixin, LoginRequiredMixin, Permiss
             'system_kpis': system_kpis,
             'kpi_data': kpi_data,
             'recent_audits': recent_audits,
+            'dashboard_category': dashboard_category,
             'page_title': _('Super Administrator Dashboard'),
         }
 
@@ -1199,7 +1214,7 @@ class SuperAdminEntityView(MultiInstitutionMixin, LoginRequiredMixin, Permission
     """
     Super Administrator view for comprehensive entity management across institutions.
     Displays teachers, students, classes, departments, sessions, and enrollments
-    with institution-based filtering.
+    with institution-based filtering and category-based organization.
     """
     permission_required = 'core.view_institution'  # Could be more specific
 
@@ -1215,6 +1230,9 @@ class SuperAdminEntityView(MultiInstitutionMixin, LoginRequiredMixin, Permission
             AcademicSession, Department, Class, Student, Teacher, Enrollment
         )
         from apps.users.models import User, Role
+
+        # Get category filter (schools, academics, other)
+        category_filter = request.GET.get('category', 'academics')
 
         # Get institution filter from request, remove default 'all'
         institution_filter = request.GET.get('institution')
@@ -1270,76 +1288,160 @@ class SuperAdminEntityView(MultiInstitutionMixin, LoginRequiredMixin, Permission
             session_qs = AcademicSession.objects.none()
             enrollment_qs = Enrollment.objects.none()
 
-        # Apply additional filters if present
+        # Prepare data based on category
         search_query = request.GET.get('search', '')
 
-        # Students
-        students = student_qs.filter(status='active').select_related('user', 'student_profile')
-        if search_query:
-            students = students.filter(
-                Q(user__first_name__icontains=search_query) |
-                Q(user__last_name__icontains=search_query) |
-                Q(student_id__icontains=search_query) |
-                Q(admission_number__icontains=search_query)
+        # Initialize data variables
+        students, teachers, classes_data, departments, sessions, enrollments = [], [], [], [], [], []
+        entity_counts = {}
+        tab_data = {}
+
+        if category_filter == 'schools':
+            # School management - institutions, configs, etc.
+            # For now, show institutions as the primary entity
+            entity_counts = {
+                'institutions': accessible_institutions.count(),
+                'configs': SystemConfig.objects.count(),
+                'active_configs': SystemConfig.objects.filter(status='active').count(),
+            }
+            tab_data = {
+                'institutions': {
+                    'name': 'Institutions',
+                    'count': entity_counts['institutions'],
+                    'icon': 'fas fa-school'
+                },
+                'configs': {
+                    'name': 'System Configs',
+                    'count': entity_counts['active_configs'],
+                    'icon': 'fas fa-cogs'
+                }
+            }
+
+        elif category_filter == 'other':
+            # Other system areas - finance, support, communication, users, etc.
+            # Initialize counts for other modules
+            try:
+                from apps.finance.models import Invoice
+                invoice_count = Invoice.objects.filter(status__in=['issued', 'paid']).count()
+            except ImportError:
+                invoice_count = 0
+
+            try:
+                from apps.support.models import Ticket
+                ticket_count = Ticket.objects.count()
+            except ImportError:
+                ticket_count = 0
+
+            try:
+                from apps.communication.models import Announcement
+                announcement_count = Announcement.objects.filter(is_published=True).count()
+            except ImportError:
+                announcement_count = 0
+
+            try:
+                from apps.users.models import User
+                user_count = User.objects.filter(is_active=True).count()
+            except ImportError:
+                user_count = 0
+
+            entity_counts = {
+                'invoices': invoice_count,
+                'tickets': ticket_count,
+                'announcements': announcement_count,
+                'users': user_count,
+            }
+            tab_data = {
+                'finance': {
+                    'name': 'Finance',
+                    'count': invoice_count,
+                    'icon': 'fas fa-dollar-sign'
+                },
+                'support': {
+                    'name': 'Support',
+                    'count': ticket_count,
+                    'icon': 'fas fa-headset'
+                },
+                'communication': {
+                    'name': 'Communication',
+                    'count': announcement_count,
+                    'icon': 'fas fa-comments'
+                },
+                'users': {
+                    'name': 'Users',
+                    'count': user_count,
+                    'icon': 'fas fa-users'
+                }
+            }
+
+        else:  # category_filter == 'academics' (default)
+            # Academic entities (current content)
+            # Students
+            students = student_qs.filter(status='active').select_related('user', 'student_profile')
+            if search_query:
+                students = students.filter(
+                    Q(user__first_name__icontains=search_query) |
+                    Q(user__last_name__icontains=search_query) |
+                    Q(student_id__icontains=search_query) |
+                    Q(admission_number__icontains=search_query)
+                )
+            students = students.order_by('user__last_name', 'user__first_name')[:50]
+
+            # Teachers
+            teachers = teacher_qs.filter(status='active').select_related('user', 'department')
+            if search_query:
+                teachers = teachers.filter(
+                    Q(user__first_name__icontains=search_query) |
+                    Q(user__last_name__icontains=search_query) |
+                    Q(teacher_id__icontains=search_query) |
+                    Q(employee_id__icontains=search_query)
+                )
+            teachers = teachers.order_by('user__last_name', 'user__first_name')[:50]
+
+            # Classes
+            classes_data = class_qs.filter(status='active').select_related('grade_level', 'class_teacher', 'academic_session')
+            if search_query:
+                classes_data = classes_data.filter(
+                    Q(name__icontains=search_query) |
+                    Q(code__icontains=search_query)
+                )
+            classes_data = classes_data.order_by('grade_level__name', 'name')[:50]
+
+            # Departments
+            departments = department_qs.filter(status='active')
+            if search_query:
+                departments = departments.filter(
+                    Q(name__icontains=search_query) |
+                    Q(code__icontains=search_query)
+                )
+            departments = departments.order_by('name')[:50]
+
+            # Sessions
+            sessions = session_qs.filter(status='active')
+            if search_query:
+                sessions = sessions.filter(name__icontains=search_query)
+            sessions = sessions.order_by('-start_date')[:50]
+
+            # Enrollments
+            enrollments = enrollment_qs.filter(status='active').select_related(
+                'student__user', 'class_enrolled', 'academic_session'
             )
-        students = students.order_by('user__last_name', 'user__first_name')[:50]  # Limit for performance
+            if search_query:
+                enrollments = enrollments.filter(
+                    Q(student__user__first_name__icontains=search_query) |
+                    Q(student__user__last_name__icontains=search_query) |
+                    Q(class_enrolled__name__icontains=search_query)
+                )
+            enrollments = enrollments.order_by('class_enrolled__name', 'roll_number')[:100]
 
-        # Teachers
-        teachers = teacher_qs.filter(status='active').select_related('user', 'department')
-        if search_query:
-            teachers = teachers.filter(
-                Q(user__first_name__icontains=search_query) |
-                Q(user__last_name__icontains=search_query) |
-                Q(teacher_id__icontains=search_query) |
-                Q(employee_id__icontains=search_query)
-            )
-        teachers = teachers.order_by('user__last_name', 'user__first_name')[:50]
-
-        # Classes
-        classes = class_qs.filter(status='active').select_related('grade_level', 'class_teacher', 'academic_session')
-        if search_query:
-            classes = classes.filter(
-                Q(name__icontains=search_query) |
-                Q(code__icontains=search_query)
-            )
-        classes = classes.order_by('grade_level__name', 'name')[:50]
-
-        # Departments
-        departments = department_qs.filter(status='active')
-        if search_query:
-            departments = departments.filter(
-                Q(name__icontains=search_query) |
-                Q(code__icontains=search_query)
-            )
-        departments = departments.order_by('name')[:50]
-
-        # Sessions
-        sessions = session_qs.filter(status='active')
-        if search_query:
-            sessions = sessions.filter(name__icontains=search_query)
-        sessions = sessions.order_by('-start_date')[:50]
-
-        # Enrollments
-        enrollments = enrollment_qs.filter(status='active').select_related(
-            'student__user', 'class_enrolled', 'academic_session'
-        )
-        if search_query:
-            enrollments = enrollments.filter(
-                Q(student__user__first_name__icontains=search_query) |
-                Q(student__user__last_name__icontains=search_query) |
-                Q(class_enrolled__name__icontains=search_query)
-            )
-        enrollments = enrollments.order_by('class_enrolled__name', 'roll_number')[:100]
-
-        # Get entity counts
-        entity_counts = {
-            'students': student_qs.filter(status='active').count(),
-            'teachers': teacher_qs.filter(status='active').count(),
-            'classes': class_qs.filter(status='active').count(),
-            'departments': department_qs.filter(status='active').count(),
-            'sessions': session_qs.filter(status='active').count(),
-            'enrollments': enrollment_qs.filter(status='active').count(),
-        }
+            # Get entity counts
+            entity_counts = {
+                'students': student_qs.filter(status='active').count(),
+                'teachers': teacher_qs.filter(status='active').count(),
+                'classes': class_qs.filter(status='active').count(),
+                'departments': department_qs.filter(status='active').count(),
+                'sessions': session_qs.filter(status='active').count(),
+                'enrollments': enrollment_qs.filter(status='active').count(),
+            }
 
         # The institutions variable is already set above as accessible institutions
 
@@ -1348,11 +1450,13 @@ class SuperAdminEntityView(MultiInstitutionMixin, LoginRequiredMixin, Permission
             'institutions': institutions,
             'institution_filter': institution_filter,
             'search_query': search_query,
+            'category_filter': category_filter,
+            'tab_data': tab_data,
 
             # Data
             'students': students,
             'teachers': teachers,
-            'classes': classes,
+            'classes': classes_data,
             'departments': departments,
             'sessions': sessions,
             'enrollments': enrollments,

@@ -46,6 +46,41 @@
     </div>
     {% endif %}
 
+    <!-- Category Filter Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <form method="get" class="d-inline">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="font-weight-bold text-primary mb-3">
+                                <i class="fas fa-filter"></i> {% trans "Filter by Category" %}
+                            </h6>
+                            <div class="btn-group btn-group-toggle flex-wrap" data-toggle="buttons">
+                                <label class="btn btn-outline-primary btn-sm {% if category_filter == 'academics' or not category_filter %}active{% endif %}">
+                                    <input type="radio" name="category" value="academics" {% if category_filter == 'academics' or not category_filter %}checked{% endif %}> {% trans "Academics" %}
+                                </label>
+                                <label class="btn btn-outline-success btn-sm {% if category_filter == 'schools' %}active{% endif %}">
+                                    <input type="radio" name="category" value="schools" {% if category_filter == 'schools' %}checked{% endif %}> {% trans "Schools" %}
+                                </label>
+                                <label class="btn btn-outline-info btn-sm {% if category_filter == 'other' %}active{% endif %}">
+                                    <input type="radio" name="category" value="other" {% if category_filter == 'other' %}checked{% endif %}> {% trans "Other" %}
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter"></i> {% trans "Apply Filter" %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Filters Section -->
     <div class="row mb-4">
         <div class="col-12">
@@ -81,6 +116,7 @@
     </div>
 
     <!-- Statistics Cards -->
+    {% if category_filter == 'academics' or not category_filter %}
     <div class="row mb-4">
         <div class="col-xl-2 col-md-4">
             <div class="card border-left-primary shadow h-100 py-2">
@@ -190,6 +226,137 @@
             </div>
         </div>
     </div>
+    {% elif category_filter == 'schools' %}
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                {% trans "Institutions" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ entity_counts.institutions }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-school fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                {% trans "Active Configurations" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ entity_counts.active_configs }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-cogs fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                {% trans "Total Configurations" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ entity_counts.configs }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-database fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif category_filter == 'other' %}
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                {% trans "Users" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ entity_counts.users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                {% trans "Invoices" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ entity_counts.invoices }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                {% trans "Support Tickets" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ entity_counts.tickets }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-headset fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                {% trans "Announcements" %}
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ entity_counts.announcements }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-comments fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Tabbed Entity Tables -->
     <div class="row">
