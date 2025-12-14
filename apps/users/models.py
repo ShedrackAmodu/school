@@ -7,7 +7,10 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
 import secrets
 import string
+import logging
 from apps.core.models import CoreBaseModel, AddressModel, ContactModel
+
+logger = logging.getLogger(__name__)
 
 
 

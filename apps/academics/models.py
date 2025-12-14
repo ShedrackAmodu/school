@@ -58,16 +58,16 @@ class AcademicSession(CoreBaseModel):
         verbose_name = _('Academic Session')
         verbose_name_plural = _('Academic Sessions')
         ordering = ['-start_date']
-        constraints = [
-            models.CheckConstraint(
-                condition=models.Q(end_date__gt=models.F('start_date')),
-                name='end_date_after_start_date'
-            ),
-            models.CheckConstraint(
-                condition=models.Q(term_number__isnull=True) | models.Q(term_number__lte=models.F('number_of_semesters')),
-                name='term_number_within_semesters_range'
-            )
-        ]
+        # constraints = [
+        #     models.CheckConstraint(
+        #         check=models.Q(end_date__gt=models.F('start_date')),
+        #         name='end_date_after_start_date'
+        #     ),
+        #     models.CheckConstraint(
+        #         check=models.Q(term_number__isnull=True) | models.Q(term_number__lte=models.F('number_of_semesters')),
+        #         name='term_number_within_semesters_range'
+        #     )
+        # ]
 
     def __str__(self):
         return self.name

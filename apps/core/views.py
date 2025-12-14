@@ -557,13 +557,14 @@ class InstitutionSwitcherView(LoginRequiredMixin, View):
     template_name = 'core/institution_switcher.html'
 
     def get(self, request, *args, **kwargs):
+        from .middleware import get_user_accessible_institutions, get_current_institution
+
         user = request.user
 
         # Check if user can switch institutions
         if user.is_superuser:
             institutions = Institution.objects.filter(is_active=True)
         else:
-            from .middleware import get_user_accessible_institutions, get_current_institution
             institutions = get_user_accessible_institutions(user)
 
         # Calculate totals for statistics
