@@ -78,7 +78,6 @@ class Command(BaseCommand):
             # Users
             'users.add_user', 'users.change_user', 'users.delete_user', 'users.view_user',
             'users.add_role', 'users.change_role', 'users.delete_role', 'users.view_role',
-            'users.approve_applications',
 
             # Academics
             'academics.add_academicsession', 'academics.change_academicsession', 'academics.delete_academicsession', 'academics.view_academicsession',
@@ -102,7 +101,7 @@ class Command(BaseCommand):
             'attendance.add_dailyattendance', 'attendance.change_dailyattendance', 'attendance.delete_dailyattendance', 'attendance.view_dailyattendance',
             'attendance.add_attendancesession', 'attendance.change_attendancesession', 'attendance.delete_attendancesession', 'attendance.view_attendancesession',
             'attendance.add_periodattendance', 'attendance.change_periodattendance', 'attendance.delete_periodattendance', 'attendance.view_periodattendance',
-            'attendance.add_leave', 'attendance.change_leave', 'attendance.delete_leave', 'attendance.view_leave',
+            'attendance.add_leaveapplication', 'attendance.change_leaveapplication', 'attendance.delete_leaveapplication', 'attendance.view_leaveapplication',
             'attendance.add_attendancesummary', 'attendance.change_attendancesummary', 'attendance.delete_attendancesummary', 'attendance.view_attendancesummary',
 
             # Communication
@@ -148,17 +147,17 @@ class Command(BaseCommand):
             'hostels.add_hostel', 'hostels.change_hostel', 'hostels.delete_hostel', 'hostels.view_hostel',
             'hostels.add_room', 'hostels.change_room', 'hostels.delete_room', 'hostels.view_room',
             'hostels.add_bed', 'hostels.change_bed', 'hostels.delete_bed', 'hostels.view_bed',
-            'hostels.add_allocation', 'hostels.change_allocation', 'hostels.delete_allocation', 'hostels.view_allocation',
-            'hostels.add_fee', 'hostels.change_fee', 'hostels.delete_fee', 'hostels.view_fee',
-            'hostels.add_visitor', 'hostels.change_visitor', 'hostels.delete_visitor', 'hostels.view_visitor',
-            'hostels.add_maintenance', 'hostels.change_maintenance', 'hostels.delete_maintenance', 'hostels.view_maintenance',
-            'hostels.add_inventory', 'hostels.change_inventory', 'hostels.delete_inventory', 'hostels.view_inventory',
+            'hostels.add_hostelallocation', 'hostels.change_hostelallocation', 'hostels.delete_hostelallocation', 'hostels.view_hostelallocation',
+            'hostels.add_hostelfee', 'hostels.change_hostelfee', 'hostels.delete_hostelfee', 'hostels.view_hostelfee',
+            'hostels.add_visitorlog', 'hostels.change_visitorlog', 'hostels.delete_visitorlog', 'hostels.view_visitorlog',
+            'hostels.add_maintenancerequest', 'hostels.change_maintenancerequest', 'hostels.delete_maintenancerequest', 'hostels.view_maintenancerequest',
+            'hostels.add_inventoryitem', 'hostels.change_inventoryitem', 'hostels.delete_inventoryitem', 'hostels.view_inventoryitem',
 
             # Activities
             'activities.add_activity', 'activities.change_activity', 'activities.delete_activity', 'activities.view_activity',
-            'activities.add_enrollment', 'activities.change_enrollment', 'activities.delete_enrollment', 'activities.view_enrollment',
+            'activities.add_activityenrollment', 'activities.change_activityenrollment', 'activities.delete_activityenrollment', 'activities.view_activityenrollment',
             'activities.add_equipment', 'activities.change_equipment', 'activities.delete_equipment', 'activities.view_equipment',
-            'activities.add_budget', 'activities.change_budget', 'activities.delete_budget', 'activities.view_budget',
+            'activities.add_activitybudget', 'activities.change_activitybudget', 'activities.delete_activitybudget', 'activities.view_activitybudget',
             'activities.add_competition', 'activities.change_competition', 'activities.delete_competition', 'activities.view_competition',
 
             # Health
@@ -170,10 +169,10 @@ class Command(BaseCommand):
             'audit.add_auditlog', 'audit.change_auditlog', 'audit.delete_auditlog', 'audit.view_auditlog',
 
             # Analytics
-            'analytics.add_analyticsreport', 'analytics.change_analyticsreport', 'analytics.delete_analyticsreport', 'analytics.view_analyticsreport',
+            'analytics.add_report', 'analytics.change_report', 'analytics.delete_report', 'analytics.view_report',
 
             # Support
-            'support.add_helpcenter', 'support.change_helpcenter', 'support.delete_helpcenter', 'support.view_helpcenter',
+            'support.add_helpcenterarticle', 'support.change_helpcenterarticle', 'support.delete_helpcenterarticle', 'support.view_helpcenterarticle',
             'support.add_faq', 'support.change_faq', 'support.delete_faq', 'support.view_faq',
             'support.add_resource', 'support.change_resource', 'support.delete_resource', 'support.view_resource',
         ]
@@ -185,7 +184,6 @@ class Command(BaseCommand):
             # Users management
             'users.add_user', 'users.change_user', 'users.delete_user', 'users.view_user',
             'users.add_role', 'users.change_role', 'users.view_role',
-            'users.approve_applications',
 
             # Transport
             'transport.add_vehicle', 'transport.change_vehicle', 'transport.view_vehicle',
@@ -197,11 +195,11 @@ class Command(BaseCommand):
             # Hostels
             'hostels.add_hostel', 'hostels.change_hostel', 'hostels.view_hostel',
             'hostels.add_room', 'hostels.change_room', 'hostels.view_room',
-            'hostels.add_allocation', 'hostels.change_allocation', 'hostels.view_allocation',
+            'hostels.add_hostelallocation', 'hostels.change_hostelallocation', 'hostels.view_hostelallocation',
 
             # Activities
             'activities.add_activity', 'activities.change_activity', 'activities.view_activity',
-            'activities.add_enrollment', 'activities.change_enrollment', 'activities.view_enrollment',
+            'activities.add_activityenrollment', 'activities.change_activityenrollment', 'activities.view_activityenrollment',
 
             # Communication
             'communication.add_announcement', 'communication.change_announcement', 'communication.view_announcement',
@@ -306,7 +304,7 @@ class Command(BaseCommand):
         return [
             'users.view_user',
             'communication.add_message', 'communication.view_message',
-            'support.add_helpcenter', 'support.change_helpcenter', 'support.view_helpcenter',
+            'support.add_helpcenterarticle', 'support.change_helpcenterarticle', 'support.view_helpcenterarticle',
             'support.add_faq', 'support.change_faq', 'support.view_faq',
             'support.add_resource', 'support.change_resource', 'support.view_resource',
         ]
@@ -332,9 +330,9 @@ class Command(BaseCommand):
             'hostels.add_hostel', 'hostels.change_hostel', 'hostels.delete_hostel', 'hostels.view_hostel',
             'hostels.add_room', 'hostels.change_room', 'hostels.delete_room', 'hostels.view_room',
             'hostels.add_bed', 'hostels.change_bed', 'hostels.delete_bed', 'hostels.view_bed',
-            'hostels.add_allocation', 'hostels.change_allocation', 'hostels.delete_allocation', 'hostels.view_allocation',
-            'hostels.add_fee', 'hostels.change_fee', 'hostels.delete_fee', 'hostels.view_fee',
-            'hostels.add_visitor', 'hostels.change_visitor', 'hostels.delete_visitor', 'hostels.view_visitor',
-            'hostels.add_maintenance', 'hostels.change_maintenance', 'hostels.delete_maintenance', 'hostels.view_maintenance',
-            'hostels.add_inventory', 'hostels.change_inventory', 'hostels.delete_inventory', 'hostels.view_inventory',
+            'hostels.add_hostelallocation', 'hostels.change_hostelallocation', 'hostels.delete_hostelallocation', 'hostels.view_hostelallocation',
+            'hostels.add_hostelfee', 'hostels.change_hostelfee', 'hostels.delete_hostelfee', 'hostels.view_hostelfee',
+            'hostels.add_visitorlog', 'hostels.change_visitorlog', 'hostels.delete_visitorlog', 'hostels.view_visitorlog',
+            'hostels.add_maintenancerequest', 'hostels.change_maintenancerequest', 'hostels.delete_maintenancerequest', 'hostels.view_maintenancerequest',
+            'hostels.add_inventoryitem', 'hostels.change_inventoryitem', 'hostels.delete_inventoryitem', 'hostels.view_inventoryitem',
         ]

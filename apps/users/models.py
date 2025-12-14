@@ -47,7 +47,35 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError(_('Superuser must have is_superuser=True.'))
 
-        return self.create_user(email, password, **extra_fields)
+        user = self.create_user(email, password, **extra_fields)
+
+        # Automatically assign SUPER_ADMIN role to ensure superuser gets all custom permissions
+        try:
+            super_admin_role, created = Role.objects.get_or_create(
+                role_type=Role.RoleType.SUPER_ADMIN,
+                defaults={
+                    'name': 'Super Administrator',
+                    'description': 'Full system access and control',
+                    'hierarchy_level': 100,
+                    'is_system_role': True,
+                    'status': 'active',
+                }
+            )
+
+            # Check if user already has SUPER_ADMIN role
+            if not user.user_roles.filter(role=super_admin_role).exists():
+                UserRole.objects.create(
+                    user=user,
+                    role=super_admin_role,
+                    is_primary=True
+                )
+        except Exception as e:
+            # Log error but don't fail superuser creation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to assign SUPER_ADMIN role to superuser {user.email}: {e}")
+
+        return user
 
 
 class User(AbstractUser):
