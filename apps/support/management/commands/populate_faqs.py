@@ -12,7 +12,7 @@ class Command(BaseCommand):
 
         # Define the FAQ data organized by category
         faqs_data = [
-            # Account & Login
+            # Account & Login (existing + new)
             {
                 'question': 'How do I reset my password?',
                 'answer': '''
@@ -62,8 +62,40 @@ If none of these work, please contact support with your username/email address.
                 'category_slug': 'account-login',
                 'order': 3
             },
+            {
+                'question': 'How do I enable two-factor authentication?',
+                'answer': '''
+To enhance your account security:
 
-            # Academic Information
+1. Log in to your account
+2. Go to "Account Settings" > "Security"
+3. Click "Enable Two-Factor Authentication"
+4. Follow the setup process using your authenticator app
+5. Save your backup codes in a safe place
+
+2FA is recommended for all users to protect your account.
+                ''',
+                'category_slug': 'account-login',
+                'order': 4
+            },
+            {
+                'question': 'How do I switch between different user roles?',
+                'answer': '''
+If you have multiple roles (e.g., student and parent):
+
+1. Log in with your primary account
+2. Click on your profile picture/initials
+3. Select "Switch Role" from the dropdown
+4. Choose the role you want to use
+5. The interface will update for that role
+
+Some features may only be available in certain roles.
+                ''',
+                'category_slug': 'account-login',
+                'order': 5
+            },
+
+            # Academic Information (existing + new)
             {
                 'question': 'How can I view my grades and academic records?',
                 'answer': '''
@@ -125,8 +157,24 @@ Parents can monitor their children's attendance through the parent portal. Conta
                 'category_slug': 'academic-records',
                 'order': 4
             },
+            {
+                'question': 'How do I request an academic transcript?',
+                'answer': '''
+To request a transcript:
 
-            # Fees & Payments
+1. Log in to your account
+2. Go to "Documents" > "Academic Records"
+3. Select "Request Transcript"
+4. Choose the format and delivery method
+5. Submit your request with any required fees
+
+Processing time is typically 3-5 business days. Official transcripts are sent directly to institutions or your mailing address.
+                ''',
+                'category_slug': 'academic-records',
+                'order': 5
+            },
+
+            # Fees & Payments (existing + new)
             {
                 'question': 'How can I view my fee statement and payment history?',
                 'answer': '''
@@ -194,8 +242,25 @@ Refunds are processed within 14-21 business days after approval. All refund requ
                 'category_slug': 'fees-payments',
                 'order': 4
             },
+            {
+                'question': 'How do I apply for a fee waiver or scholarship?',
+                'answer': '''
+Fee waiver/scholarship process:
 
-            # System Usage
+1. Log in to your account
+2. Go to "Finance" > "Financial Aid"
+3. Select "Apply for Waiver/Scholarship"
+4. Fill out the application form with required details
+5. Upload supporting documents
+6. Submit your application
+
+Applications are reviewed by the financial aid office. You'll be notified of the decision via email or through the system.
+                ''',
+                'category_slug': 'fees-payments',
+                'order': 5
+            },
+
+            # System Usage (existing + new)
             {
                 'question': 'How do I update my contact information?',
                 'answer': '''
@@ -246,8 +311,39 @@ Include screenshots if possible. Our technical team will respond within 24 hours
                 'category_slug': 'system-usage',
                 'order': 3
             },
+            {
+                'question': 'How do I use the mobile app?',
+                'answer': '''
+Using the mobile app:
 
-            # Support & Communication
+1. Download from Google Play Store or Apple App Store
+2. Log in with your school account credentials
+3. Sets up notifications for important updates
+4. Access all features available in the web version
+
+The mobile app offers offline viewing for schedules and assignments.
+                ''',
+                'category_slug': 'system-usage',
+                'order': 4
+            },
+            {
+                'question': 'How do I export my data or reports?',
+                'answer': '''
+To export reports and data:
+
+1. Navigate to the relevant section (Grades, Finance, etc.)
+2. Click on "Export" or "Download Report"
+3. Select your preferred format (PDF, Excel, CSV)
+4. Choose date ranges and filters as needed
+5. Click "Generate" and download
+
+Exports are available for most reports and historical data.
+                ''',
+                'category_slug': 'system-usage',
+                'order': 5
+            },
+
+            # Support & Communication (existing + new)
             {
                 'question': 'How do I contact my teachers or academic advisors?',
                 'answer': '''
@@ -282,7 +378,195 @@ Use the support ticketing system for faster, tracked assistance.
                 ''',
                 'category_slug': 'support-communication',
                 'order': 2
-            }
+            },
+            {
+                'question': 'How do I get emergency contact information?',
+                'answer': '''
+Emergency contacts:
+
+**Within School Hours**:
+- Main Office: Ext. 100
+- Security: Ext. 111 (Emergency button on all phones)
+- Nurse: Ext. 222
+
+**Outside School Hours**:
+- Emergency Services: Call local emergency number
+- School Administration: Contact the principal's direct line
+
+All emergency procedures are posted in common areas and available on the school website.
+                ''',
+                'category_slug': 'support-communication',
+                'order': 3
+            },
+
+            # Library Services
+            {
+                'question': 'How do I search for books in the library?',
+                'answer': '''
+To search the library catalog:
+
+1. Log in to your account
+2. Go to "Library" section
+3. Use the search bar with keywords, author, or title
+4. Filter results by subject, type, or availability
+5. Click on a book to see details and reserve/place holds
+
+You can also browse books by category or view new acquisitions.
+                ''',
+                'category_slug': 'library-services',
+                'order': 1
+            },
+            {
+                'question': 'What are the library borrowing rules?',
+                'answer': '''
+Library borrowing policy:
+
+- Books: 2 weeks for general, 1 week for reference
+- Maximum books: 5 for students, 10 for staff
+- Renewals: Up to 2 times online
+- Fines: $0.50 per day for overdue books
+- Holds: Reserve books online when they're checked out
+
+Lost or damaged books must be replaced or paid for. Check your library account regularly.
+                ''',
+                'category_slug': 'library-services',
+                'order': 2
+            },
+
+            # Health & Medical
+            {
+                'question': 'How do I schedule a health appointment?',
+                'answer': '''
+To schedule medical care:
+
+1. Log in to your account
+2. Go to "Health" > "Schedule Appointment"
+3. Select the type of service needed
+4. Choose available date and time
+5. Submit your request
+
+Emergency medical issues should be reported to the school nurse immediately. Parents will be notified for serious concerns.
+                ''',
+                'category_slug': 'health-medical',
+                'order': 1
+            },
+            {
+                'question': 'What medical services are available?',
+                'answer': '''
+Available health services:
+
+- Daily health check-ups
+- First aid and emergency response
+- Immunization tracking
+- Health education and counseling
+- Chronic condition management
+- Mental health support
+
+Students requiring regular medication should register with the health office. All services are confidential.
+                ''',
+                'category_slug': 'health-medical',
+                'order': 2
+            },
+
+            # Transportation
+            {
+                'question': 'How do I check bus routes and schedules?',
+                'answer': '''
+To view transportation information:
+
+1. Log in to your account
+2. Go to "Transportation" section
+3. View assigned bus route and stops
+4. Check daily schedule and any changes
+5. Download route maps for reference
+
+Route changes are updated in real-time. Contact transport office for route changes or special requests.
+                ''',
+                'category_slug': 'transportation',
+                'order': 1
+            },
+            {
+                'question': 'What should I do if I miss my bus?',
+                'answer': '''
+If you miss your assigned bus:
+
+- Contact the transport office immediately
+- Inform your parents/guardians
+- Use alternative transportation if arranged
+- Report to school office for late arrival procedures
+
+Never leave campus with unauthorized individuals. Safety protocols must be followed.
+                ''',
+                'category_slug': 'transportation',
+                'order': 2
+            },
+
+            # Hostel & Accommodation
+            {
+                'question': 'How do I apply for hostel accommodation?',
+                'answer': '''
+Hostel application process:
+
+1. Log in to your account
+2. Go to "Hostel" > "Apply for Accommodation"
+3. Fill out the application form
+4. Upload required documents (ID, medical certificate, etc.)
+5. Submit application with hostel fees
+
+Applications are processed on a first-come basis. Space is limited and allocated by merit.
+                ''',
+                'category_slug': 'hostel-accommodation',
+                'order': 1
+            },
+            {
+                'question': 'What are the hostel rules and regulations?',
+                'answer': '''
+Important hostel rules:
+
+- Check-in/out: 6 AM - 10 PM for security
+- Visitors: Only during designated hours with permission
+- Curfew: Must be in rooms by specified time
+- Cleanliness: Maintain personal and common areas
+- Noise: Respect quiet hours during study times
+
+Violation of rules may result in warnings or expulsion. Safety and security are top priorities.
+                ''',
+                'category_slug': 'hostel-accommodation',
+                'order': 2
+            },
+
+            # Activities & Clubs
+            {
+                'question': 'How do I join a school club or activity?',
+                'answer': '''
+To join extracurricular activities:
+
+1. Log in to your account
+2. Go to "Activities" > "Browse Clubs"
+3. View available sports, clubs, and societies
+4. Click "Join" for activities of interest
+5. Attend the first meeting or tryout
+
+Some activities have auditions, trials, or limited membership. Check activity requirements.
+                ''',
+                'category_slug': 'activities-clubs',
+                'order': 1
+            },
+            {
+                'question': 'How do I view upcoming events and activities?',
+                'answer': '''
+To browse school events:
+
+1. Go to "Activities" > "Events Calendar"
+2. View events by date, type, or participation
+3. Filter by sports events, cultural programs, etc.
+4. Click on events for details and registration
+
+Subscribe to notifications for your favorite activities and never miss important events.
+                ''',
+                'category_slug': 'activities-clubs',
+                'order': 2
+            },
         ]
 
         created_count = 0
@@ -353,6 +637,11 @@ Use the support ticketing system for faster, tracked assistance.
             {'name': 'Fees & Payments', 'slug': 'fees-payments', 'description': 'Questions about school fees, payments, and financial matters'},
             {'name': 'System Usage', 'slug': 'system-usage', 'description': 'Questions about using the school management system'},
             {'name': 'Support & Communication', 'slug': 'support-communication', 'description': 'Questions about getting help and contacting school staff'},
+            {'name': 'Library Services', 'slug': 'library-services', 'description': 'Questions about library resources and borrowing'},
+            {'name': 'Health & Medical', 'slug': 'health-medical', 'description': 'Questions about school health services and medical care'},
+            {'name': 'Transportation', 'slug': 'transportation', 'description': 'Questions about school transportation services'},
+            {'name': 'Hostel & Accommodation', 'slug': 'hostel-accommodation', 'description': 'Questions about hostel facilities and accommodation'},
+            {'name': 'Activities & Clubs', 'slug': 'activities-clubs', 'description': 'Questions about extracurricular activities and clubs'},
         ]
 
         for cat_data in categories_data:
