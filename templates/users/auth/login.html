@@ -45,28 +45,32 @@
                             </div>
                             {% endif %}
 
-                            <!-- Email Field -->
+                            <!-- Email or Username Field -->
                             <div class="mb-3">
-                                <label for="email" class="form-label">{% trans "Email Address" %}</label>
+                                <label for="email_or_username" class="form-label">{% trans "Email or Username" %}</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0">
-                                        <i class="bi bi-envelope text-muted"></i>
+                                        <i class="bi bi-person text-muted"></i>
                                     </span>
-                                    <input type="email" 
-                                           class="form-control {% if form.email.errors %}is-invalid{% endif %} border-start-0" 
-                                           id="email" 
-                                           name="email" 
-                                           value="{{ form.email.value|default:'' }}"
-                                           placeholder="{% trans 'Enter your email address' %}" 
-                                           required
-                                           autocomplete="email"
-                                           autofocus>
+                                     <input type="text" 
+                                         class="form-control {% if form.email_or_username.errors %}is-invalid{% endif %} border-start-0" 
+                                         id="email_or_username" 
+                                         name="email_or_username" 
+                                         value="{{ form.email_or_username.value|default:'' }}"
+                                         placeholder="{% trans 'Enter your email address or username' %}" 
+                                         required
+                                         autocomplete="username"
+                                         autofocus>
                                 </div>
-                                {% if form.email.errors %}
+                                {% if form.email_or_username.errors %}
                                 <div class="invalid-feedback d-block">
-                                    {{ form.email.errors.0 }}
+                                    {{ form.email_or_username.errors.0 }}
                                 </div>
                                 {% endif %}
+                                <small class="text-muted d-block mt-1">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    {% trans "You can log in with either your email address or username" %}
+                                </small>
                             </div>
 
                             <!-- Password Field -->

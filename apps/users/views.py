@@ -41,7 +41,7 @@ from .models import (
     get_student_guardians, notify_guardians_profile_update
 )
 from .forms import (
-    UserCreationForm, UserUpdateForm, UserProfileForm, RoleForm,
+    LoginForm, UserCreationForm, UserUpdateForm, UserProfileForm, RoleForm,
     UserRoleAssignmentForm, CustomPasswordChangeForm, ParentStudentRelationshipForm,
     StudentApplicationForm, StaffApplicationForm, LoginHistorySearchForm,
     UserBulkActionForm, UserImportForm
@@ -1223,6 +1223,7 @@ def send_admin_password_retrieval_notification(user, request):
 def custom_login(request):
     """
     Custom login view with enhanced logging and security.
+    Supports login with either email or username.
     """
     # Redirect if already authenticated
     if request.user.is_authenticated:
@@ -1231,9 +1232,10 @@ def custom_login(request):
     change_password_mode = False
 
     if request.method == 'POST':
-        email = request.POST.get('email')
+        # Accept either 'email_or_username' field or 'email' field for backward compatibility
+        email_or_username = request.POST.get('email_or_username') or request.POST.get('email')
         password = request.POST.get('password')
-        print(f"Login attempt - Email: {email}")  # Debug line
+        print(f"Login attempt - Email/Username: {email_or_username}")  # Debug line
         remember_me = request.POST.get('remember_me')
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
@@ -1243,22 +1245,32 @@ def custom_login(request):
         if change_password and new_password and confirm_password:
             # Change password mode
             change_password_mode = True
-            user = authenticate(request, email=email, password=password)
+            user = authenticate(request, username=email_or_username, password=password)
+            form = LoginForm(request.POST)
 
             if user is not None:
                 # Check if user is active
                 if not user.is_active:
                     messages.error(request, _('Your account is inactive. Please contact administrator.'))
-                    return render(request, 'users/auth/login.html', {'change_password_mode': change_password_mode})
+                    return render(request, 'users/auth/login.html', {
+                        'change_password_mode': change_password_mode,
+                        'form': form,
+                    })
 
                 if new_password != confirm_password:
                     messages.error(request, _('New passwords do not match.'))
-                    return render(request, 'users/auth/login.html', {'change_password_mode': change_password_mode})
+                    return render(request, 'users/auth/login.html', {
+                        'change_password_mode': change_password_mode,
+                        'form': form,
+                    })
 
                 # Validate new password strength
                 if len(new_password) < 8:
                     messages.error(request, _('Password must be at least 8 characters long.'))
-                    return render(request, 'users/auth/login.html', {'change_password_mode': change_password_mode})
+                    return render(request, 'users/auth/login.html', {
+                        'change_password_mode': change_password_mode,
+                        'form': form,
+                    })
 
                 # Change password
                 user.set_password(new_password)
@@ -1280,12 +1292,15 @@ def custom_login(request):
                 messages.success(request, _('Password changed successfully! Please log in with your new password.'))
                 return redirect('users:login')
             else:
-                messages.error(request, _('Invalid email or current password.'))
-                return render(request, 'users/auth/login.html', {'change_password_mode': change_password_mode})
+                messages.error(request, _('Invalid email/username or current password.'))
+                return render(request, 'users/auth/login.html', {
+                    'change_password_mode': change_password_mode,
+                    'form': form,
+                })
         else:
             # Normal login attempt
-            # Authenticate user
-            user = authenticate(request, email=email, password=password)
+            # Authenticate user using custom backend that accepts email OR username
+            user = authenticate(request, username=email_or_username, password=password)
             print(f"Authentication result: {user}")  # Debug line
 
             # Log login attempt
@@ -1303,14 +1318,16 @@ def custom_login(request):
                     login_history.failure_reason = 'Account inactive'
                     login_history.save()
                     messages.error(request, _('Your account is inactive. Please contact administrator.'))
-                    return render(request, 'users/auth/login.html')
+                    form = LoginForm(request.POST)
+                    return render(request, 'users/auth/login.html', {'form': form})
 
                 # Check if user is verified (if required)
                 if not user.is_verified:
                     login_history.failure_reason = 'Email not verified'
                     login_history.save()
                     messages.warning(request, _('Please verify your email before logging in.'))
-                    return render(request, 'users/auth/login.html')
+                    form = LoginForm(request.POST)
+                    return render(request, 'users/auth/login.html', {'form': form})
 
                 # Login successful
                 login(request, user)
@@ -1340,18 +1357,22 @@ def custom_login(request):
                 )
 
                 messages.success(request, _('Login successful!'))
-                logger.debug(f"User {user.email} authenticated. Is authenticated: {request.user.is_authenticated}. Redirecting to: {get_user_redirect_url(user)}")
+                logger.debug(f"User {user.email or user.username} authenticated. Is authenticated: {request.user.is_authenticated}. Redirecting to: {get_user_redirect_url(user)}")
                 return redirect(get_user_redirect_url(user))
 
             else:
                 # Login failed
                 login_history.save()
-                messages.error(request, _('Invalid email or password.'))
+                messages.error(request, _('Invalid email/username or password.'))
 
+    # Create form for GET requests or when errors occur
+    form = LoginForm()
+    
     context = {
         'title': _('Login'),
         'show_application_links': True,
         'change_password_mode': change_password_mode,
+        'form': form,
     }
     return render(request, 'users/auth/login.html', context)
 

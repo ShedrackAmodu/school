@@ -17,26 +17,31 @@ logger = logging.getLogger(__name__)
 
 class UserManager(BaseUserManager):
     """
-    Custom user manager for email-based authentication.
+    Custom user manager for email and username-based authentication.
     """
     def get_admin_users(self):
         """Simple method to get all admin users for your custom admin panel"""
         return self.filter(is_staff=True)
 
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email=None, username=None, password=None, **extra_fields):
         """
-        Create and return a regular user with an email and password.
+        Create and return a regular user with an email/username and password.
+        At least one of email or username must be provided.
         """
-        if not email:
-            raise ValueError(_('The Email field must be set'))
+        if not email and not username:
+            raise ValueError(_('Either email or username must be set'))
 
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        if email:
+            email = self.normalize_email(email)
+        if username:
+            username = username.strip()
+            
+        user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, email=None, username=None, password=None, **extra_fields):
         """
         Create and return a superuser with admin permissions.
         """
@@ -50,7 +55,7 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError(_('Superuser must have is_superuser=True.'))
 
-        user = self.create_user(email, password, **extra_fields)
+        user = self.create_user(email=email, username=username, password=password, **extra_fields)
 
         # Automatically assign SUPER_ADMIN role to ensure superuser gets all custom permissions
         try:
@@ -76,7 +81,7 @@ class UserManager(BaseUserManager):
             # Log error but don't fail superuser creation
             import logging
             logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to assign SUPER_ADMIN role to superuser {user.email}: {e}")
+            logger.warning(f"Failed to assign SUPER_ADMIN role to superuser {user.email or user.username}: {e}")
 
         return user
 
@@ -90,8 +95,16 @@ class User(AbstractUser):
         editable=False,
         primary_key=True,
     )
-    # Remove username field, use email instead
-    username = None
+    # Username field for login flexibility (can login with either email or username)
+    username = models.CharField(
+        _('username'),
+        max_length=150,
+        unique=True,
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text=_('Optional username that can be used for login in addition to email')
+    )
     email = models.EmailField(
         _('email address'),
         unique=True,

@@ -13,6 +13,58 @@ from .models import User, UserProfile, Role, UserRole, LoginHistory, PasswordHis
 from apps.core.models import Institution
 
 
+class LoginForm(forms.Form):
+    """
+    Custom login form that accepts either email or username.
+    """
+    email_or_username = forms.CharField(
+        label=_("Email or Username"),
+        max_length=254,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Enter your email address or username'),
+            'autocomplete': 'username',
+            'autofocus': True,
+        })
+    )
+    password = forms.CharField(
+        label=_("Password"),
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Enter your password'),
+            'autocomplete': 'current-password',
+        })
+    )
+    remember_me = forms.BooleanField(
+        label=_("Remember me on this device"),
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+        })
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        email_or_username = cleaned_data.get('email_or_username')
+        password = cleaned_data.get('password')
+
+        if email_or_username and password:
+            # Check if user exists with either email or username
+            from django.db.models import Q
+            user = User.objects.filter(
+                Q(email=email_or_username) | Q(username=email_or_username)
+            ).first()
+
+            if user is None:
+                raise ValidationError(
+                    _("Invalid email/username or password."),
+                    code='invalid_login',
+                )
+
+        return cleaned_data
+
+
 class UserCreationForm(forms.ModelForm):
     """
     Form for creating new users with enhanced validation.
@@ -37,13 +89,18 @@ class UserCreationForm(forms.ModelForm):
     class Meta:
         model = User
         fields = [
-            'email', 'first_name', 'last_name', 'mobile', 
+            'email', 'username', 'first_name', 'last_name', 'mobile', 
             'is_active', 'is_staff', 'is_superuser'
         ]
         widgets = {
             'email': forms.EmailInput(attrs={
                 'class': 'form-control',
                 'placeholder': _('user@nordalms.pythonanywhere.com')
+            }),
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('john.doe'),
+                'help_text': _('Optional. 150 characters or fewer.')
             }),
             'first_name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -69,6 +126,7 @@ class UserCreationForm(forms.ModelForm):
         }
         help_texts = {
             'email': _('Required. A valid email address that will be used for login.'),
+            'username': _('Optional. Can be used as an alternative to email for login.'),
             'mobile': _('Optional. International format recommended.'),
         }
 
@@ -81,6 +139,16 @@ class UserCreationForm(forms.ModelForm):
                     _("A user with this email address already exists.")
                 )
         return email
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if username:
+            username = username.strip()
+            if User.objects.filter(username=username).exists():
+                raise ValidationError(
+                    _("A user with this username already exists.")
+                )
+        return username
 
     def clean_password2(self):
         password1 = self.cleaned_data.get("password1")
@@ -116,7 +184,7 @@ class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = User
         fields = [
-            'email', 'first_name', 'last_name', 'mobile',
+            'email', 'username', 'first_name', 'last_name', 'mobile',
             'language', 'timezone', 'is_active', 'is_staff',
             'is_superuser', 'is_verified'
         ]
@@ -124,6 +192,9 @@ class UserUpdateForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={
                 'class': 'form-control',
                 'readonly': 'readonly'  # Email shouldn't be changed easily
+            }),
+            'username': forms.TextInput(attrs={
+                'class': 'form-control'
             }),
             'first_name': forms.TextInput(attrs={
                 'class': 'form-control'
@@ -163,6 +234,16 @@ class UserUpdateForm(forms.ModelForm):
                     _("A user with this email address already exists.")
                 )
         return email
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if username:
+            username = username.strip()
+            if User.objects.filter(username=username).exclude(pk=self.instance.pk).exists():
+                raise ValidationError(
+                    _("A user with this username already exists.")
+                )
+        return username
 
 
 class UserProfileForm(forms.ModelForm):
