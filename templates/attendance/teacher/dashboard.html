@@ -1,0 +1,800 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Teacher Attendance Dashboard - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Enhanced Dashboard Styles */
+    .dashboard-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid transparent;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card {
+        background: white;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .class-tile {
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .class-tile:hover {
+        border-color: #007bff;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,123,255,0.15);
+    }
+    
+    .class-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+        transition: all 0.3s ease;
+    }
+    
+    .class-tile:hover .class-icon {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+    
+    .attendance-progress {
+        height: 8px;
+        border-radius: 4px;
+        background-color: #e9ecef;
+        overflow: hidden;
+    }
+    
+    .attendance-progress .progress-bar {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .quick-action-btn {
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        background: white;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .quick-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-color: #007bff;
+    }
+    
+    .today-schedule-item {
+        border-left: 4px solid #28a745;
+        background-color: #f8fff9;
+        transition: all 0.3s ease;
+    }
+    
+    .today-schedule-item:hover {
+        background-color: #e8f5e9;
+        transform: translateX(5px);
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 20px;
+    }
+    
+    .teacher-profile-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+    
+    .teacher-avatar {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 3px solid rgba(255,255,255,0.3);
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .metric-change {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    
+    .chart-container {
+        height: 200px;
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">Teacher Attendance Dashboard</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Attendance</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'attendance:bulk_class_select' %}" class="btn btn-primary btn-lg pulse-animation">
+                        <i class="fas fa-users me-2"></i> Quick Marking
+                    </a>
+                    <a href="{% url 'attendance:teacher_attendance_history' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-history me-2"></i> History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Profile Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card teacher-profile-card shadow">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-2 text-center">
+                            <img src="{% if teacher.user.profile_picture %}{{ teacher.user.profile_picture.url }}{% else %}{% static 'img/default-avatar.png' %}{% endif %}" 
+                                 alt="{{ teacher.user.get_full_name }}" 
+                                 class="teacher-avatar">
+                        </div>
+                        <div class="col-md-6">
+                            <h3 class="mb-1">{{ teacher.user.get_full_name }}</h3>
+                            <p class="mb-1">
+                                <i class="fas fa-chalkboard-teacher me-2"></i>
+                                <strong>{{ teacher.get_designation_display }}</strong>
+                                <span class="badge bg-light text-dark ms-2">{{ teacher.teacher_id }}</span>
+                            </p>
+                            <p class="mb-0">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                <strong>Current Session:</strong> {{ current_session.name }}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="h6 text-white-50 mb-1">Today's Date</div>
+                                    <div class="h4 mb-0">{{ today|date:"F j, Y" }}</div>
+                                    <div class="small text-white-50">{{ today|date:"l" }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="h6 text-white-50 mb-1">Classes</div>
+                                    <div class="h4 mb-0">{{ classes.count }}</div>
+                                    <div class="small text-white-50">Active Classes</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Section -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                                <i class="fas fa-calendar-check fa-2x text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="stat-value text-primary">{{ today_attendance_count }}</div>
+                            <div class="stat-label text-muted">Students Marked Today</div>
+                            <div class="metric-change">
+                                <i class="fas fa-arrow-up text-success me-1"></i>
+                                {{ today_present_count }} Present • {{ today_absent_count }} Absent
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="attendance-progress">
+                            <div class="progress-bar bg-primary" style="width: {{ today_attendance_percentage|floatformat:0 }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ today_attendance_percentage|floatformat:0 }}% of total students</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+                                <i class="fas fa-clock fa-2x text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="stat-value text-warning">{{ today_late_count }}</div>
+                            <div class="stat-label text-muted">Late Arrivals</div>
+                            <div class="metric-change">
+                                <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                {{ today_late_percentage|floatformat:0 }}% of marked students
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="attendance-progress">
+                            <div class="progress-bar bg-warning" style="width: {{ today_late_percentage|floatformat:0 }}%"></div>
+                        </div>
+                        <small class="text-muted">Requires attention</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                                <i class="fas fa-chart-line fa-2x text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="stat-value text-info">{{ behavior_records_count }}</div>
+                            <div class="stat-label text-muted">Behavior Records</div>
+                            <div class="metric-change">
+                                <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                {{ recent_behavior_count }} recent incidents
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Positive</small>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: 60%"></div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Negative</small>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar bg-danger" style="width: 40%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                                <i class="fas fa-calendar-check fa-2x text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="stat-value text-success">{{ pending_leaves_count }}</div>
+                            <div class="stat-label text-muted">Pending Leaves</div>
+                            <div class="metric-change">
+                                <i class="fas fa-clock text-info me-1"></i>
+                                Requires review
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Approved</small>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: 70%"></div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Rejected</small>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar bg-danger" style="width: 10%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row">
+        <!-- Classes Overview -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chalkboard me-2"></i>My Classes
+                    </h6>
+                    <span class="badge bg-primary">{{ classes.count }} classes</span>
+                </div>
+                <div class="card-body">
+                    {% if classes %}
+                    <div class="row">
+                        {% for class_obj in classes %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card class-tile h-100">
+                                <div class="card-body text-center">
+                                    <div class="class-icon text-primary mb-3">
+                                        <i class="fas fa-chalkboard"></i>
+                                    </div>
+                                    <h6 class="card-title mb-2">{{ class_obj.name }}</h6>
+                                    <p class="card-text text-muted small mb-3">
+                                        {{ class_obj.grade_level }} • {{ class_obj.section }}
+                                    </p>
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <div class="small text-muted">Students</div>
+                                            <div class="h6 mb-0">{{ class_obj.current_student_count }}</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="small text-muted">Attendance</div>
+                                    <div class="h6 mb-0 {% if class_obj.attendance_percentage >= 80 %}text-success{% else %}text-danger{% endif %}">
+                                                {{ class_obj.attendance_percentage|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="progress mb-3" style="height: 6px;">
+                                        <div class="progress-bar bg-primary" style="width: {{ class_obj.attendance_percentage|floatformat:0 }}%"></div>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <a href="{% url 'teacher_quick_attendance' class_obj.id %}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-edit me-2"></i> Mark Attendance
+                                        </a>
+                                        <a href="{% url 'attendance:teacher_attendance_history' %}?class={{ class_obj.id }}" 
+                                           class="btn btn-outline-info btn-sm">
+                                            <i class="fas fa-chart-bar me-2"></i> View History
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-chalkboard-teacher fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Classes Assigned</h5>
+                        <p class="text-muted">You don't have any classes assigned to you.</p>
+                        <a href="{% url 'attendance:bulk_class_select' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i> View All Classes
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Schedule -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-calendar-alt me-2"></i>Today's Schedule
+                    </h6>
+                    <span class="badge bg-success">{{ today_classes.count }} periods</span>
+                </div>
+                <div class="card-body">
+                    {% if today_classes %}
+                    <div class="list-group list-group-flush">
+                        {% for timetable in today_classes %}
+                        <div class="list-group-item today-schedule-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ timetable.subject.name }}</h6>
+                                    <p class="mb-1 text-muted small">
+                                        <i class="fas fa-clock me-1"></i>
+                                        Period {{ timetable.period_number }} • {{ timetable.start_time|time:"H:i" }} - {{ timetable.end_time|time:"H:i" }}
+                                    </p>
+                                    <p class="mb-0 text-muted small">
+                                        <i class="fas fa-chalkboard me-1"></i>{{ timetable.class_assigned.name }}
+                                    </p>
+                                </div>
+                                <div class="d-flex flex-column gap-2">
+                                    <a href="{% url 'teacher_quick_attendance' timetable.class_assigned.id %}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-edit me-1"></i> Attendance
+                                    </a>
+                                    <a href="{% url 'behavior_create' %}?student_class={{ timetable.class_assigned.id }}" 
+                                       class="btn btn-outline-warning btn-sm">
+                                        <i class="fas fa-exclamation-triangle me-1"></i> Behavior
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-alt fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Classes Today</h5>
+                        <p class="text-muted">You don't have any classes scheduled for today.</p>
+                        <div class="mt-3">
+                            <a href="{% url 'attendance:bulk_class_select' %}" class="btn btn-primary me-2">
+                                <i class="fas fa-users me-2"></i> Mark Attendance
+                            </a>
+                            <a href="{% url 'attendance:teacher_attendance_history' %}" class="btn btn-outline-info">
+                                <i class="fas fa-history me-2"></i> View History
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions & Analytics -->
+    <div class="row">
+        <!-- Quick Actions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="quick-action-btn">
+                                <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                                <h6>Take Attendance</h6>
+                                <p class="text-muted small">Mark attendance for any class or session</p>
+                                <a href="{% url 'attendance:bulk_class_select' %}" class="btn btn-primary btn-sm mt-2">
+                                    <i class="fas fa-plus me-1"></i> Start
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="quick-action-btn">
+                                <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                                <h6>Report Behavior</h6>
+                                <p class="text-muted small">Record student behavior incidents</p>
+                                <a href="{% url 'behavior_create' %}" class="btn btn-warning btn-sm mt-2">
+                                    <i class="fas fa-plus me-1"></i> Report
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="quick-action-btn">
+                                <i class="fas fa-calendar-minus fa-2x text-info mb-2"></i>
+                                <h6>Leave Management</h6>
+                                <p class="text-muted small">Apply for or review leave applications</p>
+                                <a href="{% url 'leave_create' %}" class="btn btn-info btn-sm mt-2">
+                                    <i class="fas fa-plus me-1"></i> Apply
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="quick-action-btn">
+                                <i class="fas fa-chart-bar fa-2x text-success mb-2"></i>
+                                <h6>View Reports</h6>
+                                <p class="text-muted small">Generate attendance and behavior reports</p>
+                                <a href="{% url 'attendance:summary' %}" class="btn btn-success btn-sm mt-2">
+                                    <i class="fas fa-chart-bar me-1"></i> Reports
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Analytics -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-analytics me-2"></i>Performance Analytics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-0">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-success bg-opacity-10 rounded-circle p-2">
+                                                <i class="fas fa-chart-line fa-lg text-success"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <div class="h6 mb-1">Attendance Rate</div>
+                                            <div class="h4 mb-0 text-success">{{ overall_attendance_rate|floatformat:0 }}%</div>
+                                            <small class="text-muted">This month</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-0">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-warning bg-opacity-10 rounded-circle p-2">
+                                                <i class="fas fa-clock fa-lg text-warning"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <div class="h6 mb-1">Punctuality Rate</div>
+                                            <div class="h4 mb-0 text-warning">{{ punctuality_rate|floatformat:0 }}%</div>
+                                            <small class="text-muted">On-time arrivals</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-0">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-info bg-opacity-10 rounded-circle p-2">
+                                                <i class="fas fa-users fa-lg text-info"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <div class="h6 mb-1">Active Students</div>
+                                            <div class="h4 mb-0 text-info">{{ active_students_count }}</div>
+                                            <small class="text-muted">Currently enrolled</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-0">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-danger bg-opacity-10 rounded-circle p-2">
+                                                <i class="fas fa-exclamation-triangle fa-lg text-danger"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <div class="h6 mb-1">At-Risk Students</div>
+                                            <div class="h4 mb-0 text-danger">{{ at_risk_count }}</div>
+                                            <small class="text-muted">Attendance concerns</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h6>
+                    <a href="#" class="btn btn-outline-primary btn-sm">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3">Recent Attendance</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Class</th>
+                                            <th>Status</th>
+                                            <th>Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for record in recent_attendance %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <img src="{% if record.student.user.profile_picture %}{{ record.student.user.profile_picture.url }}{% else %}{% static 'img/default-avatar.png' %}{% endif %}" 
+                                                         alt="{{ record.student.user.get_full_name }}" 
+                                                         class="rounded-circle me-2" width="30" height="30">
+                                                    <div>
+                                                        <div class="fw-bold">{{ record.student.user.get_full_name }}</div>
+                                                        <small class="text-muted">{{ record.student.admission_number }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ record.student.current_class.name }}</td>
+                                            <td>
+                                                <span class="badge {% if record.status == 'present' %}bg-success{% elif record.status == 'absent' %}bg-danger{% else %}bg-warning{% endif %}">
+                                                    {{ record.get_status_display }}
+                                                </span>
+                                            </td>
+                                            <td>{{ record.created_at|date:"H:i" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted py-3">
+                                                No recent attendance records.
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3">Recent Behavior Reports</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Incident</th>
+                                            <th>Severity</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for report in recent_behavior %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <img src="{% if report.student.user.profile_picture %}{{ report.student.user.profile_picture.url }}{% else %}{% static 'img/default-avatar.png' %}{% endif %}" 
+                                                         alt="{{ report.student.user.get_full_name }}" 
+                                                         class="rounded-circle me-2" width="30" height="30">
+                                                    <div>
+                                                        <div class="fw-bold">{{ report.student.user.get_full_name }}</div>
+                                                        <small class="text-muted">{{ report.student.admission_number }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ report.title|truncatechars:30 }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ report.severity|yesno:'warning,danger,success' }}">
+                                                    {{ report.get_severity_display }}
+                                                </span>
+                                            </td>
+                                            <td>{{ report.incident_date|date:"M j, Y" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted py-3">
+                                                No recent behavior reports.
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add smooth animations to dashboard elements
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, observerOptions);
+
+    // Animate dashboard cards
+    document.querySelectorAll('.stat-card, .class-tile, .quick-action-btn').forEach(card => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(card);
+    });
+
+    // Auto-refresh activity every 2 minutes
+    setInterval(function() {
+        // This would typically fetch new data via AJAX
+        console.log('Refreshing dashboard data...');
+        // location.reload(); // Uncomment for auto-refresh
+    }, 120000);
+
+    // Add hover effects to class tiles
+    document.querySelectorAll('.class-tile').forEach(tile => {
+        tile.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+            this.style.boxShadow = '0 8px 25px rgba(0,123,255,0.2)';
+        });
+        
+        tile.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '0 2px 10px rgba(0,0,0,0.08)';
+        });
+    });
+
+    // Progress bar animations
+    document.querySelectorAll('.progress-bar').forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 500);
+    });
+});
+</script>
+{% endblock %}

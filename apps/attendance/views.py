@@ -1106,6 +1106,107 @@ class TeacherAttendanceInterfaceView(TeacherRequiredMixin, View):
         # Get attendance sessions
         attendance_sessions = AttendanceSession.objects.filter(is_active=True)
         
+        # Calculate metrics for dashboard
+        total_students = Student.objects.filter(
+            enrollments__class_enrolled__in=classes,
+            enrollments__enrollment_status='active'
+        ).distinct().count()
+        
+        # Today's attendance stats
+        today_attendance = DailyAttendance.objects.filter(
+            date=today,
+            student__enrollments__class_enrolled__in=classes,
+            student__enrollments__enrollment_status='active'
+        ).distinct()
+        
+        today_attendance_count = today_attendance.count()
+        today_present_count = today_attendance.filter(status='present').count()
+        today_absent_count = today_attendance.filter(status='absent').count()
+        today_late_count = today_attendance.filter(status='late').count()
+        
+        today_attendance_percentage = (today_attendance_count / total_students * 100) if total_students > 0 else 0
+        today_late_percentage = (today_late_count / today_attendance_count * 100) if today_attendance_count > 0 else 0
+        
+        # Behavior records
+        behavior_records_count = BehaviorRecord.objects.filter(
+            reported_by=teacher,
+            incident_date=today
+        ).count()
+        
+        recent_behavior_count = BehaviorRecord.objects.filter(
+            reported_by=teacher,
+            incident_date__gte=today - timezone.timedelta(days=7)
+        ).count()
+        
+        # Leave applications
+        pending_leaves_count = LeaveApplication.objects.filter(
+            applicant__teacher_profile__in=classes.values_list('class_teacher', flat=True),
+            status='pending'
+        ).count()
+        
+        # Class performance metrics
+        for class_obj in classes:
+            class_students = Student.objects.filter(
+                enrollments__class_enrolled=class_obj,
+                enrollments__enrollment_status='active'
+            )
+            total_class_students = class_students.count()
+            
+            class_attendance = DailyAttendance.objects.filter(
+                student__in=class_students,
+                date=today
+            )
+            present_count = class_attendance.filter(status='present').count()
+            
+            class_obj.current_student_count = total_class_students
+            class_obj.attendance_percentage = (present_count / total_class_students * 100) if total_class_students > 0 else 0
+        
+        # Recent activity
+        recent_attendance = DailyAttendance.objects.filter(
+            student__enrollments__class_enrolled__in=classes,
+            student__enrollments__enrollment_status='active',
+            date=today
+        ).select_related('student__user').order_by('-created_at')[:5]
+        
+        recent_behavior = BehaviorRecord.objects.filter(
+            student__enrollments__class_enrolled__in=classes,
+            student__enrollments__enrollment_status='active',
+            incident_date__gte=today - timezone.timedelta(days=7)
+        ).select_related('student__user').order_by('-incident_date')[:5]
+        
+        # Performance analytics
+        overall_attendance_rate = DailyAttendance.objects.filter(
+            student__enrollments__class_enrolled__in=classes,
+            student__enrollments__enrollment_status='active',
+            date__month=today.month,
+            date__year=today.year
+        ).aggregate(
+            avg_attendance=Avg(Case(
+                When(status='present', then=100),
+                When(status='late', then=100),
+                When(status='half_day', then=50),
+                default=0,
+                output_field=models.FloatField()
+            ))
+        )['avg_attendance'] or 0
+        
+        punctuality_rate = DailyAttendance.objects.filter(
+            student__enrollments__class_enrolled__in=classes,
+            student__enrollments__enrollment_status='active',
+            is_late=False
+        ).count() / max(DailyAttendance.objects.filter(
+            student__enrollments__class_enrolled__in=classes,
+            student__enrollments__enrollment_status='active'
+        ).count(), 1) * 100
+        
+        active_students_count = total_students
+        at_risk_count = DailyAttendance.objects.filter(
+            student__enrollments__class_enrolled__in=classes,
+            student__enrollments__enrollment_status='active',
+            status='absent',
+            date__gte=today - timezone.timedelta(days=3)
+        ).values('student').distinct().count()
+        
         context = {
             'teacher': teacher,
             'classes': classes,
@@ -1113,9 +1214,26 @@ class TeacherAttendanceInterfaceView(TeacherRequiredMixin, View):
             'attendance_sessions': attendance_sessions,
             'today': today,
             'current_session': current_session,
+            # Dashboard metrics
+            'total_students': total_students,
+            'today_attendance_count': today_attendance_count,
+            'today_present_count': today_present_count,
+            'today_absent_count': today_absent_count,
+            'today_late_count': today_late_count,
+            'today_attendance_percentage': today_attendance_percentage,
+            'today_late_percentage': today_late_percentage,
+            'behavior_records_count': behavior_records_count,
+            'recent_behavior_count': recent_behavior_count,
+            'pending_leaves_count': pending_leaves_count,
+            'recent_attendance': recent_attendance,
+            'recent_behavior': recent_behavior,
+            'overall_attendance_rate': overall_attendance_rate,
+            'punctuality_rate': punctuality_rate,
+            'active_students_count': active_students_count,
+            'at_risk_count': at_risk_count,
         }
         
-        return render(request, 'attendance/teacher/attendance_interface.html', context)
+        return render(request, 'attendance/teacher/dashboard.html', context)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -1162,6 +1280,52 @@ class TeacherQuickAttendanceView(TeacherRequiredMixin, View):
         }
         
         return render(request, 'attendance/teacher/quick_attendance.html', context)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required('attendance.add_dailyattendance', raise_exception=True), name='dispatch')
+class TeacherSmartAttendanceView(TeacherRequiredMixin, View):
+    """Smart attendance marking interface with enhanced features"""
+    
+    def get(self, request, class_id, session_id=None):
+        class_obj = get_object_or_404(Class, pk=class_id)
+        attendance_session = None
+        
+        if session_id:
+            attendance_session = get_object_or_404(AttendanceSession, pk=session_id)
+        else:
+            # Get default session (usually morning)
+            attendance_session = AttendanceSession.objects.filter(
+                is_active=True
+            ).first()
+        
+        # Get students in the class
+        students = Student.objects.filter(
+            enrollments__class_enrolled=class_obj,
+            enrollments__enrollment_status='active'
+        ).select_related('user')
+        
+        # Get today's existing attendance for this class and session
+        today = timezone.now().date()
+        existing_attendance = DailyAttendance.objects.filter(
+            student__in=students,
+            date=today,
+            attendance_session=attendance_session
+        ).select_related('student')
+        
+        # Create a mapping of student_id to attendance status
+        attendance_map = {att.student.id: att for att in existing_attendance}
+        
+        context = {
+            'class_obj': class_obj,
+            'attendance_session': attendance_session,
+            'students': students,
+            'attendance_map': attendance_map,
+            'today': today,
+            'status_choices': DailyAttendance.AttendanceStatus.choices,
+        }
+        
+        return render(request, 'attendance/teacher/smart_attendance.html', context)
     
     def post(self, request, class_id, session_id=None):
         class_obj = get_object_or_404(Class, pk=class_id)

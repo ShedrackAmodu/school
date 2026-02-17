@@ -104,6 +104,9 @@ urlpatterns = [
          name='student_behavior_detail'),
 
     # ==================== TEACHER ATTENDANCE INTERFACE ====================
+    path('teacher/dashboard/', 
+         views.TeacherAttendanceInterfaceView.as_view(), 
+         name='teacher_attendance_dashboard'),
     path('teacher/interface/', 
          views.TeacherAttendanceInterfaceView.as_view(), 
          name='teacher_attendance_interface'),
@@ -113,6 +116,12 @@ urlpatterns = [
     path('teacher/quick/<int:class_id>/<int:session_id>/', 
          views.TeacherQuickAttendanceView.as_view(), 
          name='teacher_quick_attendance_session'),
+    path('teacher/smart/<int:class_id>/', 
+         views.TeacherSmartAttendanceView.as_view(), 
+         name='teacher_smart_attendance'),
+    path('teacher/smart/<int:class_id>/<int:session_id>/', 
+         views.TeacherSmartAttendanceView.as_view(), 
+         name='teacher_smart_attendance_session'),
     path('teacher/history/', 
          views.TeacherAttendanceHistoryView.as_view(), 
          name='teacher_attendance_history'),

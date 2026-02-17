@@ -1,0 +1,888 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Smart Attendance - {{ class_obj.name }} - School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Smart Attendance Styles */
+    .smart-attendance-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .attendance-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .attendance-controls {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+    
+    .student-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px;
+    }
+    
+    .student-card {
+        background: white;
+        border: 2px solid transparent;
+        border-radius: 12px;
+        padding: 15px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .student-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+    }
+    
+    .student-card.selected {
+        border-color: #007bff;
+        background: #f8f9ff;
+    }
+    
+    .student-card.status-present {
+        border-left: 4px solid #28a745;
+    }
+    
+    .student-card.status-absent {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .student-card.status-late {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .student-card.status-half-day {
+        border-left: 4px solid #fd7e14;
+    }
+    
+    .student-card.status-leave {
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .status-buttons {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+        margin-bottom: 10px;
+    }
+    
+    .status-btn {
+        border: 1px solid #dee2e6;
+        background: white;
+        padding: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+    
+    .status-btn:hover {
+        background: #f8f9fa;
+        border-color: #007bff;
+    }
+    
+    .status-btn.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+        transform: scale(1.05);
+    }
+    
+    .status-btn.status-present.active { background: #28a745; border-color: #28a745; }
+    .status-btn.status-absent.active { background: #dc3545; border-color: #dc3545; }
+    .status-btn.status-late.active { background: #ffc107; border-color: #ffc107; }
+    .status-btn.status-half-day.active { background: #fd7e14; border-color: #fd7e14; }
+    .status-btn.status-leave.active { background: #17a2b8; border-color: #17a2b8; }
+    
+    .quick-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    
+    .progress-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .search-box {
+        position: relative;
+        margin-bottom: 15px;
+    }
+    
+    .search-box input {
+        width: 100%;
+        padding: 10px 40px 10px 40px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+    
+    .search-box i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+    
+    .filter-tags {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    
+    .filter-tag {
+        background: #e9ecef;
+        border: 1px solid #dee2e6;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .filter-tag:hover {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    
+    .filter-tag.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    
+    .remarks-box {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        resize: vertical;
+        min-height: 40px;
+    }
+    
+    .student-avatar {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 2px solid #dee2e6;
+    }
+    
+    .student-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+    
+    .student-details h6 {
+        margin: 0;
+        font-size: 1rem;
+    }
+    
+    .student-details small {
+        color: #6c757d;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+    
+    .btn-group-fixed {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-group-fixed .btn {
+        padding: 12px 24px;
+        font-size: 1rem;
+        border-radius: 8px;
+    }
+    
+    .auto-save-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        display: none;
+        z-index: 1000;
+        animation: fadeInOut 2s;
+    }
+    
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateY(-10px); }
+        10% { opacity: 1; transform: translateY(0); }
+        90% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-10px); }
+    }
+    
+    .late-time-input {
+        display: none;
+        margin-top: 5px;
+    }
+    
+    .late-time-input.show {
+        display: block;
+    }
+    
+    .student-search-result {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 8px;
+        margin-bottom: 5px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .student-search-result:hover {
+        background: #e9ecef;
+    }
+    
+    .hidden-students {
+        opacity: 0.5;
+        transform: scale(0.95);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 smart-attendance-container">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2">Smart Attendance - {{ class_obj.name }}</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'attendance:teacher_attendance_dashboard' %}">Teacher Dashboard</a></li>
+                            <li class="breadcrumb-item active">Smart Attendance</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'attendance:teacher_attendance_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+                    </a>
+                    <a href="{% url 'attendance:bulk_class_select' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-users me-2"></i> Bulk Marking
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="attendance-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h4 class="mb-1">{{ class_obj.name }}</h4>
+                        <p class="mb-0">
+                            <i class="fas fa-chalkboard-teacher me-2"></i>{{ class_obj.grade_level }} • {{ class_obj.section }}
+                        </p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="h6 mb-1">Session</div>
+                                <div class="h5 mb-0">{{ attendance_session.name }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="h6 mb-1">Date</div>
+                                <div class="h5 mb-0">{{ today|date:"F j, Y" }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="h6 mb-1">Students</div>
+                                <div class="h5 mb-0">{{ students.count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="progress-stats">
+                <div class="stat-card">
+                    <div class="stat-value text-primary" id="markedCount">0</div>
+                    <div class="stat-label">Marked</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value text-success" id="presentCount">0</div>
+                    <div class="stat-label">Present</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value text-danger" id="absentCount">0</div>
+                    <div class="stat-label">Absent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value text-warning" id="lateCount">0</div>
+                    <div class="stat-label">Late</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="attendance-controls">
+                <!-- Search and Filters -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="studentSearch" placeholder="Search students by name or ID...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="filter-tags">
+                            <span class="filter-tag active" data-filter="all">All</span>
+                            <span class="filter-tag" data-filter="present">Present</span>
+                            <span class="filter-tag" data-filter="absent">Absent</span>
+                            <span class="filter-tag" data-filter="late">Late</span>
+                            <span class="filter-tag" data-filter="not-marked">Not Marked</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button type="button" class="btn btn-success btn-sm" onclick="markAll('present')">
+                        <i class="fas fa-check me-1"></i> Mark All Present
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="markAll('absent')">
+                        <i class="fas fa-times me-1"></i> Mark All Absent
+                    </button>
+                    <button type="button" class="btn btn-warning btn-sm" onclick="markAll('late')">
+                        <i class="fas fa-clock me-1"></i> Mark All Late
+                    </button>
+                    <button type="button" class="btn btn-info btn-sm" onclick="markAll('leave')">
+                        <i class="fas fa-calendar-minus me-1"></i> Mark All Leave
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearAll()">
+                        <i class="fas fa-undo me-1"></i> Clear All
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveDraft()">
+                        <i class="fas fa-save me-1"></i> Save Draft
+                    </button>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" id="progressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted" id="progressText">0% Complete</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Grid -->
+    <form id="attendanceForm" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="date" value="{{ today }}">
+        <input type="hidden" name="attendance_session" value="{{ attendance_session.id }}">
+
+        <div class="row">
+            <div class="col-12">
+                <div class="student-grid" id="studentGrid">
+                    {% for student in students %}
+                    <div class="student-card" data-student-id="{{ student.id }}" data-student-name="{{ student.user.get_full_name }}" data-filter-group="not-marked">
+                        <div class="student-info">
+                            <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'img/default-avatar.png' %}{% endif %}" 
+                                 alt="{{ student.user.get_full_name }}" 
+                                 class="student-avatar">
+                            <div class="student-details">
+                                <h6>{{ student.user.get_full_name }}</h6>
+                                <small>{{ student.admission_number }}</small>
+                            </div>
+                        </div>
+
+                        <!-- Status Buttons -->
+                        <div class="status-buttons">
+                            <button type="button" class="status-btn status-present" 
+                                    onclick="setStatus({{ student.id }}, 'present')" 
+                                    data-status="present" id="btn_present_{{ student.id }}">
+                                <i class="fas fa-check"></i> Present
+                            </button>
+                            <button type="button" class="status-btn status-absent" 
+                                    onclick="setStatus({{ student.id }}, 'absent')" 
+                                    data-status="absent" id="btn_absent_{{ student.id }}">
+                                <i class="fas fa-times"></i> Absent
+                            </button>
+                            <button type="button" class="status-btn status-late" 
+                                    onclick="setStatus({{ student.id }}, 'late')" 
+                                    data-status="late" id="btn_late_{{ student.id }}">
+                                <i class="fas fa-clock"></i> Late
+                            </button>
+                            <button type="button" class="status-btn status-half-day" 
+                                    onclick="setStatus({{ student.id }}, 'half_day')" 
+                                    data-status="half_day" id="btn_half_day_{{ student.id }}">
+                                <i class="fas fa-hourglass-half"></i> Half Day
+                            </button>
+                            <button type="button" class="status-btn status-leave" 
+                                    onclick="setStatus({{ student.id }}, 'leave')" 
+                                    data-status="leave" id="btn_leave_{{ student.id }}">
+                                <i class="fas fa-calendar-minus"></i> Leave
+                            </button>
+                        </div>
+
+                        <!-- Late Time Input -->
+                        <div class="late-time-input" id="lateTime_{{ student.id }}">
+                            <label class="form-label small text-muted">Minutes Late</label>
+                            <input type="number" class="form-control form-control-sm" 
+                                   name="late_minutes_{{ student.id }}" 
+                                   min="0" max="240" 
+                                   placeholder="Enter minutes late">
+                        </div>
+
+                        <!-- Remarks -->
+                        <div class="mb-2">
+                            <label for="remarks_{{ student.id }}" class="form-label small text-muted">Remarks</label>
+                            <textarea class="remarks-box" id="remarks_{{ student.id }}" 
+                                      name="remarks_{{ student.id }}" 
+                                      placeholder="Optional remarks..."></textarea>
+                        </div>
+
+                        <!-- Previous Attendance -->
+                        <div class="small text-muted mb-2">
+                            {% if attendance_map|lookup:student.id %}
+                            <i class="fas fa-history me-1"></i>
+                            Previously: <span class="badge bg-secondary">{{ attendance_map|lookup:student.id.status|title }}</span>
+                            {% else %}
+                            <i class="fas fa-info-circle me-1"></i>
+                            Not marked today
+                            {% endif %}
+                        </div>
+
+                        <!-- Hidden Inputs -->
+                        <input type="hidden" name="status_{{ student.id }}" id="status_{{ student.id }}" value="">
+                        <input type="hidden" name="student_id_{{ student.id }}" value="{{ student.id }}">
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="text-center py-5">
+                            <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">No Students Found</h4>
+                            <p class="text-muted">There are no active students in this class.</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Actions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="form-check me-3">
+                                        <input class="form-check-input" type="checkbox" id="selectAllStudents">
+                                        <label class="form-check-label" for="selectAllStudents">
+                                            Select All
+                                        </label>
+                                    </div>
+                                    <div class="small text-muted">
+                                        <span id="selectedCount">0</span> students selected
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-outline-warning" onclick="saveDraft()">
+                                        <i class="fas fa-save me-1"></i> Save Draft
+                                    </button>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-paper-plane me-1"></i> Submit Attendance
+                                    </button>
+                                    <button type="button" class="btn btn-primary" onclick="submitAndNext()">
+                                        <i class="fas fa-forward me-1"></i> Submit & Next Class
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Auto Save Indicator -->
+<div class="auto-save-indicator" id="autoSaveIndicator">
+    <i class="fas fa-save me-2"></i> Auto-saved successfully
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmationModalLabel">Confirm Submission</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>You are about to submit attendance for <strong id="confirmCount">0</strong> students.</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    This action cannot be undone. Please review all entries before submitting.
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="confirmCheckbox">
+                    <label class="form-check-label" for="confirmCheckbox">
+                        I have reviewed all entries and confirm they are correct
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirmSubmitBtn" class="btn btn-success" disabled>
+                    Confirm Submission
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const studentsGrid = document.getElementById('studentsGrid');
+    const progressBar = document.getElementById('progressBar');
+    const markedCount = document.getElementById('markedCount');
+    const presentCount = document.getElementById('presentCount');
+    const absentCount = document.getElementById('absentCount');
+    const lateCount = document.getElementById('lateCount');
+    const progressText = document.getElementById('progressText');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllStudents');
+    const studentSearch = document.getElementById('studentSearch');
+    const filterTags = document.querySelectorAll('.filter-tag');
+    
+    let markedStudents = new Set();
+    let presentStudents = new Set();
+    let absentStudents = new Set();
+    let lateStudents = new Set();
+    let totalStudents = {{ students.count }};
+    let autoSaveTimer;
+
+    // Initialize existing attendance
+    {% for student_id, attendance in attendance_map.items %}
+    setStatus({{ student_id }}, '{{ attendance.status }}', true);
+    {% endfor %}
+
+    // Update progress indicators
+    function updateProgress() {
+        const marked = markedStudents.size;
+        const present = presentStudents.size;
+        const absent = absentStudents.size;
+        const late = lateStudents.size;
+        const percentage = totalStudents > 0 ? Math.round((marked / totalStudents) * 100) : 0;
+        
+        markedCount.textContent = marked;
+        presentCount.textContent = present;
+        absentCount.textContent = absent;
+        lateCount.textContent = late;
+        selectedCount.textContent = `${marked} students selected`;
+        progressText.textContent = `${percentage}% Complete`;
+        
+        // Update progress bar
+        progressBar.style.width = `${percentage}%`;
+        progressBar.style.backgroundColor = percentage === 100 ? '#28a745' : '#007bff';
+        
+        // Update progress bar color based on completion
+        if (percentage === 100) {
+            progressBar.className = 'progress-bar bg-success';
+        } else if (percentage > 50) {
+            progressBar.className = 'progress-bar bg-warning';
+        } else {
+            progressBar.className = 'progress-bar bg-primary';
+        }
+    }
+
+    // Set status for a student
+    window.setStatus = function(studentId, status, silent = false) {
+        const studentCard = document.querySelector(`[data-student-id="${studentId}"]`);
+        const statusInput = document.getElementById(`status_${studentId}`);
+        const lateTimeInput = document.getElementById(`lateTime_${studentId}`);
+        const statusButtons = studentCard.querySelectorAll('.status-btn');
+        
+        // Update button states
+        statusButtons.forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        const activeButton = document.getElementById(`btn_${status}_${studentId}`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+
+        // Update hidden input
+        statusInput.value = status;
+        
+        // Update student sets
+        markedStudents.add(studentId);
+        presentStudents.delete(studentId);
+        absentStudents.delete(studentId);
+        lateStudents.delete(studentId);
+        
+        if (status === 'present') {
+            presentStudents.add(studentId);
+            studentCard.className = 'student-card status-present';
+        } else if (status === 'absent') {
+            absentStudents.add(studentId);
+            studentCard.className = 'student-card status-absent';
+        } else if (status === 'late') {
+            lateStudents.add(studentId);
+            studentCard.className = 'student-card status-late';
+            lateTimeInput.classList.add('show');
+        } else if (status === 'half_day') {
+            studentCard.className = 'student-card status-half-day';
+        } else if (status === 'leave') {
+            studentCard.className = 'student-card status-leave';
+        }
+
+        // Show/hide late time input
+        if (status === 'late') {
+            lateTimeInput.classList.add('show');
+        } else {
+            lateTimeInput.classList.remove('show');
+        }
+        
+        if (!silent) {
+            updateProgress();
+            autoSave();
+        }
+    }
+
+    // Mark all students with a specific status
+    window.markAll = function(status) {
+        const statusInputs = document.querySelectorAll('input[name^="status_"]');
+        statusInputs.forEach(input => {
+            const studentId = input.name.split('_')[1];
+            setStatus(studentId, status);
+        });
+    }
+
+    // Clear all attendance
+    window.clearAll = function() {
+        const statusInputs = document.querySelectorAll('input[name^="status_"]');
+        statusInputs.forEach(input => {
+            const studentId = input.name.split('_')[1];
+            input.value = '';
+            markedStudents.delete(studentId);
+            presentStudents.delete(studentId);
+            absentStudents.delete(studentId);
+            lateStudents.delete(studentId);
+            
+            // Reset button states
+            const statusButtons = document.querySelectorAll(`[data-student-id="${studentId}"] .status-btn`);
+            statusButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Reset card styling
+            const studentCard = document.querySelector(`[data-student-id="${studentId}"]`);
+            studentCard.className = 'student-card';
+            
+            // Hide late time input
+            const lateTimeInput = document.getElementById(`lateTime_${studentId}`);
+            lateTimeInput.classList.remove('show');
+        });
+        
+        updateProgress();
+    }
+
+    // Auto-save functionality
+    function autoSave() {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(function() {
+            const autoSaveIndicator = document.getElementById('autoSaveIndicator');
+            autoSaveIndicator.style.display = 'block';
+            setTimeout(function() {
+                autoSaveIndicator.style.display = 'none';
+            }, 2000);
+        }, 2000);
+    }
+
+    // Search functionality
+    studentSearch.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const studentCards = document.querySelectorAll('.student-card');
+        
+        studentCards.forEach(card => {
+            const studentName = card.dataset.studentName.toLowerCase();
+            const studentId = card.querySelector('.student-details small').textContent.toLowerCase();
+            
+            if (studentName.includes(searchTerm) || studentId.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+
+    // Filter functionality
+    filterTags.forEach(tag => {
+        tag.addEventListener('click', function() {
+            // Remove active class from all tags
+            filterTags.forEach(t => t.classList.remove('active'));
+            
+            // Add active class to clicked tag
+            this.classList.add('active');
+            
+            const filter = this.dataset.filter;
+            const studentCards = document.querySelectorAll('.student-card');
+            
+            studentCards.forEach(card => {
+                if (filter === 'all') {
+                    card.style.display = 'block';
+                    card.classList.remove('hidden-students');
+                } else {
+                    const currentStatus = card.classList.contains('status-present') ? 'present' :
+                                        card.classList.contains('status-absent') ? 'absent' :
+                                        card.classList.contains('status-late') ? 'late' :
+                                        'not-marked';
+                    
+                    if (currentStatus === filter) {
+                        card.style.display = 'block';
+                        card.classList.remove('hidden-students');
+                    } else {
+                        card.style.display = 'none';
+                        card.classList.add('hidden-students');
+                    }
+                }
+            });
+        });
+    });
+
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        const studentCards = document.querySelectorAll('.student-card');
+        studentCards.forEach(card => {
+            const studentId = card.dataset.studentId;
+            if (this.checked) {
+                // If no status is set, default to present
+                if (!markedStudents.has(studentId)) {
+                    setStatus(studentId, 'present');
+                }
+            }
+        });
+    });
+
+    // Form submission
+    document.getElementById('attendanceForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (markedStudents.size === 0) {
+            alert('Please mark attendance for at least one student before submitting.');
+            return;
+        }
+        
+        document.getElementById('confirmCount').textContent = markedStudents.size;
+        const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+        modal.show();
+    });
+
+    // Confirm submission
+    document.getElementById('confirmSubmitBtn').addEventListener('click', function() {
+        const confirmCheckbox = document.getElementById('confirmCheckbox');
+        if (!confirmCheckbox.checked) {
+            alert('Please confirm that you have reviewed all entries.');
+            return;
+        }
+        
+        const form = document.getElementById('attendanceForm');
+        form.submit();
+    });
+
+    // Enable/disable confirm button based on checkbox
+    document.getElementById('confirmCheckbox').addEventListener('change', function() {
+        const confirmBtn = document.getElementById('confirmSubmitBtn');
+        confirmBtn.disabled = !this.checked;
+    });
+
+    // Submit and go to next class
+    window.submitAndNext = function() {
+        // This would typically submit and redirect to next class
+        alert('Attendance submitted! Redirecting to next class...');
+        // window.location.href = '/attendance/teacher/next-class/';
+    };
+
+    // Initialize
+    updateProgress();
+});
+
+// Custom lookup filter for template
+window.lookup = function(obj, key) {
+    return obj[key];
+};
+</script>
+{% endblock %}
