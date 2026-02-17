@@ -133,4 +133,4 @@ urlpatterns = [
 
     # Login History
     path('admin/login-history/', views.login_history, name='login_history'),
-
+]
