@@ -296,8 +296,9 @@
                             {% endif %}
                         </div>
 
+                        <!-- Institution field hidden in single-tenant mode (all users assigned to Excellent Academy) -->
                         {% if form.institution %}
-                        <div class="mb-3">
+                        <div class="mb-3" style="display: none;">
                             <label for="{{ form.institution.id_for_label }}" class="form-label">
                                 {% trans "Institution" %}
                                 {% if not form.institution.required %}*
@@ -312,6 +313,9 @@
                                 {{ form.institution.errors.0 }}
                             </div>
                             {% endif %}
+                        </div>
+                        <div class="mb-3 alert alert-info">
+                            <i class="fas fa-info-circle"></i> {% trans "User assigned to: Excellent Academy" %}
                         </div>
                         {% endif %}
 

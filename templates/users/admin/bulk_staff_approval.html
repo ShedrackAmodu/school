@@ -16,7 +16,7 @@
 <div class="module">
     <h1>{% trans "Bulk Approve Staff Applications" %}</h1>
 
-    <p>The selected applications will be approved using the institutions chosen by each applicant:</p>
+    <p>{% trans "The selected applications will be approved for positions at Excellent Academy." %}</p>
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
@@ -37,7 +37,7 @@
                         <td>{{ application.application_number }}</td>
                         <td>{{ application.full_name }}</td>
                         <td>{{ application.position_applied_for.name }}</td>
-                        <td>{% if application.institution %}{{ application.institution.name }} ({{ application.institution.code }}){% else %}<span class='text-warning'>Not specified</span>{% endif %}</td>
+                        <td>{% trans "Excellent Academy" %}</td>
                     </tr>
                 {% endfor %}
             </tbody>

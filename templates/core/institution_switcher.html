@@ -2,52 +2,41 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}{% trans "Select Institution" %} - {{ block.super }}{% endblock %}
+{% block title %}{% trans "Excellent Academy" %} - {{ block.super }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0">
-                        <i class="fas fa-school"></i> {% trans "Institution Selection" %}
-                    </h1>
-                    <p class="text-muted">{% trans "Choose an institution to work with" %}</p>
-                </div>
-                <div>
-                    {% if current_institution %}
-                        <span class="badge badge-info">
-                            <i class="fas fa-check-circle"></i> {% trans "Current:" %} {{ current_institution.name|truncatechars:30 }}
-                        </span>
-                    {% endif %}
+<div class="container mt-5">
+    <div class="alert alert-info">
+        <h4 class="alert-heading"><i class="fas fa-info-circle"></i> {% trans "Single-Tenant System" %}</h4>
+        <p>{% trans "This is a single-tenant school management system exclusively for Excellent Academy. All users and data are associated with Excellent Academy." %}</p>
+        <hr>
+        <p class="mb-0">
+            {% trans "Manage your profile and access school resources from the dashboard." %}
+            <a href="{% url 'users:dashboard' %}" class="alert-link">{% trans "Go to Dashboard" %} <i class="fas fa-arrow-right ms-1"></i></a>
+        </p>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card shadow-sm">
+                <div class="card-body text-center p-5">
+                    <i class="fas fa-school fa-4x text-primary mb-3"></i>
+                    <h2 class="card-title">Excellent Academy</h2>
+                    <p class="card-text text-muted">{% trans "School Management System" %}</p>
+                    <hr>
+                    <p class="text-muted">
+                        {% trans "Welcome to Excellent Academy's integrated school management platform. This system manages all aspects of school operations from academics to finance, attendance to health, and transport to library services." %}
+                    </p>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Institution Grid -->
-    <div class="row">
-        {% for institution in institutions %}
-            <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
-                <div class="card shadow h-100 {% if current_institution and institution.id == current_institution.id %}border-primary{% endif %}">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="mr-3">
-                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                                    <i class="fas fa-school text-primary fa-lg"></i>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1">
-                                <h6 class="card-title mb-1 text-truncate" title="{{ institution.name }}">
-                                    {{ institution.name|truncatechars:25 }}
-                                </h6>
-                                <small class="text-muted">{{ institution.code|upper }}</small>
-                            </div>
-                            {% if current_institution and institution.id == current_institution.id %}
-                                <span class="badge badge-primary">
-                                    <i class="fas fa-check"></i>
+<style>
+    .card { border: none; border-radius: 8px; }
+</style>
+{% endblock %}
                                 </span>
                             {% endif %}
                         </div>
