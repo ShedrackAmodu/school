@@ -13,24 +13,8 @@ urlpatterns = [
     path('configs/<uuid:pk>/delete/', views.SystemConfigDeleteView.as_view(), name='config_delete'),
     path('configs/bulk-update/', views.SystemConfigBulkUpdateView.as_view(), name='config_bulk_update'),
 
-    # Institution Management URLs
-    path('institution/select/', views.InstitutionSwitcherView.as_view(), name='institution_select'),
-    path('institutions/', views.InstitutionListView.as_view(), name='institution_list'),
-    path('institutions/create/', views.InstitutionCreateView.as_view(), name='institution_create'),
-    path('institutions/<uuid:pk>/', views.InstitutionDetailView.as_view(), name='institution_detail'),
-    path('institutions/<uuid:pk>/update/', views.InstitutionUpdateView.as_view(), name='institution_update'),
-    path('institutions/<uuid:pk>/delete/', views.InstitutionDeleteView.as_view(), name='institution_delete'),
-    path('institutions/<uuid:institution_id>/config-overrides/', views.InstitutionConfigOverrideView.as_view(), name='institution_config_overrides'),
-
-    # Admin Dashboards
-    path('dashboard/', views.SuperAdminDashboardView.as_view(), name='super_admin_dashboard'),
-    path('entities/', views.SuperAdminEntityView.as_view(), name='super_admin_entities'),
-    path('school-dashboard/', views.SchoolAdminDashboardView.as_view(), name='school_admin_dashboard'),
-
-    # Principal Views
-    path('principal/performance-monitoring/', views.PrincipalPerformanceMonitoringView.as_view(), name='principal_performance_monitoring'),
-    path('principal/teacher-management/', views.PrincipalTeacherManagementView.as_view(), name='principal_teacher_management'),
-    path('principal/student-welfare/', views.PrincipalStudentWelfareView.as_view(), name='principal_student_welfare'),
+    # Institution Details (Excellent Academy)
+    path('institution/', views.InstitutionDetailView.as_view(), name='institution_detail'),
     path('principal/curriculum-planning/', views.PrincipalCurriculumPlanningView.as_view(), name='principal_curriculum_planning'),
     path('principal/communication/', views.PrincipalCommunicationView.as_view(), name='principal_communication'),
 

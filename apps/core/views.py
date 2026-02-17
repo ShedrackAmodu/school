@@ -343,113 +343,21 @@ def import_configs(request):
 
 # Institution Management Views
 
-class InstitutionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
-    """
-    List view for Institutions with filtering and search.
-    """
-    model = Institution
-    template_name = 'core/institutions/list.html'
-    context_object_name = 'institutions'
-    paginate_by = 20
-    permission_required = 'core.view_institution'
-
-    def get_queryset(self):
-        queryset = Institution.objects.all()
-
-        # Apply filters
-        institution_type = self.request.GET.get('institution_type')
-        ownership_type = self.request.GET.get('ownership_type')
-        status = self.request.GET.get('status')
-        is_active = self.request.GET.get('is_active')
-        search = self.request.GET.get('search')
-
-        if institution_type and institution_type != 'all':
-            queryset = queryset.filter(institution_type=institution_type)
-
-        if ownership_type and ownership_type != 'all':
-            queryset = queryset.filter(ownership_type=ownership_type)
-
-        if status and status != 'all':
-            queryset = queryset.filter(status=status)
-
-        if is_active and is_active != 'all':
-            queryset = queryset.filter(is_active=is_active == 'true')
-
-        if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) |
-                Q(code__icontains=search) |
-                Q(short_name__icontains=search) |
-                Q(city__icontains=search) |
-                Q(country__icontains=search)
-            )
-
-        return queryset.order_by('name')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # Add filter options
-        context['institution_types'] = Institution.InstitutionType.choices
-        context['ownership_types'] = Institution.OwnershipType.choices
-        context['status_choices'] = Institution.Status.choices
-
-        # Add current filter values
-        context['current_filters'] = {
-            'institution_type': self.request.GET.get('institution_type', ''),
-            'ownership_type': self.request.GET.get('ownership_type', ''),
-            'status': self.request.GET.get('status', ''),
-            'is_active': self.request.GET.get('is_active', ''),
-            'search': self.request.GET.get('search', ''),
-        }
-
-        # Add statistics
-        context['total_institutions'] = Institution.objects.count()
-        context['active_institutions'] = Institution.objects.filter(is_active=True).count()
-
-        return context
-
-
-class InstitutionCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
-    """
-    Create view for Institution.
-    """
-    model = Institution
-    form_class = InstitutionForm
-    template_name = 'core/institutions/form.html'
-    permission_required = 'core.add_institution'
-
-    def get_success_url(self):
-        messages.success(self.request, _('Institution created successfully!'))
-        return reverse_lazy('core:institution_list')
-
-    def form_valid(self, form):
-        form.instance.created_by = self.request.user
-        return super().form_valid(form)
-
-
-class InstitutionUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
-    """
-    Update view for Institution.
-    """
-    model = Institution
-    form_class = InstitutionForm
-    template_name = 'core/institutions/form.html'
-    permission_required = 'core.change_institution'
-
-    def get_success_url(self):
-        messages.success(self.request, _('Institution updated successfully!'))
-        return reverse_lazy('core:institution_list')
-
-
 class InstitutionDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
-    Detail view for Institution.
+    Detail view for Institution (Excellent Academy in single-tenant mode).
     """
     model = Institution
     template_name = 'core/institutions/detail.html'
     context_object_name = 'institution'
     permission_required = 'core.view_institution'
+
+    def get_object(self, queryset=None):
+        """In single-tenant mode, always return Excellent Academy."""
+        try:
+            return Institution.objects.get(code='EXCELLENT_ACADEMY')
+        except Institution.DoesNotExist:
+            return Institution.objects.first()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -467,144 +375,6 @@ class InstitutionDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailV
         ).select_related('system_config')
 
         return context
-
-
-class InstitutionDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
-    """
-    Delete view for Institution.
-    """
-    model = Institution
-    template_name = 'core/institutions/confirm_delete.html'
-    permission_required = 'core.delete_institution'
-
-    def get_success_url(self):
-        messages.success(self.request, _('Institution deleted successfully!'))
-        return reverse_lazy('core:institution_list')
-
-
-class InstitutionConfigOverrideView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    """
-    View for managing institution-specific configuration overrides.
-    """
-    permission_required = 'core.change_institution'
-
-    def get(self, request, institution_id, *args, **kwargs):
-        institution = get_object_or_404(Institution, id=institution_id)
-        form = InstitutionConfigOverrideForm(institution=institution)
-
-        context = {
-            'institution': institution,
-            'form': form,
-            'page_title': _('Configuration Overrides'),
-        }
-
-        return render(request, 'core/institutions/config_overrides.html', context)
-
-    def post(self, request, institution_id, *args, **kwargs):
-        institution = get_object_or_404(Institution, id=institution_id)
-        form = InstitutionConfigOverrideForm(request.POST, institution=institution)
-
-        if form.is_valid():
-            updated_count = 0
-            created_count = 0
-
-            for field_name, value in form.cleaned_data:
-                if field_name.startswith('config_') and value:
-                    config_id = field_name.replace('config_', '')
-                    try:
-                        system_config = SystemConfig.objects.get(id=config_id)
-
-                        # Check if override already exists
-                        institution_config, created = InstitutionConfig.objects.get_or_create(
-                            institution=institution,
-                            system_config=system_config,
-                            defaults={
-                                'override_value': value,
-                                'is_active': True
-                            }
-                        )
-
-                        if not created:
-                            # Update existing override
-                            if institution_config.override_value != value:
-                                institution_config.override_value = value
-                                institution_config.save()
-                                updated_count += 1
-                        else:
-                            created_count += 1
-
-                    except SystemConfig.DoesNotExist:
-                        continue
-
-            messages.success(
-                request,
-                _(f'Successfully created {created_count} and updated {updated_count} configuration override(s).')
-            )
-            return redirect('core:institution_detail', pk=institution_id)
-        else:
-            context = {
-                'institution': institution,
-                'form': form,
-                'page_title': _('Configuration Overrides'),
-            }
-            return render(request, 'core/institutions/config_overrides.html', context)
-
-
-class InstitutionSwitcherView(LoginRequiredMixin, View):
-    """
-    View for switching between institutions (for users with access to multiple institutions).
-    """
-    template_name = 'core/institution_switcher.html'
-
-    def get(self, request, *args, **kwargs):
-        from .middleware import get_user_accessible_institutions, get_current_institution
-
-        user = request.user
-
-        # Check if user can switch institutions
-        if user.is_superuser:
-            institutions = Institution.objects.filter(is_active=True)
-        else:
-            institutions = get_user_accessible_institutions(user)
-
-        # Calculate totals for statistics
-        total_students = sum(institution.current_student_count for institution in institutions)
-        total_staff = sum(institution.current_staff_count for institution in institutions)
-
-        context = {
-            'institutions': institutions,
-            'current_institution': get_current_institution(),
-            'can_switch_institutions': user.is_superuser or institutions.count() > 1,
-            'total_students': total_students,
-            'total_staff': total_staff,
-            'page_title': _('Select Institution'),
-        }
-
-        return render(request, self.template_name, context)
-
-    def post(self, request, *args, **kwargs):
-        institution_id = request.POST.get('institution')
-
-        if institution_id:
-            try:
-                from .middleware import user_can_access_institution
-                institution = Institution.objects.get(id=institution_id, is_active=True)
-
-                # Check permission
-                if user_can_access_institution(request.user, institution):
-                    # Set in session
-                    request.session['current_institution_id'] = str(institution.id)
-                    request.session.modified = True
-
-                    messages.success(request, _("Institution switched successfully."))
-                    return redirect('users:dashboard')
-                else:
-                    messages.error(request, _("You don't have permission to access this institution."))
-
-            except Institution.DoesNotExist:
-                messages.error(request, _("Selected institution not found."))
-
-        return redirect('core:institution_select')
 
 
 class SuperAdminDashboardView(MultiInstitutionMixin, LoginRequiredMixin, PermissionRequiredMixin, View):

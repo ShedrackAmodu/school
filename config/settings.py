@@ -75,7 +75,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 
-    # Multi-tenancy middleware (must come after AuthenticationMiddleware)
+    # Single-tenant middleware (sets Excellent Academy as default)
     "apps.core.middleware.TenantMiddleware",
 
     # Allauth middleware
@@ -457,29 +457,25 @@ SITE_DOMAIN = "NordaLMS.pythonanywhere.com"
 SITE_ID = 1
 
 # ============================
-# MULTI-TENANCY SETTINGS
+# SINGLE-TENANT MODE
 # ============================
 
-# Domain for tenant subdomains (e.g., institution-code.TENANT_DOMAIN)
-TENANT_DOMAIN = 'localhost'  # Change to your actual domain in production
+# Single institution setup for Excellent Academy
+SINGLE_TENANT_MODE = True
+DEFAULT_INSTITUTION_CODE = 'EXCELLENT_ACADEMY'
+DEFAULT_INSTITUTION_NAME = 'Excellent Academy'
 
-# Default institution for single-tenant fallback
-DEFAULT_INSTITUTION_CODE = None  # Set to an institution code if you want a default fallback
+# Disable institution subdomain routing
+TENANT_SUBDOMAIN_ENABLED = False
 
-# Enable tenant subdomain routing (disable for single institution mode)
-TENANT_SUBDOMAIN_ENABLED = True
-
-# Allow users to switch institutions (if they have access to multiple)
-ALLOW_INSTITUTION_SWITCHING = True
+# Disable institution switching
+ALLOW_INSTITUTION_SWITCHING = False
 
 # Cache timeout for institution data (in seconds)
 INSTITUTION_CACHE_TIMEOUT = 3600  # 1 hour
 
-# Enable institution-specific branding
-INSTITUTION_BRANDING_ENABLED = True
+# Disable institution-specific branding (use global defaults)
+INSTITUTION_BRANDING_ENABLED = False
 
-# Maximum institutions per user account
-MAX_INSTITUTIONS_PER_USER = 5
-
-# Enable tenant data isolation (always True for security)
-TENANT_DATA_ISOLATION = True
+# Tenant data isolation (not needed for single tenant)
+TENANT_DATA_ISOLATION = False

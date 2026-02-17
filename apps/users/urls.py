@@ -134,16 +134,3 @@ urlpatterns = [
     # Login History
     path('admin/login-history/', views.login_history, name='login_history'),
 
-    # Institution Transfer Requests
-    path('transfer-request/', views.institution_transfer_request_form, name='transfer_request_form'),
-    path('transfer-request/student/', views.institution_transfer_request_form, {'transfer_type': 'student'}, name='student_transfer_request'),
-    path('transfer-request/staff/', views.institution_transfer_request_form, {'transfer_type': 'staff'}, name='staff_transfer_request'),
-    path('transfer-requests/', views.institution_transfer_requests_list, name='user_transfer_requests'),
-    path('transfer-request/<uuid:request_id>/', views.institution_transfer_request_detail, name='transfer_request_detail'),
-
-    # Admin Institution Transfer Management
-    path('admin/transfer-requests/', views.admin_transfer_requests_list, name='admin_transfer_requests'),
-    path('admin/transfer-request/<uuid:request_id>/approve/', views.admin_approve_transfer_request, name='admin_approve_transfer_request'),
-    path('admin/transfer-request/<uuid:request_id>/reject/', views.admin_reject_transfer_request, name='admin_reject_transfer_request'),
-    path('admin/transfer-request/<uuid:request_id>/complete/', views.admin_complete_transfer_request, name='admin_complete_transfer_request'),
-]

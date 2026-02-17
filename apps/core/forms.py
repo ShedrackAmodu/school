@@ -12,29 +12,21 @@ from apps.academics.models import AcademicSession,Holiday,FileAttachment
 from .middleware import get_user_accessible_institutions
 
 
+
+
 class InstitutionFormMixin:
     """
-    Mixin for ModelForms that filter related fields by user's accessible institutions.
-    Automatically filters Institution-related querysets and other related models.
+    Mixin for ModelForms for single-tenant mode.
+    In single-tenant mode (Excellent Academy), no filtering needed since all data
+    belongs to the same institution.
     """
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-
-        if self.user and not self.user.is_superuser:
-            # Get user's accessible institutions
-            accessible_institutions = get_user_accessible_institutions(self.user)
-
-            # Filter Institution fields
-            for field_name, field in self.fields.items():
-                if hasattr(field, 'queryset') and field.queryset is not None:
-                    model = field.queryset.model
-                    if model == Institution:
-                        field.queryset = field.queryset.filter(id__in=accessible_institutions.values_list('id', flat=True))
-                    # Automatically filter models that inherit from CoreBaseModel
-                    elif hasattr(model, 'institution'):
-                        field.queryset = field.queryset.filter(institution__in=accessible_institutions)
+        
+        # In single-tenant mode, no institution filtering is needed
+        # All data belongs to Excellent Academy
 
 class AcademicSessionForm(InstitutionFormMixin, forms.ModelForm):
     """

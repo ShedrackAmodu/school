@@ -1,4 +1,4 @@
-# 🏫 NexusSMS - Nexus School Management System
+# 🏫 Excellent Academy - School Management System
 
 <p align="center">
   <img src="https://img.shields.io/badge/Django-5.2+-092009?style=for-the-badge&logo=django&logoColor=white" alt="Django">
@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <strong>A powerful, multi-tenant School Management System built with Django</strong><br>
-  Manage multiple educational institutions from a single platform
+  <strong>A comprehensive School Management System for Excellent Academy</strong><br>
+  Manage academics, finance, attendance, and more with ease
 </p>
 
 ---
@@ -35,18 +35,18 @@
 
 ## ✨ Features
 
-### 🔐 Multi-Institution Support
-- **Multi-Tenant Architecture**: Manage multiple schools/institutions from a single platform
-- **Data Isolation**: Complete data separation between institutions
-- **Custom Branding**: Institution-specific theming and configurations
-- **Scalable**: Add unlimited institutions with individual settings
+### 🔐 Single-Tenant Architecture
+- **Excellent Academy Focus**: Dedicated system for Excellent Academy
+- **Data Security**: Secure data storage and user authentication
+- **Scalable Design**: Built to handle growing student and staff base
+- **Simplified Administration**: No multi-institution complexity
 
-### 👑 Super Administrator
+### 👑 Administrator
 - System-wide configuration management
-- Multi-institution management dashboard
+- Dashboard and analytics
 - User role hierarchy management
 - Global audit logging and compliance
-- Institution creation and management
+- Staff and student management
 
 ### 🏫 School Administration
 - **Staff Management**: Complete recruitment workflow from application to employee ID
@@ -154,7 +154,7 @@
 ## 🏗️ Architecture
 
 ```
-NexusSMS/
+Excellent Academy SMS/
 ├── apps/                    # Django applications
 │   ├── academics/          # Academic management
 │   ├── activities/         # Extracurricular activities
@@ -163,7 +163,7 @@ NexusSMS/
 │   ├── attendance/        # Attendance tracking
 │   ├── audit/             # Audit logging
 │   ├── communication/     # SMS, email, notifications
-│   ├── core/             # Core models, multi-tenancy
+│   ├── core/             # Core models, system configuration
 │   ├── finance/          # Fees, payments, invoicing
 │   ├── health/           # Health records
 │   ├── hostels/          # Hostel management
@@ -178,7 +178,7 @@ NexusSMS/
 ```
 
 ### Database Schema Highlights
-- **Multi-Tenancy**: Each model includes `institution` foreign key for data isolation
+- **Single Tenant**: All data belongs to Excellent Academy
 - **UUID Primary Keys**: All models use UUID for global uniqueness
 - **Soft Deletes**: All core models support soft delete functionality
 - **Timestamp Tracking**: Created/updated/status change timestamps
@@ -190,7 +190,7 @@ NexusSMS/
 
 | Role | Description | Access Level |
 |------|-------------|--------------|
-| 🦸 **Super Administrator** | System-wide admin | Full system access, all institutions |
+| 🦸 **Super Administrator** | System-wide admin | Full system access |
 | 👨‍💼 **Administrator** | School admin | Full school management |
 | 🎓 **Principal** | School head | Academic oversight, reporting |
 | 👨‍🏫 **Teacher** | Teaching staff | Classes, attendance, grades |

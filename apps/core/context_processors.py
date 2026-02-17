@@ -7,33 +7,24 @@ logger = logging.getLogger(__name__)
 
 def tenant_context(request):
     """
-    Context processor for tenant/multi-tenancy information (legacy function).
+    Context processor for tenant/single-tenancy information.
+    In single-tenant mode, always returns Excellent Academy.
     """
     current_inst = get_current_institution()
-    user_institutions = []
-
-    if request.user.is_authenticated:
-        user_institutions = get_user_accessible_institutions(request.user)
+    user_institutions = get_user_accessible_institutions(request.user) if request.user.is_authenticated else Institution.objects.none()
 
     return {
         'tenant_institution': current_inst,
         'user_institutions': user_institutions,
-        'multi_tenant_enabled': True,
+        'multi_tenant_enabled': False,
+        'single_tenant_mode': True,
     }
 
 
 def current_institution(request):
     """
     Context processor to add current institution information to all template contexts.
-    """
-    try:
-        institution = get_current_institution()
-
-        if institution:
-            return {
-                'current_institution': institution,
-                'institution_code': institution.code,
-                'institution_name': institution.name,
+    In single-tenant mode, this is always Excellent Academy.
                 'institution_theme': getattr(institution, 'theme', None),
             }
         else:
