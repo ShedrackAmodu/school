@@ -103,6 +103,23 @@ urlpatterns = [
          views.StudentBehaviorView.as_view(),
          name='student_behavior_detail'),
 
+    # ==================== TEACHER ATTENDANCE INTERFACE ====================
+    path('teacher/interface/', 
+         views.TeacherAttendanceInterfaceView.as_view(), 
+         name='teacher_attendance_interface'),
+    path('teacher/quick/<int:class_id>/', 
+         views.TeacherQuickAttendanceView.as_view(), 
+         name='teacher_quick_attendance'),
+    path('teacher/quick/<int:class_id>/<int:session_id>/', 
+         views.TeacherQuickAttendanceView.as_view(), 
+         name='teacher_quick_attendance_session'),
+    path('teacher/history/', 
+         views.TeacherAttendanceHistoryView.as_view(), 
+         name='teacher_attendance_history'),
+    path('teacher/validation/', 
+         views.AttendanceValidationView.as_view(), 
+         name='teacher_attendance_validation'),
+    
     # ==================== API ENDPOINTS ====================
     path('api/student/<int:student_id>/attendance/',
          views.api_student_attendance,
@@ -110,6 +127,12 @@ urlpatterns = [
     path('api/mark-attendance/',
          views.api_mark_attendance,
          name='api_mark_attendance'),
+    path('api/validate-attendance/',
+         views.api_validate_attendance,
+         name='api_validate_attendance'),
+    path('api/bulk-validate-attendance/',
+         views.api_bulk_validate_attendance,
+         name='api_bulk_validate_attendance'),
 ]
 
 # Error handlers

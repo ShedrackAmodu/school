@@ -9,16 +9,24 @@ from django.urls import reverse_lazy
 from django.db import models
 from django.db.models import Q, Count, Sum
 from django.utils import timezone
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
 from django.core.paginator import Paginator
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
 from decimal import Decimal
+import json
+import logging
+import uuid
 
-from .models import FeeStructure, FeeDiscount, Invoice, InvoiceItem, Payment, Expense, FinancialReport
+from .models import FeeStructure, FeeDiscount, Invoice, InvoiceItem, Payment, Expense, FinancialReport, PaystackPayment, PaystackWebhookEvent, PaymentMethod
 from .forms import FeeStructureForm, FeeDiscountForm, InvoiceForm, InvoiceItemForm, PaymentForm, ExpenseForm, FinancialReportForm
+from .services import get_paystack_service, get_payment_service, get_webhook_service
 from apps.academics.models import AcademicSession, Student, Class
 from apps.users.models import User, Role
 from apps.audit.models import AuditLog
+from apps.core.models import Institution
 
 
 # =============================================================================
@@ -390,43 +398,116 @@ class PaymentDetailView(FinanceAccessMixin, DetailView):
 
 class PaymentGatewayView(FinanceAccessMixin, View):
     """
-    Placeholder view for handling payment gateway redirection and processing.
-    Actual payment gateway integration logic would go here.
+    View for handling Paystack payment gateway redirection and processing.
     """
     def get(self, request, invoice_pk):
         invoice = get_object_or_404(Invoice, pk=invoice_pk)
-        # In a real scenario, this would redirect to a payment gateway
-        # or render a page with payment options.
-        messages.info(request, _(f"Redirecting to payment gateway for Invoice #{invoice.invoice_number}. (Placeholder)"))
-        return redirect(reverse_lazy('finance:invoice_detail', kwargs={'pk': invoice_pk}))
+        paystack_service = get_paystack_service()
+        payment_service = get_payment_service()
 
-    def post(self, request, invoice_pk):
-        invoice = get_object_or_404(Invoice, pk=invoice_pk)
-        # This would handle the callback from the payment gateway
-        messages.info(request, _(f"Processing payment callback for Invoice #{invoice.invoice_number}. (Placeholder)"))
-        return redirect(reverse_lazy('finance:payment_success', kwargs={'pk': invoice_pk}))
+        # Create payment record
+        payment = payment_service.create_payment_from_invoice(
+            invoice=invoice,
+            amount=invoice.balance_due,
+            payment_method='paystack',
+            customer_email=invoice.student.user.email,
+            metadata={
+                'invoice_id': str(invoice.id),
+                'student_id': str(invoice.student.id),
+                'institution_id': str(invoice.institution.id),
+                'payment_type': 'invoice_payment'
+            }
+        )
+
+        # Generate unique reference
+        reference = f"INV-{invoice.invoice_number}-{payment.payment_number}"
+
+        try:
+            # Initialize payment with Paystack
+            payment_data = paystack_service.initialize_payment(
+                email=invoice.student.user.email,
+                amount=invoice.balance_due,
+                reference=reference,
+                metadata=payment.paystack_metadata,
+                callback_url=request.build_absolute_uri(reverse_lazy('finance:payment_callback', kwargs={'reference': reference}))
+            )
+
+            # Create PaystackPayment record
+            paystack_payment = payment_service.create_paystack_payment(
+                payment=payment,
+                paystack_reference=reference,
+                authorization_url=payment_data['authorization_url'],
+                access_code=payment_data['access_code']
+            )
+
+            # Update payment with Paystack details
+            payment.paystack_payment_id = reference
+            payment.paystack_transaction_reference = reference
+            payment.save()
+
+            # Redirect to Paystack authorization URL
+            return redirect(payment_data['authorization_url'])
+
+        except Exception as e:
+            messages.error(request, _(f"Failed to initialize payment: {str(e)}"))
+            return redirect('finance:invoice_detail', pk=invoice_pk)
+
+
+class PaymentCallbackView(View):
+    """
+    View for handling Paystack payment callback.
+    """
+    def get(self, request, reference):
+        paystack_service = get_paystack_service()
+        payment_service = get_payment_service()
+
+        try:
+            # Verify payment with Paystack
+            verification_data = paystack_service.verify_payment(reference)
+            
+            if verification_data.get('status') == 'success':
+                # Process payment verification
+                payment, paystack_payment = payment_service.process_payment_verification(
+                    reference, verification_data
+                )
+                
+                messages.success(request, _('Payment completed successfully!'))
+                return redirect('finance:payment_success', pk=payment.pk)
+            else:
+                messages.error(request, _('Payment verification failed.'))
+                return redirect('finance:payment_failed', pk=reference)
+
+        except Exception as e:
+            messages.error(request, _(f"Payment processing failed: {str(e)}"))
+            return redirect('finance:invoice_list')
+
+
+class PaymentSuccessView(FinanceAccessMixin, DetailView):
+    """View for successful payment confirmation."""
+    model = Payment
+    template_name = 'finance/payments/payment_success.html'
+    context_object_name = 'payment'
+
+
+class PaymentFailedView(FinanceAccessMixin, View):
+    """View for failed payment confirmation."""
+    def get(self, request, pk):
+        context = {
+            'reference': pk,
+            'title': _('Payment Failed')
+        }
+        return render(request, 'finance/payments/payment_failed.html', context)
 
 
 class PaymentCancelView(FinanceAccessMixin, View):
-    """
-    Placeholder view for handling cancelled payment redirects.
-    In a real scenario, this would log the cancellation and inform the user.
-    """
+    """View for cancelled payment confirmation."""
     def get(self, request, pk):
-        # pk here would typically be a payment ID or invoice ID
-        messages.warning(request, _(f"Payment for ID {pk} was cancelled. (Placeholder)"))
-        return redirect(reverse_lazy('finance:invoice_list')) # Redirect to invoice list or detail
+        context = {
+            'reference': pk,
+            'title': _('Payment Cancelled')
+        }
+        return render(request, 'finance/payments/payment_cancelled.html', context)
 
-class PaymentSuccessView(FinanceAccessMixin, View):
-    """
-    Placeholder view for handling successful payment redirects.
-    In a real scenario, this would confirm the payment and update invoice status.
-    """
-    def get(self, request, pk):
-        # pk here would typically be a payment ID or invoice ID
-        # For now, we'll just show a success message.
-        messages.success(request, _(f"Payment for ID {pk} was successful! (Placeholder)"))
-        return redirect(reverse_lazy('finance:invoice_list')) # Redirect to invoice list or detail
 
 class PaymentCreateView(AccountantRequiredMixin, CreateView):
     """Create a new payment."""
@@ -461,6 +542,126 @@ class PaymentDeleteView(AccountantRequiredMixin, DeleteView):
     def post(self, request, *args, **kwargs):
         messages.success(self.request, _('Payment deleted successfully.'))
         return super().post(request, *args, **kwargs)
+
+
+# =============================================================================
+# PAYSTACK PAYMENT VIEWS (STUDENT/PARENT FACING)
+# =============================================================================
+
+class StudentPaymentListView(LoginRequiredMixin, ListView):
+    """View for students/parents to see their payment history."""
+    model = Payment
+    template_name = 'finance/student/payment_list.html'
+    context_object_name = 'payments'
+    paginate_by = 10
+
+    def get_queryset(self):
+        # Only show payments for the logged-in student
+        if hasattr(self.request.user, 'student_profile'):
+            return Payment.objects.filter(
+                student=self.request.user.student_profile
+            ).select_related('invoice', 'invoice__academic_session').order_by('-payment_date')
+        else:
+            return Payment.objects.none()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if hasattr(self.request.user, 'student_profile'):
+            student = self.request.user.student_profile
+            # Calculate summary statistics
+            total_paid = Payment.objects.filter(
+                student=student,
+                status='completed'
+            ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+            
+            total_pending = Payment.objects.filter(
+                student=student,
+                status__in=['pending', 'failed']
+            ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+
+            context.update({
+                'total_paid': total_paid,
+                'total_pending': total_pending,
+            })
+        return context
+
+
+class StudentInvoicePaymentView(LoginRequiredMixin, View):
+    """View for students/parents to pay an invoice."""
+    def get(self, request, invoice_pk):
+        invoice = get_object_or_404(Invoice, pk=invoice_pk)
+        student = request.user.student_profile
+
+        # Verify that the invoice belongs to the student
+        if invoice.student != student:
+            messages.error(request, _('You do not have permission to view this invoice.'))
+            return redirect('finance:student_payment_list')
+
+        context = {
+            'invoice': invoice,
+            'student': student,
+            'title': _('Pay Invoice')
+        }
+        return render(request, 'finance/student/pay_invoice.html', context)
+
+    def post(self, request, invoice_pk):
+        invoice = get_object_or_404(Invoice, pk=invoice_pk)
+        student = request.user.student_profile
+
+        # Verify that the invoice belongs to the student
+        if invoice.student != student:
+            messages.error(request, _('You do not have permission to pay this invoice.'))
+            return redirect('finance:student_payment_list')
+
+        paystack_service = get_paystack_service()
+        payment_service = get_payment_service()
+
+        # Create payment record
+        payment = payment_service.create_payment_from_invoice(
+            invoice=invoice,
+            amount=invoice.balance_due,
+            payment_method='paystack',
+            customer_email=student.user.email,
+            metadata={
+                'invoice_id': str(invoice.id),
+                'student_id': str(student.id),
+                'institution_id': str(invoice.institution.id),
+                'payment_type': 'invoice_payment'
+            }
+        )
+
+        # Generate unique reference
+        reference = f"INV-{invoice.invoice_number}-{payment.payment_number}"
+
+        try:
+            # Initialize payment with Paystack
+            payment_data = paystack_service.initialize_payment(
+                email=student.user.email,
+                amount=invoice.balance_due,
+                reference=reference,
+                metadata=payment.paystack_metadata,
+                callback_url=request.build_absolute_uri(reverse_lazy('finance:payment_callback', kwargs={'reference': reference}))
+            )
+
+            # Create PaystackPayment record
+            paystack_payment = payment_service.create_paystack_payment(
+                payment=payment,
+                paystack_reference=reference,
+                authorization_url=payment_data['authorization_url'],
+                access_code=payment_data['access_code']
+            )
+
+            # Update payment with Paystack details
+            payment.paystack_payment_id = reference
+            payment.paystack_transaction_reference = reference
+            payment.save()
+
+            # Redirect to Paystack authorization URL
+            return redirect(payment_data['authorization_url'])
+
+        except Exception as e:
+            messages.error(request, _(f"Failed to initialize payment: {str(e)}"))
+            return redirect('finance:student_invoice_payment', invoice_pk=invoice_pk)
 
 
 # =============================================================================
@@ -620,28 +821,71 @@ class FinancialReportDeleteView(AccountantRequiredMixin, DeleteView):
 
 
 # =============================================================================
+# PAYSTACK WEBHOOK VIEWS
+# =============================================================================
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PaystackWebhookView(View):
+    """View for handling Paystack webhook events."""
+    
+    def post(self, request):
+        import hashlib
+        import hmac
+
+        # Get webhook signature from headers
+        signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE')
+        if not signature:
+            return HttpResponseBadRequest("Missing webhook signature")
+
+        # Verify webhook signature
+        webhook_secret = getattr(settings, 'PAYSTACK_WEBHOOK_SECRET', '')
+        if webhook_secret:
+            computed_signature = hmac.new(
+                webhook_secret.encode('utf-8'),
+                request.body,
+                hashlib.sha512
+            ).hexdigest()
+
+            if not hmac.compare_digest(signature, computed_signature):
+                return HttpResponseBadRequest("Invalid webhook signature")
+
+        try:
+            # Parse webhook data
+            webhook_data = json.loads(request.body)
+            event_type = webhook_data.get('event')
+            event_data = webhook_data.get('data', {})
+            event_reference = event_data.get('reference')
+            event_timestamp = timezone.now()
+
+            # Process webhook event
+            webhook_service = get_webhook_service()
+            webhook_event, success = webhook_service.process_webhook_event(
+                event_type, event_data, event_reference, event_timestamp
+            )
+
+            if success:
+                return JsonResponse({'status': 'success'}, status=200)
+            else:
+                return JsonResponse({'status': 'failed', 'message': 'Webhook processing failed'}, status=500)
+
+        except json.JSONDecodeError:
+            return HttpResponseBadRequest("Invalid JSON data")
+        except Exception as e:
+            logger.error(f"Webhook processing error: {e}")
+            return HttpResponseBadRequest(f"Webhook processing error: {str(e)}")
+
+
+# =============================================================================
 # API & AJAX VIEWS
 # =============================================================================
 
 class ReceiptDownloadView(FinanceAccessMixin, View):
-    """Placeholder view for downloading receipts."""
+    """View for downloading payment receipts."""
     def get(self, request, pk):
+        payment = get_object_or_404(Payment, pk=pk)
+        # TODO: Implement receipt generation and download
         messages.info(request, _(f"Receipt download for Payment ID {pk}. (Placeholder)"))
         return HttpResponse(_("Receipt Download Placeholder"))
-
-class PaystackWebhookView(View):
-    """Placeholder view for Paystack webhook."""
-    def post(self, request):
-        # In a real scenario, verify webhook signature and process payment update
-        messages.info(request, _("Paystack webhook received. (Placeholder)"))
-        return JsonResponse({'status': 'success'}, status=200)
-
-class FlutterwaveWebhookView(View):
-    """Placeholder view for Flutterwave webhook."""
-    def post(self, request):
-        # In a real scenario, verify webhook signature and process payment update
-        messages.info(request, _("Flutterwave webhook received. (Placeholder)"))
-        return JsonResponse({'status': 'success'}, status=200)
 
 class APIInvoiceListView(FinanceAccessMixin, ListView):
     """API to list invoices (placeholder for a more robust API)."""

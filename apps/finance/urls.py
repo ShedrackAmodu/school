@@ -24,9 +24,13 @@ urlpatterns = [
     path('payments/<uuid:pk>/update/', views.PaymentUpdateView.as_view(), name='payment_update'),
     path('payments/<uuid:pk>/delete/', views.PaymentDeleteView.as_view(), name='payment_delete'),
     
+    # Paystack Payment URLs (Student/Parent Facing)
+    path('student/payments/', views.StudentPaymentListView.as_view(), name='student_payment_list'),
+    path('student/invoices/<uuid:invoice_pk>/pay/', views.StudentInvoicePaymentView.as_view(), name='student_invoice_payment'),
+    path('payments/callback/<str:reference>/', views.PaymentCallbackView.as_view(), name='payment_callback'),
+    
     # Webhook URLs (CSRF exempt)
     path('webhooks/paystack/', views.PaystackWebhookView.as_view(), name='paystack_webhook'),
-    path('webhooks/flutterwave/', views.FlutterwaveWebhookView.as_view(), name='flutterwave_webhook'),
     
     # Fee Structure URLs
     path('fee-structures/', views.FeeStructureListView.as_view(), name='feestructure_list'),

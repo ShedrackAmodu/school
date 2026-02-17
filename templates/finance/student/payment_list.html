@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Payment History" %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">{% trans "Payment History" %}</h4>
+                    <p class="card-subtitle text-muted">{% trans "View your payment history and outstanding balances" %}</p>
+                </div>
+                <div class="card-body">
+                    <!-- Payment Summary -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title">{% trans "Total Paid" %}</h6>
+                                            <h3 class="mb-0">₦{{ total_paid|floatformat:2 }}</h3>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-check-circle fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title">{% trans "Pending Payments" %}</h6>
+                                            <h3 class="mb-0">₦{{ total_pending|floatformat:2 }}</h3>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-clock fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title">{% trans "Outstanding Balance" %}</h6>
+                                            <h3 class="mb-0">₦{{ total_outstanding|floatformat:2 }}</h3>
+                                        </div>
+                                        <div class="align-self-center">
+                                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>{% trans "Payment ID" %}</th>
+                                    <th>{% trans "Invoice" %}</th>
+                                    <th>{% trans "Amount" %}</th>
+                                    <th>{% trans "Method" %}</th>
+                                    <th>{% trans "Status" %}</th>
+                                    <th>{% trans "Date" %}</th>
+                                    <th>{% trans "Actions" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ payment.payment_number }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'finance:invoice_detail' payment.invoice.pk %}" class="text-decoration-none">
+                                            {{ payment.invoice.invoice_number }}
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">{{ payment.invoice.billing_period }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">₦{{ payment.amount|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ payment.get_payment_method_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if payment.status == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle"></i> {% trans "Completed" %}
+                                            </span>
+                                        {% elif payment.status == 'pending' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock"></i> {% trans "Pending" %}
+                                            </span>
+                                        {% elif payment.status == 'failed' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times-circle"></i> {% trans "Failed" %}
+                                            </span>
+                                        {% elif payment.status == 'cancelled' %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-ban"></i> {% trans "Cancelled" %}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ payment.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ payment.payment_date|date:"M j, Y" }}</td>
+                                    <td>
+                                        {% if payment.status == 'completed' %}
+                                            <a href="{% url 'finance:receipt_download' payment.pk %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-download"></i> {% trans "Receipt" %}
+                                            </a>
+                                        {% elif payment.status == 'pending' %}
+                                            <a href="{% url 'finance:payment_gateway' payment.invoice.pk %}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-credit-card"></i> {% trans "Pay Now" %}
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                                        <br>
+                                        {% trans "No payments found." %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            {% if page_obj.has_previous %}
+                                <a href="?page=1" class="btn btn-outline-primary btn-sm">{% trans "First" %}</a>
+                                <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline-primary btn-sm">{% trans "Previous" %}</a>
+                            {% endif %}
+                        </div>
+                        <div class="text-muted">
+                            {% trans "Page" %} {{ page_obj.number }} {% trans "of" %} {{ page_obj.paginator.num_pages }}
+                        </div>
+                        <div>
+                            {% if page_obj.has_next %}
+                                <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline-primary btn-sm">{% trans "Next" %}</a>
+                                <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-outline-primary btn-sm">{% trans "Last" %}</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-method-card:hover {
+        transform: translateY(-5px);
+        transition: transform 0.2s ease-in-out;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

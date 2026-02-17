@@ -277,6 +277,31 @@ EMAIL_TIMEOUT = 30
 DEFAULT_FROM_EMAIL = "noreply@NordaLMS.pythonanywhere.com"
 SERVER_EMAIL = "errors@NordaLMS.pythonanywhere.com"
 
+# ============================
+# PAYSTACK CONFIGURATION
+# ============================
+
+# Paystack API Configuration
+PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', 'sk_test_1234567890abcdef1234567890abcdef1234567890abcdef')
+PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY', 'pk_test_1234567890abcdef1234567890abcdef1234567890abcdef')
+PAYSTACK_TEST_MODE = os.getenv('PAYSTACK_TEST_MODE', 'True').lower() == 'true'
+
+# Paystack URLs
+PAYSTACK_BASE_URL = 'https://api.paystack.co' if not PAYSTACK_TEST_MODE else 'https://api.paystack.co'
+PAYSTACK_PAYMENT_URL = f'{PAYSTACK_BASE_URL}/transaction'
+PAYSTACK_CUSTOMER_URL = f'{PAYSTACK_BASE_URL}/customer'
+PAYSTACK_PLAN_URL = f'{PAYSTACK_BASE_URL}/plan'
+PAYSTACK_SUBSCRIPTION_URL = f'{PAYSTACK_BASE_URL}/subscription'
+
+# Paystack Webhook Configuration
+PAYSTACK_WEBHOOK_SECRET = os.getenv('PAYSTACK_WEBHOOK_SECRET', 'your_webhook_secret_key')
+PAYSTACK_WEBHOOK_URL = '/finance/webhooks/paystack/'
+
+# Paystack Payment Settings
+PAYSTACK_CURRENCY = 'NGN'
+PAYSTACK_PAYMENT_CHANNELS = ['card', 'bank', 'ussd', 'qr', 'mobile_money']
+PAYSTACK_CALLBACK_URL = os.getenv('PAYSTACK_CALLBACK_URL', 'http://localhost:8000/finance/payments/callback/')
+
 # For development, you can set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD in your environment
 # Example: export EMAIL_HOST_USER="your-email@gmail.com"
 # Example: export EMAIL_HOST_PASSWORD="your-gmail-app-password"

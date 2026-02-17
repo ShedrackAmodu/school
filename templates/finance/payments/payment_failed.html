@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Payment Failed" %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-times-circle fa-5x text-danger"></i>
+                    </div>
+                    <h2 class="card-title text-danger">{% trans "Payment Failed" %}</h2>
+                    <p class="card-text text-muted mb-4">
+                        {% trans "We're sorry, but your payment could not be processed. Please try again or contact support if the problem persists." %}
+                    </p>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {% trans "Reference Number:" %} <strong>{{ reference }}</strong>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">{% trans "What to Do Next" %}</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check text-success"></i> {% trans "Check your payment details" %}</li>
+                                        <li><i class="fas fa-check text-success"></i> {% trans "Ensure sufficient funds" %}</li>
+                                        <li><i class="fas fa-check text-success"></i> {% trans "Try a different payment method" %}</li>
+                                        <li><i class="fas fa-check text-success"></i> {% trans "Contact your bank if needed" %}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">{% trans "Need Help?" %}</h6>
+                                    <p class="text-muted">
+                                        {% trans "If you continue to experience issues, please contact our support team with the reference number above." %}
+                                    </p>
+                                    <a href="{% url 'support:contact' %}" class="btn btn-outline-primary">
+                                        <i class="fas fa-headset"></i> {% trans "Contact Support" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                        <a href="{% url 'finance:student_invoices' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-list"></i> {% trans "View Invoices" %}
+                        </a>
+                        <a href="{% url 'finance:student_payment_list' %}" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-history"></i> {% trans "Payment History" %}
+                        </a>
+                        <a href="{% url 'users:dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-home"></i> {% trans "Dashboard" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-icon {
+        animation: shake 0.5s ease-in-out;
+    }
+    @keyframes shake {
+        0%, 100% {transform: translateX(0);}
+        25% {transform: translateX(-5px);}
+        75% {transform: translateX(5px);}
+    }
+</style>
+{% endblock %}

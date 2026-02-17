@@ -1,14 +1,16 @@
 # apps/attendance/views.py
 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
-from django.utils import timezone
+from django.db import models
 from django.db.models import Q, Count, Avg, Sum
+from django.utils import timezone
+from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -1071,3 +1073,330 @@ def attendance_error_handler(request, exception=None):
     return render(request, 'errors/500.html', {
         'error_message': 'An error occurred while processing your attendance request.'
     }, status=500)
+
+
+# ==================== NEW: TEACHER ATTENDANCE INTERFACE ====================
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required('attendance.add_dailyattendance', raise_exception=True), name='dispatch')
+class TeacherAttendanceInterfaceView(TeacherRequiredMixin, View):
+    """Enhanced teacher interface for taking attendance"""
+    
+    def get(self, request):
+        teacher = request.user.teacher_profile
+        current_session = AcademicSession.objects.filter(is_current=True).first()
+        
+        # Get classes taught by this teacher
+        classes = Class.objects.filter(
+            subject_assignments__teacher=teacher,
+            subject_assignments__academic_session=current_session
+        ).distinct()
+        
+        # Get today's timetable for the teacher
+        today = timezone.now().date()
+        today_str = today.strftime('%A').lower()
+        
+        today_classes = Timetable.objects.filter(
+            teacher=teacher,
+            day_of_week=today_str,
+            academic_session=current_session,
+            is_published=True
+        ).select_related('class_assigned', 'subject').order_by('period_number')
+        
+        # Get attendance sessions
+        attendance_sessions = AttendanceSession.objects.filter(is_active=True)
+        
+        context = {
+            'teacher': teacher,
+            'classes': classes,
+            'today_classes': today_classes,
+            'attendance_sessions': attendance_sessions,
+            'today': today,
+            'current_session': current_session,
+        }
+        
+        return render(request, 'attendance/teacher/attendance_interface.html', context)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required('attendance.add_dailyattendance', raise_exception=True), name='dispatch')
+class TeacherQuickAttendanceView(TeacherRequiredMixin, View):
+    """Quick attendance marking for a specific class and session"""
+    
+    def get(self, request, class_id, session_id=None):
+        class_obj = get_object_or_404(Class, pk=class_id)
+        attendance_session = None
+        
+        if session_id:
+            attendance_session = get_object_or_404(AttendanceSession, pk=session_id)
+        else:
+            # Get default session (usually morning)
+            attendance_session = AttendanceSession.objects.filter(
+                is_active=True
+            ).first()
+        
+        # Get students in the class
+        students = Student.objects.filter(
+            enrollments__class_enrolled=class_obj,
+            enrollments__enrollment_status='active'
+        ).select_related('user')
+        
+        # Get today's existing attendance for this class and session
+        today = timezone.now().date()
+        existing_attendance = DailyAttendance.objects.filter(
+            student__in=students,
+            date=today,
+            attendance_session=attendance_session
+        ).select_related('student')
+        
+        # Create a mapping of student_id to attendance status
+        attendance_map = {att.student.id: att for att in existing_attendance}
+        
+        context = {
+            'class_obj': class_obj,
+            'attendance_session': attendance_session,
+            'students': students,
+            'attendance_map': attendance_map,
+            'today': today,
+            'status_choices': DailyAttendance.AttendanceStatus.choices,
+        }
+        
+        return render(request, 'attendance/teacher/quick_attendance.html', context)
+    
+    def post(self, request, class_id, session_id=None):
+        class_obj = get_object_or_404(Class, pk=class_id)
+        attendance_session = get_object_or_404(AttendanceSession, pk=session_id)
+        today = timezone.now().date()
+        
+        # Get students in the class
+        students = Student.objects.filter(
+            enrollments__class_enrolled=class_obj,
+            enrollments__enrollment_status='active'
+        )
+        
+        marked_count = 0
+        for student in students:
+            status_field = f'status_{student.id}'
+            remarks_field = f'remarks_{student.id}'
+            
+            if status_field in request.POST:
+                status = request.POST[status_field]
+                remarks = request.POST.get(remarks_field, '')
+                
+                # Create or update attendance record
+                attendance, created = DailyAttendance.objects.update_or_create(
+                    student=student,
+                    date=today,
+                    attendance_session=attendance_session,
+                    defaults={
+                        'status': status,
+                        'remarks': remarks,
+                        'marked_by': request.user
+                    }
+                )
+                marked_count += 1
+        
+        messages.success(request, f"Successfully marked attendance for {marked_count} students.")
+        return redirect('teacher_attendance_interface')
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required('attendance.view_dailyattendance', raise_exception=True), name='dispatch')
+class TeacherAttendanceHistoryView(TeacherRequiredMixin, ListView):
+    """View for teachers to see their attendance history"""
+    model = DailyAttendance
+    template_name = 'attendance/teacher/attendance_history.html'
+    context_object_name = 'attendances'
+    paginate_by = 50
+    
+    def get_queryset(self):
+        teacher = self.request.user.teacher_profile
+        current_session = AcademicSession.objects.filter(is_current=True).first()
+        
+        # Get classes taught by this teacher
+        classes = Class.objects.filter(
+            subject_assignments__teacher=teacher,
+            subject_assignments__academic_session=current_session
+        ).distinct()
+        
+        # Get students in those classes
+        students = Student.objects.filter(
+            enrollments__class_enrolled__in=classes,
+            enrollments__enrollment_status='active'
+        )
+        
+        queryset = DailyAttendance.objects.filter(
+            student__in=students,
+            marked_by=self.request.user
+        ).select_related('student__user', 'attendance_session')
+        
+        # Apply filters
+        date_from = self.request.GET.get('date_from')
+        date_to = self.request.GET.get('date_to')
+        status = self.request.GET.get('status')
+        class_id = self.request.GET.get('class')
+        
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(date__lte=date_to)
+        if status:
+            queryset = queryset.filter(status=status)
+        if class_id:
+            queryset = queryset.filter(student__enrollments__class_enrolled_id=class_id)
+        
+        return queryset.order_by('-date', '-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        teacher = self.request.user.teacher_profile
+        current_session = AcademicSession.objects.filter(is_current=True).first()
+        
+        # Get classes taught by this teacher
+        classes = Class.objects.filter(
+            subject_assignments__teacher=teacher,
+            subject_assignments__academic_session=current_session
+        ).distinct()
+        
+        context['classes'] = classes
+        context['status_choices'] = DailyAttendance.AttendanceStatus.choices
+        context['attendance_sessions'] = AttendanceSession.objects.filter(is_active=True)
+        
+        return context
+
+
+# ==================== NEW: ATTENDANCE VALIDATION VIEWS ====================
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(permission_required('attendance.add_dailyattendance', raise_exception=True), name='dispatch')
+class AttendanceValidationView(TeacherRequiredMixin, View):
+    """View for validating and correcting attendance records"""
+    
+    def get(self, request):
+        teacher = request.user.teacher_profile
+        current_session = AcademicSession.objects.filter(is_current=True).first()
+        today = timezone.now().date()
+        
+        # Get classes taught by this teacher
+        classes = Class.objects.filter(
+            subject_assignments__teacher=teacher,
+            subject_assignments__academic_session=current_session
+        ).distinct()
+        
+        # Find students without attendance for today
+        students_without_attendance = []
+        for class_obj in classes:
+            students = Student.objects.filter(
+                enrollments__class_enrolled=class_obj,
+                enrollments__enrollment_status='active'
+            )
+            
+            # Get attendance sessions
+            attendance_sessions = AttendanceSession.objects.filter(is_active=True)
+            
+            for student in students:
+                for session in attendance_sessions:
+                    existing_attendance = DailyAttendance.objects.filter(
+                        student=student,
+                        date=today,
+                        attendance_session=session
+                    ).exists()
+                    
+                    if not existing_attendance:
+                        students_without_attendance.append({
+                            'student': student,
+                            'class_obj': class_obj,
+                            'session': session
+                        })
+        
+        context = {
+            'teacher': teacher,
+            'students_without_attendance': students_without_attendance,
+            'today': today,
+            'current_session': current_session,
+        }
+        
+        return render(request, 'attendance/teacher/validation.html', context)
+
+
+@method_decorator(login_required, name='dispatch')
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_validate_attendance(request):
+    """API endpoint for validating attendance records"""
+    try:
+        student_id = request.POST.get('student_id')
+        date = request.POST.get('date')
+        session_id = request.POST.get('session_id')
+        
+        student = get_object_or_404(Student, pk=student_id)
+        attendance_session = get_object_or_404(AttendanceSession, pk=session_id)
+        
+        # Check if attendance already exists
+        existing_attendance = DailyAttendance.objects.filter(
+            student=student,
+            date=date,
+            attendance_session=attendance_session
+        ).first()
+        
+        if existing_attendance:
+            return JsonResponse({
+                'exists': True,
+                'status': existing_attendance.status,
+                'remarks': existing_attendance.remarks,
+                'marked_by': existing_attendance.marked_by.get_full_name() if existing_attendance.marked_by else 'System'
+            })
+        else:
+            return JsonResponse({
+                'exists': False
+            })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@method_decorator(login_required, name='dispatch')
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_bulk_validate_attendance(request):
+    """API endpoint for bulk validation of attendance records"""
+    try:
+        import json
+        data = json.loads(request.body)
+        student_ids = data.get('student_ids', [])
+        date = data.get('date')
+        session_id = data.get('session_id')
+        
+        if not student_ids or not date or not session_id:
+            return JsonResponse({'error': 'Missing required parameters'}, status=400)
+        
+        attendance_session = get_object_or_404(AttendanceSession, pk=session_id)
+        students = Student.objects.filter(id__in=student_ids)
+        
+        validation_results = []
+        for student in students:
+            existing_attendance = DailyAttendance.objects.filter(
+                student=student,
+                date=date,
+                attendance_session=attendance_session
+            ).first()
+            
+            if existing_attendance:
+                validation_results.append({
+                    'student_id': student.id,
+                    'exists': True,
+                    'status': existing_attendance.status,
+                    'marked_by': existing_attendance.marked_by.get_full_name() if existing_attendance.marked_by else 'System'
+                })
+            else:
+                validation_results.append({
+                    'student_id': student.id,
+                    'exists': False
+                })
+        
+        return JsonResponse({
+            'validation_results': validation_results
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Pay Invoice" %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">{% trans "Pay Invoice" %}</h4>
+                    <p class="card-subtitle text-muted">{% trans "Complete your payment securely through Paystack" %}</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>{% trans "Invoice Details" %}</h5>
+                            <div class="table-responsive">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>{% trans "Invoice Number" %}:</strong></td>
+                                        <td>{{ invoice.invoice_number }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>{% trans "Student" %}:</strong></td>
+                                        <td>{{ invoice.student.user.get_full_name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>{% trans "Billing Period" %}:</strong></td>
+                                        <td>{{ invoice.billing_period }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>{% trans "Issue Date" %}:</strong></td>
+                                        <td>{{ invoice.issue_date|date:"F j, Y" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>{% trans "Due Date" %}:</strong></td>
+                                        <td>{{ invoice.due_date|date:"F j, Y" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>{% trans "Total Amount" %}:</strong></td>
+                                        <td><span class="badge bg-primary">₦{{ invoice.total_amount|floatformat:2 }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>{% trans "Amount Paid" %}:</strong></td>
+                                        <td>₦{{ invoice.amount_paid|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>{% trans "Balance Due" %}:</strong></td>
+                                        <td><span class="badge bg-danger">₦{{ invoice.balance_due|floatformat:2 }}</span></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>{% trans "Payment Information" %}</h5>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                {% trans "You will be redirected to Paystack's secure payment page to complete your payment." %}
+                            </div>
+                            
+                            <div class="payment-methods">
+                                <h6>{% trans "Payment Methods" %}</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="card payment-method-card">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-credit-card fa-2x text-primary mb-2"></i>
+                                                <h6>{% trans "Card Payment" %}</h6>
+                                                <small class="text-muted">{% trans "Visa, MasterCard, Verve" %}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card payment-method-card">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-mobile-alt fa-2x text-success mb-2"></i>
+                                                <h6>{% trans "Mobile Money" %}</h6>
+                                                <small class="text-muted">{% trans "MTN, Airtel, Glo" %}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card payment-method-card">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-university fa-2x text-info mb-2"></i>
+                                                <h6>{% trans "Bank Transfer" %}</h6>
+                                                <small class="text-muted">{% trans "Direct Bank Transfer" %}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="amount" class="form-label">{% trans "Payment Amount" %}</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">₦</span>
+                                                    <input type="number" class="form-control" id="amount" name="amount" 
+                                                           value="{{ invoice.balance_due }}" step="0.01" min="0.01" max="{{ invoice.balance_due }}" required>
+                                                </div>
+                                                <div class="form-text">{% trans "Maximum amount is the balance due" %}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="payment_method" class="form-label">{% trans "Payment Method" %}</label>
+                                                <select class="form-select" id="payment_method" name="payment_method">
+                                                    <option value="card">{% trans "Card Payment" %}</option>
+                                                    <option value="mobile_money">{% trans "Mobile Money" %}</option>
+                                                    <option value="bank_transfer">{% trans "Bank Transfer" %}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="mb-3">
+                                                <label for="notes" class="form-label">{% trans "Additional Notes" %}</label>
+                                                <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                                          placeholder="{% trans 'Any additional information about this payment' %}"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <i class="fas fa-credit-card"></i>
+                                            {% trans "Proceed to Payment" %}
+                                        </button>
+                                        <a href="{% url 'finance:invoice_detail' invoice.pk %}" class="btn btn-secondary">
+                                            <i class="fas fa-arrow-left"></i>
+                                            {% trans "Cancel" %}
+                                        </a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const amountInput = document.getElementById('amount');
+    const maxAmount = parseFloat(amountInput.max);
+    
+    amountInput.addEventListener('input', function() {
+        const value = parseFloat(this.value);
+        if (value > maxAmount) {
+            this.value = maxAmount;
+        }
+    });
+});
+</script>
+{% endblock %}
