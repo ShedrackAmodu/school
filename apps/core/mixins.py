@@ -1,5 +1,4 @@
 from django.contrib.auth.mixins import AccessMixin
-from django.http import Http404
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
@@ -13,8 +12,8 @@ from .middleware import (
 
 class InstitutionAccessMixin(AccessMixin):
     """
-    Mixin to ensure user has access to the current institution.
-    Should be used with views that operate within institution context.
+    Mixin to ensure user has access to the current institution (Excellent Academy).
+    In single-tenant mode, all authenticated users have access.
     """
 
     def dispatch(self, request, *args, **kwargs):
@@ -24,13 +23,13 @@ class InstitutionAccessMixin(AccessMixin):
         institution = get_current_institution()
 
         if not institution:
-            # No institution context - redirect to institution selection
-            messages.warning(request, _("Please select an institution to continue."))
-            return redirect('core:institution_select')
-
-        # Check if user can access this institution
-        if not user_can_access_institution(request.user, institution):
-            messages.error(request, _("You don't have permission to access this institution."))
+            # In single-tenant mode, if no institution is found it's a setup issue.
+            # Redirect to dashboard with error instead of an institution-select page.
+            messages.error(
+                request,
+                _("System configuration error: Excellent Academy institution not found. "
+                  "Please run: python manage.py migrate")
+            )
             return redirect('users:dashboard')
 
         return super().dispatch(request, *args, **kwargs)
@@ -38,22 +37,16 @@ class InstitutionAccessMixin(AccessMixin):
 
 class InstitutionPermissionMixin(InstitutionAccessMixin):
     """
-    Mixin that filters querysets by institution and ensures user permissions.
-    Use for views that list or manipulate institution-specific data.
+    Mixin that filters querysets by the single institution (Excellent Academy).
     """
 
     def get_queryset(self):
-        """
-        Filter queryset to only show records from institutions the user can access.
-        """
+        """Filter queryset to only show records from Excellent Academy."""
         queryset = super().get_queryset()
         return filter_queryset_by_institution(queryset, self.request.user)
 
     def form_valid(self, form):
-        """
-        Ensure the form instance is saved with the current institution.
-        Assumes the model has an 'institution' field.
-        """
+        """Ensure the form instance is saved with Excellent Academy as institution."""
         form.instance.institution = get_current_institution()
         return super().form_valid(form)
 
@@ -64,23 +57,22 @@ class InstitutionAdminMixin(InstitutionAccessMixin):
     """
 
     def dispatch(self, request, *args, **kwargs):
-        # First check institution access
         result = super().dispatch(request, *args, **kwargs)
-        if not isinstance(result, type(None)):
-            return result  # Permission denied or redirect
+        # If super returned a redirect (permission denied), pass it through
+        if hasattr(result, 'status_code') and result.status_code in (301, 302):
+            return result
 
         # Check if user has admin role in current institution
-        institution = get_current_institution()
         user_roles = request.user.user_roles.filter(
             role__hierarchy_level__gte=70,  # Principal level and above
             academic_session__is_current=True
         )
 
-        if not user_roles.exists():
+        if not user_roles.exists() and not request.user.is_superuser:
             messages.error(request, _("You need institution admin privileges to access this page."))
             return redirect('users:dashboard')
 
-        return super().dispatch(request, *args, **kwargs)
+        return result
 
 
 class SuperAdminMixin(AccessMixin):
@@ -102,38 +94,21 @@ class SuperAdminMixin(AccessMixin):
 class InstitutionFormMixin:
     """
     Mixin for forms that need institution field handling.
+    In single-tenant mode, always assigns Excellent Academy.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.user = kwargs.pop('user', None)
-
-        # If user is not super admin, limit institution choices
-        if self.user and not self.user.is_superuser:
-            from .models import InstitutionUser
-            accessible_institutions = InstitutionUser.objects.filter(
-                user=self.user,
-                institution__is_active=True
-            ).values_list('institution', flat=True)
-
-            if 'institution' in self.fields:
-                self.fields['institution'].queryset = self.fields['institution'].queryset.filter(
-                    id__in=accessible_institutions
-                )
+        self.user = kwargs.pop('user', None) if 'user' in kwargs else getattr(self, 'user', None)
 
     def save(self, commit=True):
         instance = super().save(commit=False)
 
-        # Set institution for new instances if not set
-        if not getattr(instance, 'institution', None):
-            if self.user and self.user.is_superuser:
-                # Super admin can have instances without institution (for global config)
-                pass
-            else:
-                # Set to current institution for regular users
-                current_institution = get_current_institution()
-                if current_institution:
-                    instance.institution = current_institution
+        # Always set institution to Excellent Academy for new instances
+        if not getattr(instance, 'institution_id', None):
+            current_institution = get_current_institution()
+            if current_institution:
+                instance.institution = current_institution
 
         if commit:
             instance.save()
@@ -142,21 +117,22 @@ class InstitutionFormMixin:
 
 class MultiInstitutionMixin:
     """
-    Mixin for views that need to handle multiple institutions (e.g., super admin dashboard).
-    Adds context data for institution switching.
+    Mixin for views that previously handled multiple institutions.
+    In single-tenant mode, always returns Excellent Academy only.
+    Institution switching is always disabled.
     """
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
         user = self.request.user
+        institution = get_current_institution()
 
-        # Add accessible institutions
+        # In single-tenant mode: only one institution, no switching
         context['accessible_institutions'] = get_user_accessible_institutions(user)
-        context['current_institution'] = get_current_institution()
-
-        # Add institution switcher flag
-        context['can_switch_institutions'] = user.is_superuser or context['accessible_institutions'].count() > 1
+        context['current_institution'] = institution
+        # Always False in single-tenant mode
+        context['can_switch_institutions'] = False
 
         return context
 
@@ -164,9 +140,7 @@ class MultiInstitutionMixin:
 def institution_required(view_func):
     """
     Decorator to ensure user has access to current institution.
-    Usage: @institution_required
-    def my_view(request):
-        pass
+    In single-tenant mode, redirects to dashboard if institution not configured.
     """
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -175,11 +149,10 @@ def institution_required(view_func):
 
         institution = get_current_institution()
         if not institution:
-            messages.warning(request, _("Please select an institution to continue."))
-            return redirect('core:institution_select')
-
-        if not user_can_access_institution(request.user, institution):
-            messages.error(request, _("You don't have permission to access this institution."))
+            messages.error(
+                request,
+                _("System configuration error: Excellent Academy institution not found.")
+            )
             return redirect('users:dashboard')
 
         return view_func(request, *args, **kwargs)
@@ -192,19 +165,22 @@ def institution_admin_required(view_func):
     Decorator to ensure user has institution admin privileges.
     """
     def wrapper(request, *args, **kwargs):
-        # First check institution access
-        result = institution_required(lambda r: None)(request, *args, **kwargs)
-        if result:
-            return result
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+
+        institution = get_current_institution()
+        if not institution:
+            messages.error(request, _("System configuration error: institution not found."))
+            return redirect('users:dashboard')
 
         # Check admin role
-        institution = get_current_institution()
         user_roles = request.user.user_roles.filter(
             role__hierarchy_level__gte=70,
             academic_session__is_current=True
         )
 
-        if not user_roles.exists():
+        if not user_roles.exists() and not request.user.is_superuser:
             messages.error(request, _("You need institution admin privileges to access this page."))
             return redirect('users:dashboard')
 

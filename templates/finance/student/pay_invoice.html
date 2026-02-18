@@ -1,176 +1,372 @@
-{% extends 'base.html' %}
-{% load i18n %}
+{% extends 'base/base.html' %}
+{% load i18n static %}
 
-{% block title %}{% trans "Pay Invoice" %} - {{ block.super }}{% endblock %}
+{% block title %}Pay Invoice {{ invoice.invoice_number }}{% endblock %}
+{% block page_title %}Pay Invoice{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'finance:student_dashboard' %}">My Fees</a></li>
+<li class="breadcrumb-item active">Pay Invoice</li>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">{% trans "Pay Invoice" %}</h4>
-                    <p class="card-subtitle text-muted">{% trans "Complete your payment securely through Paystack" %}</p>
-                </div>
-                {% block extra_css %}
-                <style>
-                    .card-header { background: linear-gradient(90deg,#f6fbff,#f3fbfb); border-bottom: none; }
-                    .payment-method-card { border-radius: 10px; box-shadow: 0 6px 18px rgba(4,38,59,0.04); }
-                    .paystack-cta { background: linear-gradient(90deg,#2b98ff,#5ad0ff); color: white; border: none; }
-                    .paystack-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(43,152,255,0.14); }
-                </style>
-                {% endblock %}
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>{% trans "Invoice Details" %}</h5>
-                            <div class="table-responsive">
-                                <table class="table table-borderless">
-                                    <tr>
-                                        <td><strong>{% trans "Invoice Number" %}:</strong></td>
-                                        <td>{{ invoice.invoice_number }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>{% trans "Student" %}:</strong></td>
-                                        <td>{{ student.user.get_full_name }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>{% trans "Billing Period" %}:</strong></td>
-                                        <td>{{ invoice.billing_period }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>{% trans "Issue Date" %}:</strong></td>
-                                        <td>{{ invoice.issue_date|date:"F j, Y" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>{% trans "Due Date" %}:</strong></td>
-                                        <td>{{ invoice.due_date|date:"F j, Y" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>{% trans "Total Amount" %}:</strong></td>
-                                        <td><span class="badge bg-primary">₦{{ invoice.total_amount|floatformat:2 }}</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>{% trans "Amount Paid" %}:</strong></td>
-                                        <td>₦{{ invoice.amount_paid|floatformat:2 }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>{% trans "Balance Due" %}:</strong></td>
-                                        <td><span class="badge bg-danger">₦{{ invoice.balance_due|floatformat:2 }}</span></td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>{% trans "Payment Information" %}</h5>
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i>
-                                {% trans "You will be redirected to Paystack's secure payment page to complete your payment." %}
-                            </div>
-                            
-                            <div class="payment-methods">
-                                <h6>{% trans "Payment Methods" %}</h6>
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="card payment-method-card">
-                                            <div class="card-body text-center">
-                                                <i class="fas fa-credit-card fa-2x text-primary mb-2"></i>
-                                                <h6>{% trans "Card Payment" %}</h6>
-                                                <small class="text-muted">{% trans "Visa, MasterCard, Verve" %}</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="card payment-method-card">
-                                            <div class="card-body text-center">
-                                                <i class="fas fa-mobile-alt fa-2x text-success mb-2"></i>
-                                                <h6>{% trans "Mobile Money" %}</h6>
-                                                <small class="text-muted">{% trans "MTN, Airtel, Glo" %}</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="card payment-method-card">
-                                            <div class="card-body text-center">
-                                                <i class="fas fa-university fa-2x text-info mb-2"></i>
-                                                <h6>{% trans "Bank Transfer" %}</h6>
-                                                <small class="text-muted">{% trans "Direct Bank Transfer" %}</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+<div class="row g-4 justify-content-center">
 
-                            <div class="mt-4">
-                                <form method="post">
-                                    {% csrf_token %}
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="amount" class="form-label">{% trans "Payment Amount" %}</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text">₦</span>
-                                                    <input type="number" class="form-control" id="amount" name="amount" 
-                                                           value="{{ invoice.balance_due }}" step="0.01" min="0.01" max="{{ invoice.balance_due }}" required>
-                                                </div>
-                                                <div class="form-text">{% trans "Maximum amount is the balance due" %}</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="payment_method" class="form-label">{% trans "Payment Method" %}</label>
-                                                <select class="form-select" id="payment_method" name="payment_method">
-                                                    <option value="card">{% trans "Card Payment" %}</option>
-                                                    <option value="mobile_money">{% trans "Mobile Money" %}</option>
-                                                    <option value="bank_transfer">{% trans "Bank Transfer" %}</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <div class="mb-3">
-                                                <label for="notes" class="form-label">{% trans "Additional Notes" %}</label>
-                                                <textarea class="form-control" id="notes" name="notes" rows="3" 
-                                                          placeholder="{% trans 'Any additional information about this payment' %}"></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-grid gap-2">
-                                        <button type="submit" class="btn paystack-cta btn-lg">
-                                            <img src="{% static 'images/paystack-logo.png' %}" alt="Paystack" style="height:22px; vertical-align:middle; margin-right:8px; filter:brightness(0) invert(1);">
-                                            {% trans "Pay with Paystack" %}
-                                        </button>
-                                        <a href="{% url 'finance:student_invoices' %}" class="btn btn-secondary">
-                                            <i class="fas fa-arrow-left"></i>
-                                            {% trans "Cancel" %}
-                                        </a>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <!-- Invoice Summary -->
+  <div class="col-12 col-lg-5 order-lg-2">
+    <div class="card border-0 shadow-sm sticky-top" style="top:80px;">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>Invoice Summary</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted small">Invoice #</span>
+          <span class="fw-semibold">{{ invoice.invoice_number }}</span>
         </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted small">Student</span>
+          <span class="fw-semibold">{{ invoice.student.user.get_full_name }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted small">Session</span>
+          <span>{{ invoice.academic_session.name }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted small">Issue Date</span>
+          <span>{{ invoice.issue_date|date:"d M Y" }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+          <span class="text-muted small">Due Date</span>
+          <span class="{% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">
+            {{ invoice.due_date|date:"d M Y" }}
+            {% if invoice.is_overdue %}<span class="badge bg-danger ms-1">Overdue</span>{% endif %}
+          </span>
+        </div>
+
+        <hr>
+        <!-- Line Items -->
+        {% for item in invoice.items.all %}
+        <div class="d-flex justify-content-between mb-1">
+          <span class="small">{{ item.fee_structure.name }}</span>
+          <span class="small fw-semibold">₦{{ item.line_total|floatformat:2 }}</span>
+        </div>
+        {% endfor %}
+        <hr>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted small">Subtotal</span>
+          <span class="small">₦{{ invoice.subtotal|floatformat:2 }}</span>
+        </div>
+        {% if invoice.total_discount %}
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-success small">Discount</span>
+          <span class="text-success small">-₦{{ invoice.total_discount|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+        {% if invoice.total_tax %}
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted small">Tax</span>
+          <span class="small">₦{{ invoice.total_tax|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+        {% if invoice.late_fee %}
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-danger small">Late Fee</span>
+          <span class="text-danger small">₦{{ invoice.late_fee|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+        <hr>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="fw-semibold">Total Amount</span>
+          <span class="fw-bold">₦{{ invoice.total_amount|floatformat:2 }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-success small">Amount Paid</span>
+          <span class="text-success small fw-semibold">₦{{ invoice.amount_paid|floatformat:2 }}</span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span class="fw-bold text-danger">Balance Due</span>
+          <span class="fw-bold text-danger fs-5">₦{{ invoice.balance_due|floatformat:2 }}</span>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- Payment Form -->
+  <div class="col-12 col-lg-7 order-lg-1">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="fw-semibold mb-0"><i class="bi bi-credit-card me-2 text-primary"></i>Make Payment</h5>
+      </div>
+      <div class="card-body">
+
+        {% if invoice.status == 'paid' %}
+        <div class="alert alert-success">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          This invoice has been fully paid. <a href="{% url 'finance:invoice_detail' pk=invoice.pk %}">View Invoice</a>
+        </div>
+        {% else %}
+
+        <!-- Amount to Pay -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Amount to Pay (₦)</label>
+          <div class="input-group input-group-lg">
+            <span class="input-group-text">₦</span>
+            <input type="number" id="paymentAmount" class="form-control form-control-lg"
+                   value="{{ invoice.balance_due }}" min="1"
+                   max="{{ invoice.balance_due }}" step="0.01"
+                   placeholder="Enter amount">
+          </div>
+          <div class="d-flex gap-2 mt-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="setAmount({{ invoice.balance_due }})">Pay Full Balance</button>
+            {% if invoice.balance_due > 5000 %}
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="setAmount({{ invoice.balance_due }} / 2)">Pay Half</button>
+            {% endif %}
+          </div>
+          <div class="form-text text-muted">
+            Balance due: <strong class="text-danger">₦{{ invoice.balance_due|floatformat:2 }}</strong>
+          </div>
+        </div>
+
+        <!-- Payment Method Selection -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Payment Method</label>
+          <div class="row g-2">
+            <div class="col-6 col-md-4">
+              <input type="radio" class="btn-check" name="paymentMethod" id="paystack" value="paystack" checked>
+              <label class="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center py-3" for="paystack">
+                <i class="bi bi-credit-card-2-front fs-4 mb-1"></i>
+                <span class="small fw-semibold">Pay Online</span>
+                <span class="badge bg-primary mt-1" style="font-size:.65rem;">Paystack</span>
+              </label>
+            </div>
+            {% if allow_bank_transfer %}
+            <div class="col-6 col-md-4">
+              <input type="radio" class="btn-check" name="paymentMethod" id="bank_transfer" value="bank_transfer">
+              <label class="btn btn-outline-secondary w-100 h-100 d-flex flex-column align-items-center py-3" for="bank_transfer">
+                <i class="bi bi-bank fs-4 mb-1"></i>
+                <span class="small fw-semibold">Bank Transfer</span>
+              </label>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Email for Paystack -->
+        <div class="mb-4" id="paystackEmailBlock">
+          <label class="form-label fw-semibold">Payment Email</label>
+          <input type="email" id="payerEmail" class="form-control"
+                 value="{{ request.user.email }}" placeholder="Your email address">
+          <div class="form-text">A receipt will be sent to this email</div>
+        </div>
+
+        <!-- Pay Button -->
+        <div class="d-grid gap-2">
+          <button type="button" id="payNowBtn" class="btn btn-primary btn-lg fw-semibold"
+                  onclick="initiatePaystackPayment()">
+            <i class="bi bi-lock me-2"></i>Pay ₦<span id="amountDisplay">{{ invoice.balance_due|floatformat:2 }}</span> Securely
+          </button>
+          <a href="{% url 'finance:invoice_detail' pk=invoice.pk %}" class="btn btn-outline-secondary">
+            Cancel
+          </a>
+        </div>
+
+        <!-- Security note -->
+        <div class="text-center mt-3">
+          <small class="text-muted">
+            <i class="bi bi-shield-lock me-1 text-success"></i>
+            Secured by Paystack · 256-bit SSL Encryption
+          </small>
+          <div class="mt-2">
+            <img src="https://paystack.com/assets/img/logos/paystack-logo.svg" height="20" alt="Paystack" class="opacity-50">
+          </div>
+        </div>
+
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Payment History -->
+    {% if invoice.payments.exists %}
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-header bg-transparent border-0">
+        <h6 class="fw-semibold mb-0"><i class="bi bi-clock-history me-2 text-muted"></i>Payment History</h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Date</th>
+                <th>Method</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for payment in invoice.payments.all %}
+              <tr>
+                <td class="ps-3 small">{{ payment.payment_date|date:"d M Y" }}</td>
+                <td class="small">{{ payment.get_payment_method_display }}</td>
+                <td class="fw-semibold small">₦{{ payment.amount|floatformat:2 }}</td>
+                <td>
+                  {% if payment.status == 'completed' %}
+                    <span class="badge bg-success-subtle text-success">Paid</span>
+                  {% elif payment.status == 'pending' %}
+                    <span class="badge bg-warning-subtle text-warning">Pending</span>
+                  {% elif payment.status == 'failed' %}
+                    <span class="badge bg-danger-subtle text-danger">Failed</span>
+                  {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary">{{ payment.get_status_display }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const amountInput = document.getElementById('amount');
-    const maxAmount = parseFloat(amountInput.max);
-    
-    amountInput.addEventListener('input', function() {
-        const value = parseFloat(this.value);
-        if (value > maxAmount) {
-            this.value = maxAmount;
-        }
-    });
+const PAYSTACK_PUBLIC_KEY = "{{ paystack_public_key }}";
+const INVOICE_ID = "{{ invoice.pk }}";
+const BALANCE_DUE = parseFloat("{{ invoice.balance_due }}") || 0;
+const INITIALIZE_URL = "{% url 'finance:paystack_initialize' %}";
+const VERIFY_URL = "{% url 'finance:paystack_verify' %}";
+const CSRF_TOKEN = "{{ csrf_token }}";
+
+function setAmount(amount) {
+  const val = parseFloat(String(amount).replace(/[^0-9.]/g, ''));
+  if (!isNaN(val)) {
+    document.getElementById('paymentAmount').value = val.toFixed(2);
+    document.getElementById('amountDisplay').textContent = val.toFixed(2);
+  }
+}
+
+document.getElementById('paymentAmount').addEventListener('input', function() {
+  const val = parseFloat(this.value) || 0;
+  document.getElementById('amountDisplay').textContent = val.toFixed(2);
 });
+
+async function initiatePaystackPayment() {
+  const amount = parseFloat(document.getElementById('paymentAmount').value);
+  const email = document.getElementById('payerEmail').value.trim();
+  const btn = document.getElementById('payNowBtn');
+
+  if (!amount || amount <= 0) {
+    showToast('Please enter a valid payment amount.', 'warning');
+    return;
+  }
+  if (amount > BALANCE_DUE) {
+    showToast('Amount cannot exceed balance due.', 'warning');
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    showToast('Please enter a valid email address.', 'warning');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Initializing...';
+
+  try {
+    const resp = await fetch(INITIALIZE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+      body: JSON.stringify({ invoice_id: INVOICE_ID, amount: amount, email: email })
+    });
+    const data = await resp.json();
+
+    if (!data.success) {
+      showToast(data.error || 'Failed to initialize payment. Please try again.', 'danger');
+      resetBtn(btn);
+      return;
+    }
+
+    // Open Paystack inline popup
+    const handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: email,
+      amount: Math.round(amount * 100),  // Convert to kobo
+      currency: 'NGN',
+      ref: data.reference,
+      label: 'School Fee Payment',
+      metadata: {
+        invoice_id: INVOICE_ID,
+        student_name: '{{ invoice.student.user.get_full_name|escapejs }}',
+        invoice_number: '{{ invoice.invoice_number|escapejs }}'
+      },
+      onClose: function() {
+        showToast('Payment window closed. You can retry anytime.', 'info');
+        resetBtn(btn);
+      },
+      callback: function(response) {
+        verifyPayment(response.reference, btn);
+      }
+    });
+    handler.openIframe();
+
+  } catch (err) {
+    console.error(err);
+    showToast('Network error. Please check your connection and try again.', 'danger');
+    resetBtn(btn);
+  }
+}
+
+async function verifyPayment(reference, btn) {
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verifying payment...';
+
+  try {
+    const resp = await fetch(`${VERIFY_URL}?reference=${encodeURIComponent(reference)}`, {
+      headers: { 'X-CSRFToken': CSRF_TOKEN }
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Payment Successful! Redirecting...';
+      btn.className = 'btn btn-success btn-lg fw-semibold';
+      showToast('Payment successful! Redirecting...', 'success');
+      setTimeout(() => {
+        window.location.href = data.redirect_url || "{% url 'finance:payment_success_generic' %}";
+      }, 1500);
+    } else {
+      showToast(data.error || 'Payment verification failed. Please contact support.', 'danger');
+      resetBtn(btn);
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Verification error. Please refresh and check your payment history.', 'warning');
+    resetBtn(btn);
+  }
+}
+
+function resetBtn(btn) {
+  btn.disabled = false;
+  const amount = parseFloat(document.getElementById('paymentAmount').value) || BALANCE_DUE;
+  btn.innerHTML = `<i class="bi bi-lock me-2"></i>Pay ₦${amount.toFixed(2)} Securely`;
+}
+
+function showToast(message, type) {
+  // Use Bootstrap toast or simple alert
+  const toastHtml = `
+    <div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3" role="alert" style="z-index:9999;max-width:350px;">
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', toastHtml);
+  setTimeout(() => {
+    const alerts = document.querySelectorAll('.alert.position-fixed');
+    if (alerts.length) alerts[alerts.length-1].remove();
+  }, 5000);
+}
 </script>
 {% endblock %}

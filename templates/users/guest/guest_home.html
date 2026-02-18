@@ -1,11 +1,11 @@
 {% extends 'base/base.html' %}
 {% load static i18n %}
 
-{% block title %}{% trans "Welcome to Nexus Intelligence School" %}{% endblock %}
+{% block title %}{% trans "Welcome to Excellence Academy" %}{% endblock %}
 
-{% block meta_description %}{% trans "Nexus Intelligence: Comprehensive school management platform for students, parents, teachers, and administrators. Streamline academic operations, communication, and management." %}{% endblock %}
+{% block meta_description %}{% trans "Excellence Academy: Comprehensive school management platform for students, parents, teachers, and administrators. Streamline academic operations, communication, and management." %}{% endblock %}
 
-{% block meta_keywords %}{% trans "Nexus Intelligence, school management, education platform, student portal, parent portal, teacher portal, academic system" %}{% endblock %}
+{% block meta_keywords %}{% trans "Excellence Academy, school management, education platform, student portal, parent portal, teacher portal, academic system" %}{% endblock %}
 
 {% block body_class %}Homepage{% endblock %}
 
@@ -16,11 +16,11 @@
         <div class="d-flex align-items-center">
             <a class="navbar-brand d-flex align-items-center me-4" href="{% url 'users:guest_home' %}">
                 <div class="brand-logo me-2">
-                    <img src="{% static 'images/Nexus.png' %}" alt="{% trans 'Nexus Intelligence' %}" height="50" width="50" class="rounded-circle nexus-logo" style="object-fit:cover; background:transparent; border-radius:50%; opacity:0.95; border:2px solid rgba(255,255,255,0.12);"
-                         onerror="this.onerror=null; this.src='{% static 'images/Nexus.png' %}'">
+                    <img src="{% static 'images/Excellence Academy.png' %}" alt="{% trans 'Excellence Academy' %}" height="50" width="50" class="rounded-circle nexus-logo" style="object-fit:cover; background:transparent; border-radius:50%; opacity:0.95; border:2px solid rgba(255,255,255,0.12);"
+                         onerror="this.onerror=null; this.src='{% static 'images/Excellence Academy.png' %}'">
                 </div>
                 <div class="brand-text text-white">
-                    <span class="fw-bold">{% trans "Nexus Intelligence" %}</span>
+                    <span class="fw-bold">{% trans "Excellence Academy" %}</span>
                 </div>
             </a>
         </div>
@@ -67,7 +67,7 @@
             <div class="col-lg-6 col-md-8 mx-auto text-center text-white">
                 <div class="hero-content">
                     <h1 class="display-4 fw-bold mb-4 hero-title">
-                        {% trans "Nexus Intelligence Academy" %}
+                        {% trans "Excellence Academy" %}
                     </h1>
                     <p class="lead mb-5 hero-subtitle">
                         {% trans "A Portal of High Thoughts - Where Innovation Meets Education" %}
@@ -127,17 +127,17 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-6 mb-5 mb-lg-0">
-                <img src="{% static 'images/entrance.png' %}" alt="Nexus Institute Campus" class="img-fluid rounded shadow">
+                <img src="{% static 'images/entrance.png' %}" alt="Excellence Academy Campus" class="img-fluid rounded shadow">
             </div>
             <div class="col-lg-6">
-                <h2 class="display-5 fw-bold mb-4">{% trans "About Nexus Institute" %}</h2>
+                <h2 class="display-5 fw-bold mb-4">{% trans "About Excellence Academy" %}</h2>
                 <div class="about-content">
                     <h4 class="fw-semibold mb-3 text-primary">{% trans "Our Mission" %}</h4>
                     <p class="mb-4">
-                        {% trans "At Nexus Institute, we believe in nurturing young minds to become critical thinkers, innovative problem-solvers, and compassionate global citizens. Our holistic approach combines academic rigor with character development to prepare students for the challenges of tomorrow." %}
+                        {% trans "At Excellence Academy, we believe in nurturing young minds to become critical thinkers, innovative problem-solvers, and compassionate global citizens. Our holistic approach combines academic rigor with character development to prepare students for the challenges of tomorrow." %}
                     </p>
                     
-                    <h4 class="fw-semibold mb-3 text-primary">{% trans "Why Choose Nexus?" %}</h4>
+                    <h4 class="fw-semibold mb-3 text-primary">{% trans "Why Choose Excellence Academy?" %}</h4>
                     <div class="row">
                         <div class="col-md-6">
                             <ul class="list-unstyled">
@@ -405,7 +405,7 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                <h3 class="fw-bold mb-3">{% trans "Ready to Join Nexus Institute?" %}</h3>
+                <h3 class="fw-bold mb-3">{% trans "Ready to Join Excellence Academy?" %}</h3>
                 <p class="lead mb-0">
                     {% trans "Begin your educational journey with us. Applications for the upcoming academic year are now open." %}
                 </p>
@@ -428,12 +428,12 @@
     <div class="container">
         <div class="row">
             <div class="col-lg-4 mb-4 mb-lg-0">
-                <h5 class="fw-bold mb-3">Nexus Institute</h5>
+                <h5 class="fw-bold mb-3">Excellence Academy</h5>
                 <p class="mb-3">{% trans "Empowering Future Leaders Through Innovative Education" %}</p>
                 <div class="contact-info">
-                    <p class="mb-1"><i class="bi bi-geo-alt me-2"></i>123, Nexus institute Knowledge City RayField Jos</p>
+                    <p class="mb-1"><i class="bi bi-geo-alt me-2"></i>123, Excellence Academy, Jos</p>
                     <p class="mb-1"><i class="bi bi-phone me-2"></i>(234) 9011767574-intel</p>
-                    <p class="mb-0"><i class="bi bi-envelope me-2"></i>admissions@nexusinstitute.edu</p>
+                    <p class="mb-0"><i class="bi bi-envelope me-2"></i>admissions@excellenceacademy.edu</p>
                 </div>
             </div>
             <div class="col-lg-4 mb-4 mb-lg-0">
@@ -472,7 +472,7 @@
         <div class="row align-items-center">
             <div class="col-md-6 text-center text-md-start">
                 <p class="mb-0">
-                    &copy; {% now "Y" %} {% trans "Nexus Institute. All rights reserved." %}
+                    &copy; {% now "Y" %} {% trans "Excellence Academy. All rights reserved." %}
                 </p>
             </div>
             <div class="col-md-6 text-center text-md-end">
@@ -856,7 +856,7 @@
     transform: scale(1.1);
 }
 
-/* Nexus Logo Animation */
+/* Excellence Academy Logo Animation */
 .nexus-logo {
     transition: transform 0.3s ease;
 }

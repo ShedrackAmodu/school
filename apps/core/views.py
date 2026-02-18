@@ -377,7 +377,7 @@ class InstitutionDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailV
         return context
 
 
-class SuperAdminDashboardView(MultiInstitutionMixin, LoginRequiredMixin, PermissionRequiredMixin, View):
+class SuperAdminDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Super Administrator dashboard showing system-wide metrics and institution overview.
     """
@@ -980,7 +980,7 @@ class PrincipalCommunicationView(LoginRequiredMixin, View):
         return render(request, 'principal/principal_communication.html', context)
 
 
-class SuperAdminEntityView(MultiInstitutionMixin, LoginRequiredMixin, PermissionRequiredMixin, View):
+class SuperAdminEntityView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Super Administrator view for comprehensive entity management across institutions.
     Displays teachers, students, classes, departments, sessions, and enrollments

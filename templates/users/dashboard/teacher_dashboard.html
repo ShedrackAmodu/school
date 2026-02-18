@@ -1,36 +1,262 @@
-{% load static i18n %}
+{% extends 'base/base.html' %}
+{% load i18n static %}
 
-<!-- Teacher Specific Dashboard Content -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent border-0">
-        <h5 class="card-title mb-0">{% trans "Teacher Dashboard" %}</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4 mb-3">
-                <div class="text-center p-3 border rounded bg-light">
-                    <i class="bi bi-mortarboard fs-1 text-primary mb-2"></i>
-                    <h6>{% trans "My Classes" %}</h6>
-                    <p class="text-muted small mb-2">{% trans "Manage your assigned classes" %}</p>
-                    <a href="{% url 'academics:teacher_timetable' %}" class="btn btn-primary btn-sm">{% trans "View Schedule" %}</a>
-                </div>
-            </div>
-            <div class="col-md-4 mb-3">
-                <div class="text-center p-3 border rounded bg-light">
-                    <i class="bi bi-pencil-square fs-1 text-success mb-2"></i>
-                    <h6>{% trans "Grade Students" %}</h6>
-                    <p class="text-muted small mb-2">{% trans "Enter and manage student grades" %}</p>
-                    <a href="{% url 'assessment:grading_overview' %}" class="btn btn-success btn-sm">{% trans "Enter Grades" %}</a>
-                </div>
-            </div>
-            <div class="col-md-4 mb-3">
-                <div class="text-center p-3 border rounded bg-light">
-                    <i class="bi bi-clipboard-check fs-1 text-info mb-2"></i>
-                    <h6>{% trans "Attendance" %}</h6>
-                    <p class="text-muted small mb-2">{% trans "Take student attendance" %}</p>
-                    <a href="{% url 'attendance:bulk_class_select' %}" class="btn btn-info btn-sm">{% trans "Take Attendance" %}</a>
-                </div>
-            </div>
+{% block title %}Teacher Dashboard{% endblock %}
+{% block page_title %}Teacher Dashboard{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block content %}
+{% with teacher=request.user.teacher_profile %}
+<div class="teacher-dashboard">
+
+  <!-- Welcome Banner -->
+  <div class="card border-0 mb-4 text-white" style="background:linear-gradient(135deg,#0d6efd,#6610f2);">
+    <div class="card-body py-4">
+      <div class="row align-items-center">
+        <div class="col">
+          <h4 class="fw-bold mb-1">Good {% now "H" as hr %}{% if hr < "12" %}Morning{% elif hr < "17" %}Afternoon{% else %}Evening{% endif %}, {{ request.user.first_name }}!</h4>
+          <p class="mb-0 opacity-75">{% now "l, d F Y" %} · {% trans "Welcome to your teaching dashboard" %}</p>
         </div>
+        <div class="col-auto d-none d-md-block">
+          <i class="bi bi-person-workspace" style="font-size:4rem;opacity:.3;"></i>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3 h-100">
+        <div class="rounded-3 bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
+          <i class="bi bi-people-fill text-primary fs-4"></i>
+        </div>
+        <h3 class="fw-bold text-primary mb-0">{{ total_students|default:0 }}</h3>
+        <p class="text-muted small mb-0">My Students</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3 h-100">
+        <div class="rounded-3 bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
+          <i class="bi bi-journal-bookmark text-success fs-4"></i>
+        </div>
+        <h3 class="fw-bold text-success mb-0">{{ classes_taught|length|default:0 }}</h3>
+        <p class="text-muted small mb-0">Classes Taught</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3 h-100">
+        <div class="rounded-3 bg-warning bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
+          <i class="bi bi-hourglass-split text-warning fs-4"></i>
+        </div>
+        <h3 class="fw-bold text-warning mb-0">{{ pending_grading|default:0 }}</h3>
+        <p class="text-muted small mb-0">Pending Grading</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3 h-100">
+        <div class="rounded-3 bg-info bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
+          <i class="bi bi-clipboard2-check text-info fs-4"></i>
+        </div>
+        <h3 class="fw-bold text-info mb-0">{{ upcoming_exams|length|default:0 }}</h3>
+        <p class="text-muted small mb-0">Upcoming Exams</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Grid -->
+  <div class="row g-3">
+
+    <!-- Left Column -->
+    <div class="col-12 col-lg-8">
+
+      <!-- Class Performance -->
+      {% if class_performance %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>Class Performance Overview</h6>
+        </div>
+        <div class="card-body">
+          {% for cp in class_performance %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <div>
+                <span class="fw-semibold small">{{ cp.class.name }}</span>
+                <span class="text-muted small ms-2">{{ cp.total_students }} students</span>
+              </div>
+              <span class="fw-bold small {% if cp.average_percentage >= 70 %}text-success{% elif cp.average_percentage >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                {{ cp.average_percentage|floatformat:1 }}%
+              </span>
+            </div>
+            <div class="progress" style="height:8px;">
+              <div class="progress-bar {% if cp.average_percentage >= 70 %}bg-success{% elif cp.average_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                   style="width:{{ cp.average_percentage|floatformat:0 }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Upcoming Exams -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-calendar-event me-2 text-danger"></i>Upcoming Exams</h6>
+          <a href="{% url 'assessment:exam_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="card-body p-0">
+          {% for exam in upcoming_exams %}
+          <div class="d-flex align-items-start px-3 py-2 border-bottom">
+            <div class="me-3 text-center bg-danger bg-opacity-10 rounded-2 px-2 py-1" style="min-width:48px;">
+              <div class="fw-bold text-danger lh-1">{{ exam.exam_date|date:"d" }}</div>
+              <div class="text-muted" style="font-size:.65rem;">{{ exam.exam_date|date:"M" }}</div>
+            </div>
+            <div class="flex-grow-1">
+              <p class="mb-0 fw-semibold small">{{ exam.name }}</p>
+              <p class="mb-0 text-muted" style="font-size:.75rem;">
+                {{ exam.academic_class.name }} · {{ exam.subject.name }} · {{ exam.start_time|time:"H:i" }}
+              </p>
+            </div>
+            <div>
+              <a href="{% url 'assessment:exam_detail' pk=exam.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </div>
+          </div>
+          {% empty %}
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-calendar-check display-6 d-block mb-2 opacity-25"></i>
+            No upcoming exams scheduled
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Recent Assignments -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-clipboard2-data me-2 text-info"></i>My Assignments</h6>
+          <a href="{% url 'assessment:assignment_list' %}" class="btn btn-sm btn-outline-info">View All</a>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for assignment in recent_assignments %}
+          <a href="{% url 'assessment:assignment_detail' pk=assignment.pk %}" class="list-group-item list-group-item-action border-0 px-3">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <p class="mb-0 fw-semibold small">{{ assignment.title }}</p>
+                <p class="mb-0 text-muted" style="font-size:.75rem;">
+                  {{ assignment.subject.name }}
+                  {% if assignment.academic_class %} · {{ assignment.academic_class.name }}{% endif %}
+                  · Due: {{ assignment.due_date|date:"d M" }}
+                </p>
+              </div>
+              <div class="text-end">
+                {% if assignment.due_date < now %}
+                  <span class="badge bg-danger-subtle text-danger">Overdue</span>
+                {% else %}
+                  <span class="badge bg-success-subtle text-success">Active</span>
+                {% endif %}
+              </div>
+            </div>
+          </a>
+          {% empty %}
+          <div class="text-center py-4 text-muted p-3">
+            <i class="bi bi-clipboard display-6 d-block mb-2 opacity-25"></i>
+            No assignments yet. <a href="{% url 'assessment:assignment_create' %}">Create one?</a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div><!-- /left column -->
+
+    <!-- Right Column -->
+    <div class="col-12 col-lg-4">
+
+      <!-- Quick Actions -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-lightning-charge me-2 text-warning"></i>Quick Actions</h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <a href="{% url 'assessment:exam_create' %}" class="btn btn-outline-primary d-flex align-items-center gap-2">
+              <i class="bi bi-plus-circle"></i>Create Exam
+            </a>
+            <a href="{% url 'assessment:assignment_create' %}" class="btn btn-outline-info d-flex align-items-center gap-2">
+              <i class="bi bi-clipboard-plus"></i>Create Assignment
+            </a>
+            <a href="{% url 'assessment:grading_overview' %}" class="btn btn-outline-warning d-flex align-items-center gap-2">
+              <i class="bi bi-pencil-square"></i>Enter Marks
+              {% if pending_grading %}<span class="badge bg-warning text-dark ms-auto">{{ pending_grading }}</span>{% endif %}
+            </a>
+            <a href="{% url 'assessment:reportcard_list' %}" class="btn btn-outline-success d-flex align-items-center gap-2">
+              <i class="bi bi-file-earmark-text"></i>Report Cards
+            </a>
+            <a href="{% url 'attendance:take_attendance' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+              <i class="bi bi-person-check"></i>Take Attendance
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- My Classes -->
+      {% if classes_taught %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-building me-2 text-secondary"></i>My Classes</h6>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for cls in classes_taught %}
+          <div class="list-group-item border-0 px-3 py-2">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <p class="mb-0 fw-semibold small">{{ cls.name }}</p>
+                <p class="mb-0 text-muted" style="font-size:.7rem;">{{ cls.current_student_count|default:0 }} students</p>
+              </div>
+              <span class="badge bg-primary bg-opacity-10 text-primary">{{ cls.academic_session.name|truncatechars:10 }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Pending Grading Alert -->
+      {% if pending_grading %}
+      <div class="card border-warning border-2 shadow-sm mb-3">
+        <div class="card-body text-center py-3">
+          <i class="bi bi-exclamation-triangle text-warning fs-2 mb-2 d-block"></i>
+          <h5 class="fw-bold text-warning">{{ pending_grading }}</h5>
+          <p class="text-muted small mb-3">Assignment{{ pending_grading|pluralize }} awaiting grading</p>
+          <a href="{% url 'assessment:assignment_list' %}?status=pending" class="btn btn-warning btn-sm w-100">
+            Grade Now
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Attendance Today -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-calendar-check me-2 text-success"></i>Today's Attendance</h6>
+        </div>
+        <div class="card-body text-center">
+          <p class="text-muted small mb-3">{% now "l, d F Y" %}</p>
+          <a href="{% url 'attendance:take_attendance' %}" class="btn btn-success w-100">
+            <i class="bi bi-person-check me-2"></i>Mark Attendance
+          </a>
+          <a href="{% url 'attendance:attendance_report' %}" class="btn btn-outline-secondary w-100 mt-2 btn-sm">
+            View Reports
+          </a>
+        </div>
+      </div>
+
+    </div><!-- /right column -->
+  </div><!-- /row -->
 </div>
+{% endwith %}
+{% endblock %}

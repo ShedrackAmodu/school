@@ -1,0 +1,210 @@
+{% extends 'base/base.html' %}
+{% load i18n static %}
+
+{% block title %}My Fees & Balances{% endblock %}
+{% block page_title %}My Fees & Balances{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">My Fees</li>
+{% endblock %}
+
+{% block content %}
+<div class="student-fees">
+
+  <!-- Balance Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3 h-100">
+        <div class="rounded-3 bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
+          <i class="bi bi-file-earmark-text text-primary fs-4"></i>
+        </div>
+        <h4 class="fw-bold text-primary mb-0">₦{{ total_invoiced|floatformat:2 }}</h4>
+        <p class="text-muted small mb-0">Total Fees</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3 h-100">
+        <div class="rounded-3 bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
+          <i class="bi bi-check-circle text-success fs-4"></i>
+        </div>
+        <h4 class="fw-bold text-success mb-0">₦{{ total_paid|floatformat:2 }}</h4>
+        <p class="text-muted small mb-0">Total Paid</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3 h-100 {% if total_balance > 0 %}border-danger border-2{% endif %}">
+        <div class="rounded-3 bg-danger bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
+          <i class="bi bi-exclamation-circle text-danger fs-4"></i>
+        </div>
+        <h4 class="fw-bold text-danger mb-0">₦{{ total_balance|floatformat:2 }}</h4>
+        <p class="text-muted small mb-0">Balance Due</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3 h-100">
+        <div class="rounded-3 bg-warning bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
+          <i class="bi bi-clock text-warning fs-4"></i>
+        </div>
+        <h4 class="fw-bold text-warning mb-0">{{ overdue_count|default:0 }}</h4>
+        <p class="text-muted small mb-0">Overdue Invoices</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overdue Alert -->
+  {% if overdue_invoices %}
+  <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+    <div class="flex-grow-1">
+      <strong>Overdue Payment!</strong> You have {{ overdue_invoices|length }} overdue invoice{{ overdue_invoices|length|pluralize }}.
+      Late fees may apply.
+    </div>
+    <a href="#invoices-section" class="btn btn-danger btn-sm">Pay Now</a>
+  </div>
+  {% endif %}
+
+  <!-- Invoices Section -->
+  <div class="card border-0 shadow-sm mb-4" id="invoices-section">
+    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+      <h6 class="fw-semibold mb-0"><i class="bi bi-file-earmark-text me-2 text-primary"></i>My Invoices</h6>
+      <!-- Filter Tabs -->
+      <div class="btn-group btn-group-sm" role="group">
+        <a href="?status=all" class="btn btn-outline-secondary {% if not status_filter or status_filter == 'all' %}active{% endif %}">All</a>
+        <a href="?status=unpaid" class="btn btn-outline-warning {% if status_filter == 'unpaid' %}active{% endif %}">Unpaid</a>
+        <a href="?status=paid" class="btn btn-outline-success {% if status_filter == 'paid' %}active{% endif %}">Paid</a>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      {% for invoice in invoices %}
+      <div class="border-bottom px-3 py-3 {% if invoice.is_overdue %}bg-danger bg-opacity-5{% endif %}">
+        <div class="row align-items-center g-2">
+          <div class="col-12 col-sm-6 col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <div class="rounded-2 p-2 {% if invoice.status == 'paid' %}bg-success{% elif invoice.is_overdue %}bg-danger{% else %}bg-warning{% endif %} bg-opacity-10">
+                <i class="bi bi-{% if invoice.status == 'paid' %}check-circle{% elif invoice.is_overdue %}exclamation-circle{% else %}hourglass-split{% endif %} {% if invoice.status == 'paid' %}text-success{% elif invoice.is_overdue %}text-danger{% else %}text-warning{% endif %}"></i>
+              </div>
+              <div>
+                <p class="mb-0 fw-semibold small">{{ invoice.invoice_number }}</p>
+                <p class="mb-0 text-muted" style="font-size:.7rem;">{{ invoice.billing_period }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-sm-3 col-md-2">
+            <p class="mb-0 text-muted" style="font-size:.7rem;">Amount</p>
+            <p class="mb-0 fw-semibold small">₦{{ invoice.total_amount|floatformat:2 }}</p>
+          </div>
+          <div class="col-6 col-sm-3 col-md-2">
+            <p class="mb-0 text-muted" style="font-size:.7rem;">Balance</p>
+            <p class="mb-0 fw-bold small {% if invoice.balance_due > 0 %}text-danger{% else %}text-success{% endif %}">
+              ₦{{ invoice.balance_due|floatformat:2 }}
+            </p>
+          </div>
+          <div class="col-6 col-md-2">
+            <p class="mb-0 text-muted" style="font-size:.7rem;">Due Date</p>
+            <p class="mb-0 small {% if invoice.is_overdue %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+              {{ invoice.due_date|date:"d M Y" }}
+            </p>
+          </div>
+          <div class="col-6 col-md-2 text-end">
+            {% if invoice.status == 'paid' %}
+              <span class="badge bg-success-subtle text-success">Paid</span>
+            {% elif invoice.status == 'partial' %}
+              <div class="d-flex flex-column align-items-end gap-1">
+                <span class="badge bg-info-subtle text-info">Partial</span>
+                <a href="{% url 'finance:pay_invoice' pk=invoice.pk %}" class="btn btn-sm btn-primary">Pay Balance</a>
+              </div>
+            {% elif invoice.is_overdue %}
+              <a href="{% url 'finance:pay_invoice' pk=invoice.pk %}" class="btn btn-sm btn-danger">Pay Overdue</a>
+            {% else %}
+              <a href="{% url 'finance:pay_invoice' pk=invoice.pk %}" class="btn btn-sm btn-primary">Pay Now</a>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Progress Bar for partial payments -->
+        {% if invoice.status == 'partial' and invoice.total_amount %}
+        <div class="mt-2">
+          <div class="d-flex justify-content-between mb-1">
+            <span style="font-size:.65rem;" class="text-muted">Paid ₦{{ invoice.amount_paid|floatformat:2 }} of ₦{{ invoice.total_amount|floatformat:2 }}</span>
+            <span style="font-size:.65rem;" class="text-muted">{% widthratio invoice.amount_paid invoice.total_amount 100 %}%</span>
+          </div>
+          <div class="progress" style="height:4px;">
+            <div class="progress-bar bg-info" style="width:{% widthratio invoice.amount_paid invoice.total_amount 100 %}%"></div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% empty %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox display-5 d-block mb-3 opacity-25"></i>
+        <p>No invoices found.</p>
+      </div>
+      {% endfor %}
+    </div>
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-transparent">
+      <nav>
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">‹</a></li>
+          {% endif %}
+          <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">›</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Payment History -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0">
+      <h6 class="fw-semibold mb-0"><i class="bi bi-clock-history me-2 text-success"></i>Payment History</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Receipt #</th>
+              <th>Date</th>
+              <th class="d-none d-md-table-cell">Method</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for payment in payment_history %}
+            <tr>
+              <td class="ps-3 fw-semibold small">{{ payment.payment_number }}</td>
+              <td class="small">{{ payment.payment_date|date:"d M Y" }}</td>
+              <td class="d-none d-md-table-cell small">{{ payment.get_payment_method_display }}</td>
+              <td class="fw-semibold small text-success">₦{{ payment.amount|floatformat:2 }}</td>
+              <td>
+                {% if payment.status == 'completed' %}
+                  <span class="badge bg-success-subtle text-success">Completed</span>
+                {% elif payment.status == 'pending' %}
+                  <span class="badge bg-warning-subtle text-warning">Pending</span>
+                {% elif payment.status == 'failed' %}
+                  <span class="badge bg-danger-subtle text-danger">Failed</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary">{{ payment.get_status_display }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted">No payment records yet</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

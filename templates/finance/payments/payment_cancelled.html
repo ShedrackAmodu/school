@@ -1,0 +1,56 @@
+{% extends "base/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Payment Cancelled" %}{% endblock %}
+{% block page_title %}{% trans "Payment Cancelled" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+      <div class="card shadow border-0 text-center">
+        <div class="card-body p-4 p-md-5">
+
+          <!-- Icon -->
+          <div class="mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning bg-opacity-10"
+                  style="width:90px;height:90px;">
+              <i class="bi bi-slash-circle-fill text-warning" style="font-size:2.8rem;"></i>
+            </span>
+          </div>
+
+          <h2 class="fw-bold text-warning mb-2">{% trans "Payment Cancelled" %}</h2>
+          <p class="text-muted mb-3">
+            {% trans "You cancelled the payment. No amount has been deducted from your account." %}
+          </p>
+
+          {% if reference %}
+          <div class="alert alert-light border rounded-3 text-start mb-4 small">
+            <strong>{% trans "Reference:" %}</strong>
+            <span class="text-muted font-monospace">{{ reference }}</span>
+          </div>
+          {% endif %}
+
+          <!-- Action Buttons -->
+          <div class="d-grid gap-2">
+            <a href="{% url 'finance:student_dashboard' %}" class="btn btn-warning btn-lg">
+              <i class="bi bi-arrow-repeat me-2"></i>{% trans "Try Payment Again" %}
+            </a>
+            <a href="{% url 'finance:student_invoices' %}" class="btn btn-outline-secondary">
+              <i class="bi bi-receipt me-2"></i>{% trans "View My Invoices" %}
+            </a>
+            <a href="{% url 'users:dashboard' %}" class="btn btn-link text-muted small">
+              <i class="bi bi-house me-1"></i>{% trans "Go to Dashboard" %}
+            </a>
+          </div>
+
+          <p class="text-muted small mt-4 mb-0">
+            {% trans "Need help? Contact the school's finance office or support team." %}
+          </p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

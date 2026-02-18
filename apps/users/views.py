@@ -15,7 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from django.urls import reverse, reverse_lazy
 from django.views.generic import FormView
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Avg, Sum, Count
 from django.core.mail import send_mail, get_connection, EmailMessage
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -674,9 +674,9 @@ def get_role_redirect_url(role_type):
         'super_admin': reverse('core:super_admin_dashboard'),
         'admin': reverse('core:school_admin_dashboard'),
         'principal': reverse('core:school_admin_dashboard'),
-        'teacher': reverse('users:dashboard'),
+        'teacher': reverse('users:teacher_dashboard'),
         'student': reverse('users:dashboard'),
-        'parent': reverse('users:dashboard'),
+        'parent': reverse('users:parent_dashboard'),
         'accountant': reverse('finance:dashboard'),
         'librarian': reverse('library:librarian_dashboard'),
         'driver': reverse('transport:driver_dashboard'),
@@ -1539,7 +1539,7 @@ def user_dashboard(request):
                         )
                         if marks.exists():
                             total_marks = marks.count()
-                            average_percentage = marks.aggregate(avg=models.Avg('percentage'))['avg'] or 0
+                            average_percentage = marks.aggregate(avg=Avg('percentage'))['avg'] or 0
                             passed_exams = marks.filter(percentage__gte=40).count()
 
                             performance_stats = {
@@ -2696,7 +2696,12 @@ def parent_dashboard(request):
 
     children = []
     for relationship in children_relationships:
-        child = relationship.student
+        child_user = relationship.student  # User object
+        # Get Student profile from the User
+        try:
+            child = child_user.student_profile  # Student model
+        except AttributeError:
+            continue  # Skip if no student profile
 
         # Get current class enrollment
         current_enrollment = child.enrollments.filter(
@@ -2812,7 +2817,12 @@ def child_academic_records(request, child_id):
             student_id=child_id,
             status='active'
         )
-        child = relationship.student
+        child_user = relationship.student  # User object
+        try:
+            child = child_user.student_profile  # Student model
+        except AttributeError:
+            messages.error(request, _("Student profile not found."))
+            return redirect('users:parent_dashboard')
     except ParentStudentRelationship.DoesNotExist:
         messages.error(request, _("You don't have permission to view this child's records."))
         return redirect('users:dashboard')
@@ -2890,7 +2900,7 @@ def child_academic_records(request, child_id):
         'results': results,
         'attendance_summary': attendance_summary,
         'total_exams': marks.count(),
-        'average_percentage': marks.aggregate(avg=models.Avg('percentage'))['avg'] if marks else 0,
+        'average_percentage': marks.aggregate(avg=Avg('percentage'))['avg'] if marks else 0,
     }
 
     return render(request, 'users/parent/child_records.html', context)
@@ -2909,7 +2919,12 @@ def child_attendance(request, child_id):
             student_id=child_id,
             status='active'
         )
-        child = relationship.student
+        child_user = relationship.student  # User object
+        try:
+            child = child_user.student_profile  # Student model
+        except AttributeError:
+            messages.error(request, _("Student profile not found."))
+            return redirect('users:parent_dashboard')
     except ParentStudentRelationship.DoesNotExist:
         messages.error(request, _("You don't have permission to view this child's attendance."))
         return redirect('users:dashboard')
@@ -2964,7 +2979,12 @@ def child_fee_status(request, child_id):
             student_id=child_id,
             status='active'
         )
-        child = relationship.student
+        child_user = relationship.student  # User object
+        try:
+            child = child_user.student_profile  # Student model
+        except AttributeError:
+            messages.error(request, _("Student profile not found."))
+            return redirect('users:parent_dashboard')
     except ParentStudentRelationship.DoesNotExist:
         messages.error(request, _("You don't have permission to view this child's fee information."))
         return redirect('users:dashboard')
@@ -4582,52 +4602,61 @@ def teacher_dashboard(request):
     """
     Enhanced teacher dashboard with comprehensive overview.
     """
+    from apps.assessment.models import Assignment as AssignmentModel, Exam, Mark
+    from apps.attendance.models import DailyAttendance
+
     teacher = request.user.teacher_profile
     current_session = AcademicSession.objects.filter(is_current=True).first()
 
-    # Get teacher's classes and assignments
-    teacher_assignments = teacher.subject_assignments.filter(
-        academic_session=current_session
-    ).select_related('subject', 'class_assigned', 'academic_session')
+    # Classes taught by this teacher in the current session
+    classes_taught = Class.objects.filter(
+        subject_assignments__teacher=teacher,
+        subject_assignments__academic_session=current_session
+    ).distinct().select_related('academic_session')
 
-    # Calculate statistics
-    total_classes = teacher_assignments.values('class_assigned').distinct().count()
-    total_subjects = teacher_assignments.values('subject').distinct().count()
-    total_periods = teacher_assignments.aggregate(total=models.Sum('periods_per_week'))['total'] or 0
+    # Total unique students across all taught classes
+    total_students = Student.objects.filter(
+        enrollments__class_enrolled__in=classes_taught,
+        enrollments__enrollment_status='active',
+        enrollments__academic_session=current_session
+    ).distinct().count()
 
-    # Get today's classes
-    today_classes = []
-    if current_session:
-        from datetime import datetime
-        today_weekday = datetime.now().strftime('%A').lower()
-
-        today_timetable = teacher.timetable_entries.filter(
-            academic_session=current_session,
-            day_of_week=today_weekday
-        ).select_related('class_assigned', 'subject').order_by('start_time')
-
-        today_classes = list(today_timetable)
-
-    # Get pending grading tasks
-    from apps.assessment.models import Assignment
-    pending_grading = Assignment.objects.filter(
+    # Pending grading count
+    pending_grading = AssignmentModel.objects.filter(
         teacher=teacher,
         student__isnull=False,
-        submission_status__in=['submitted', 'late'],
-        graded_date__isnull=True
+        submission_status=AssignmentModel.SubmissionStatus.SUBMITTED
     ).count()
 
-    # Get recent activities
-    from apps.assessment.models import Mark
-    recent_marks = Mark.objects.filter(
-        entered_by=teacher
-    ).select_related('exam', 'student').order_by('-entered_at')[:5]
+    # Upcoming exams for teacher's classes
+    upcoming_exams = Exam.objects.filter(
+        academic_class__in=classes_taught,
+        exam_date__gte=timezone.now().date(),
+        is_published=True
+    ).select_related('subject', 'academic_class').order_by('exam_date', 'start_time')[:10]
 
-    # Get attendance summary for today
-    from apps.attendance.models import DailyAttendance
-    from django.utils import timezone
+    # Class performance summary
+    class_performance = []
+    for class_obj in classes_taught:
+        marks_qs = Mark.objects.filter(exam__academic_class=class_obj)
+        avg_pct = marks_qs.aggregate(avg=Avg('percentage'))['avg'] or 0
+        class_performance.append({
+            'class': class_obj,
+            'average_percentage': avg_pct,
+            'total_students': class_obj.enrollments.filter(
+                enrollment_status='active',
+                academic_session=current_session
+            ).count(),
+        })
+
+    # Recent assignments created by teacher
+    recent_assignments = AssignmentModel.objects.filter(
+        teacher=teacher,
+        student__isnull=True,
+    ).select_related('subject', 'academic_class').order_by('-created_at')[:8]
+
+    # Today's attendance count
     today = timezone.now().date()
-
     today_attendance_count = DailyAttendance.objects.filter(
         marked_by=request.user,
         date=today
@@ -4637,17 +4666,17 @@ def teacher_dashboard(request):
         'title': _('Teacher Dashboard'),
         'teacher': teacher,
         'current_session': current_session,
-        'teacher_assignments': teacher_assignments,
-        'total_classes': total_classes,
-        'total_subjects': total_subjects,
-        'total_periods': total_periods,
-        'today_classes': today_classes,
+        'classes_taught': classes_taught,
+        'total_students': total_students,
         'pending_grading': pending_grading,
-        'recent_marks': recent_marks,
+        'upcoming_exams': upcoming_exams,
+        'class_performance': class_performance,
+        'recent_assignments': recent_assignments,
+        'now': timezone.now(),
         'today_attendance_count': today_attendance_count,
     }
 
-    return render(request, 'users/teacher/dashboard.html', context)
+    return render(request, 'users/dashboard/teacher_dashboard.html', context)
 
 
 @login_required
@@ -5019,7 +5048,7 @@ def teacher_assessment(request):
     from apps.assessment.models import Exam
     exams = Exam.objects.filter(
         academic_class__subject_assignments__teacher=teacher,
-        academic_session=current_session
+        academic_class__academic_session=current_session
     ).select_related('subject', 'exam_type', 'academic_class').distinct()
 
     # Get assignments created by teacher
@@ -5034,8 +5063,7 @@ def teacher_assessment(request):
     pending_grading = Assignment.objects.filter(
         teacher=teacher,
         student__isnull=False,
-        submission_status__in=['submitted', 'late'],
-        graded_date__isnull=True
+        submission_status=Assignment.SubmissionStatus.SUBMITTED
     ).select_related('student__user', 'subject')
 
     context = {
@@ -5110,12 +5138,18 @@ def teacher_communication(request):
         subject_assignments__academic_session=current_session
     ).distinct()
 
-    # Get parent contacts
+    # Get parent contacts - find parents of students enrolled in teacher's classes
     from apps.users.models import ParentStudentRelationship
+    # Get User objects whose student_profile is enrolled in the taught classes
+    enrolled_student_users = User.objects.filter(
+        student_profile__enrollments__class_enrolled__in=taught_classes,
+        student_profile__enrollments__academic_session=current_session,
+        student_profile__enrollments__enrollment_status='active'
+    ).distinct()
     parent_relationships = ParentStudentRelationship.objects.filter(
-        student__enrollments__class_enrolled__in=taught_classes,
+        student__in=enrolled_student_users,
         status='active'
-    ).select_related('parent__user', 'student__user').distinct()
+    ).select_related('parent', 'student').distinct()
 
     context = {
         'title': _('Communication'),

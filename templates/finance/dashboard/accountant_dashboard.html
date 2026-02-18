@@ -1,304 +1,494 @@
-{% extends 'base.html' %}
-{% load i18n %}
+{% extends 'base/base.html' %}
+{% load i18n static %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{% trans "Finance Dashboard" %}{% endblock %}
+{% block page_title %}{% trans "Finance Dashboard" %}{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">{% trans "Finance Dashboard" %}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'finance:invoice_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i>{% trans "New Invoice" %}
+    </a>
+    <a href="{% url 'finance:payment_create' %}" class="btn btn-success btn-sm">
+        <i class="bi bi-cash me-1"></i>{% trans "Record Payment" %}
+    </a>
+    <a href="{% url 'finance:expense_create' %}" class="btn btn-warning btn-sm">
+        <i class="bi bi-receipt me-1"></i>{% trans "Add Expense" %}
+    </a>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">{{ title }}</h1>
+<div class="finance-dashboard">
 
-    <div class="row">
-        <!-- Total Invoiced Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                {% translate "Total Invoiced" %} ({{ current_session.name }})
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ total_invoiced|floatformat:2 }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-file-invoice fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <!-- ── KPI SUMMARY CARDS ─────────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
 
-        <!-- Total Paid Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                {% translate "Total Paid" %} ({{ current_session.name }})
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ total_paid|floatformat:2 }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
+    <!-- Total Invoiced -->
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100 kpi-card kpi-primary">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between">
+            <div>
+              <p class="text-muted small mb-1 text-uppercase fw-semibold">{% trans "Total Invoiced" %}</p>
+              <h3 class="fw-bold mb-0 text-primary">₦{{ total_invoiced|floatformat:2 }}</h3>
+              <small class="text-muted">{{ current_session.name|default:"Current Session" }}</small>
             </div>
-        </div>
-
-        <!-- Total Outstanding Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                {% translate "Total Outstanding" %} ({{ current_session.name }})
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ total_outstanding|floatformat:2 }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
+            <div class="kpi-icon bg-primary bg-opacity-10 text-primary rounded-3 p-2">
+              <i class="bi bi-file-earmark-text fs-4"></i>
             </div>
+          </div>
+          {% if total_invoiced %}
+          <div class="progress mt-3" style="height:4px;">
+            <div class="progress-bar bg-primary" style="width:100%"></div>
+          </div>
+          {% endif %}
         </div>
-
-        <!-- Overdue Invoices Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-danger shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                {% translate "Overdue Invoices" %}
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ overdue_invoices_count }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-calendar-times fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <div class="row">
-        <!-- Recent Invoices -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">{% translate "Recent Invoices" %}</h6>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered" id="recentInvoicesTable" width="100%" cellspacing="0">
-                            <thead>
-                                <tr>
-                                    <th>{% translate "Invoice #" %}</th>
-                                    <th>{% translate "Student" %}</th>
-                                    <th>{% translate "Amount" %}</th>
-                                    <th>{% translate "Due Date" %}</th>
-                                    <th>{% translate "Status" %}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for invoice in recent_invoices %}
-                                <tr>
-                                    <td><a href="{% url 'finance:invoice_detail' pk=invoice.pk %}">{{ invoice.invoice_number }}</a></td>
-                                    <td>{{ invoice.student.user.get_full_name }}</td>
-                                    <td>${{ invoice.total_amount|floatformat:2 }}</td>
-                                    <td>{{ invoice.due_date|date:"M d, Y" }}</td>
-                                    <td><span class="badge badge-{{ invoice.get_status_display|lower }}">{{ invoice.get_status_display }}</span></td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="5">{% translate "No recent invoices." %}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="text-right">
-                        <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-primary">{% translate "View All Invoices" %} &rarr;</a>
-                    </div>
-                </div>
+    <!-- Total Collected -->
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100 kpi-card kpi-success">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between">
+            <div>
+              <p class="text-muted small mb-1 text-uppercase fw-semibold">{% trans "Collected" %}</p>
+              <h3 class="fw-bold mb-0 text-success">₦{{ total_paid|floatformat:2 }}</h3>
+              <small class="text-muted">
+                {% if total_invoiced %}
+                  {% widthratio total_paid total_invoiced 100 %}% of invoiced
+                {% else %}0%{% endif %}
+              </small>
             </div>
-        </div>
-
-        <!-- Recent Payments -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">{% translate "Recent Payments" %}</h6>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered" id="recentPaymentsTable" width="100%" cellspacing="0">
-                            <thead>
-                                <tr>
-                                    <th>{% translate "Payment #" %}</th>
-                                    <th>{% translate "Student" %}</th>
-                                    <th>{% translate "Amount" %}</th>
-                                    <th>{% translate "Date" %}</th>
-                                    <th>{% translate "Method" %}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for payment in recent_payments %}
-                                <tr>
-                                    <td><a href="{% url 'finance:payment_detail' pk=payment.pk %}">{{ payment.payment_number }}</a></td>
-                                    <td>{{ payment.student.user.get_full_name }}</td>
-                                    <td>${{ payment.amount|floatformat:2 }}</td>
-                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
-                                    <td>{{ payment.get_payment_method_display }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="5">{% translate "No recent payments." %}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="text-right">
-                        <a href="{% url 'finance:payment_list' %}" class="btn btn-sm btn-primary">{% translate "View All Payments" %} &rarr;</a>
-                    </div>
-                </div>
+            <div class="kpi-icon bg-success bg-opacity-10 text-success rounded-3 p-2">
+              <i class="bi bi-check-circle fs-4"></i>
             </div>
+          </div>
+          {% if total_invoiced %}
+          <div class="progress mt-3" style="height:4px;">
+            <div class="progress-bar bg-success"
+                 style="width:{% widthratio total_paid total_invoiced 100 %}%"></div>
+          </div>
+          {% endif %}
         </div>
+      </div>
     </div>
 
-    <div class="row">
-        <!-- Monthly Expense Summary -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">{% translate "Monthly Expense Summary" %}</h6>
-                </div>
-                <div class="card-body">
-                    <p>{% translate "Total expenses this month" %}: <strong>${{ total_expenses|floatformat:2 }}</strong></p>
-                    <canvas id="expenseChart"></canvas>
-                    <div class="text-right mt-3">
-                        <a href="{% url 'finance:expense_list' %}" class="btn btn-sm btn-primary">{% translate "View All Expenses" %} &rarr;</a>
-                    </div>
-                </div>
+    <!-- Outstanding -->
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100 kpi-card kpi-warning">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between">
+            <div>
+              <p class="text-muted small mb-1 text-uppercase fw-semibold">{% trans "Outstanding" %}</p>
+              <h3 class="fw-bold mb-0 text-warning">₦{{ total_outstanding|floatformat:2 }}</h3>
+              <small class="text-muted">{% trans "Balance Due" %}</small>
             </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">{% translate "Quick Actions" %}</h6>
-                </div>
-                <div class="card-body">
-                    <div class="list-group">
-                        <a href="{% url 'finance:invoice_create' %}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-plus-circle mr-2"></i> {% translate "Create New Invoice" %}
-                        </a>
-                        <a href="{% url 'finance:payment_create' invoice_pk='00000000-0000-0000-0000-000000000000' %}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-money-bill-wave mr-2"></i> {% translate "Record New Payment" %}
-                        </a>
-                        <a href="{% url 'finance:expense_create' %}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-cash-register mr-2"></i> {% translate "Add New Expense" %}
-                        </a>
-                        <a href="{% url 'finance:feestructure_list' %}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-cogs mr-2"></i> {% translate "Manage Fee Structures" %}
-                        </a>
-                        <a href="{% url 'finance:feediscount_list' %}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-tags mr-2"></i> {% translate "Manage Fee Discounts" %}
-                        </a>
-                        <a href="{% url 'finance:financialreport_list' %}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-chart-line mr-2"></i> {% translate "View Financial Reports" %}
-                        </a>
-                    </div>
-                </div>
+            <div class="kpi-icon bg-warning bg-opacity-10 text-warning rounded-3 p-2">
+              <i class="bi bi-hourglass-split fs-4"></i>
             </div>
+          </div>
         </div>
+      </div>
     </div>
 
-</div>
+    <!-- Overdue -->
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100 kpi-card kpi-danger">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between">
+            <div>
+              <p class="text-muted small mb-1 text-uppercase fw-semibold">{% trans "Overdue" %}</p>
+              <h3 class="fw-bold mb-0 text-danger">{{ overdue_invoices_count }}</h3>
+              <small class="text-muted">{% trans "Invoices Past Due" %}</small>
+            </div>
+            <div class="kpi-icon bg-danger bg-opacity-10 text-danger rounded-3 p-2">
+              <i class="bi bi-exclamation-triangle fs-4"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /KPI row -->
 
+  <!-- ── CHARTS ROW ─────────────────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+
+    <!-- Fee Collection Progress -->
+    <div class="col-12 col-lg-8">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>{% trans "Monthly Fee Collection" %}</h6>
+          <span class="badge bg-primary-subtle text-primary">{% now "Y" %}</span>
+        </div>
+        <div class="card-body pt-0">
+          <canvas id="collectionChart" height="110"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense Breakdown -->
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-pie-chart me-2 text-warning"></i>{% trans "Expenses This Month" %}</h6>
+          <span class="fw-bold text-warning small">₦{{ total_expenses|floatformat:2 }}</span>
+        </div>
+        <div class="card-body pt-0 d-flex flex-column align-items-center">
+          <canvas id="expenseChart" height="160"></canvas>
+          <div id="expenseLegend" class="mt-2 w-100"></div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /charts -->
+
+  <!-- ── TABLES ROW ─────────────────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+
+    <!-- Recent Invoices -->
+    <div class="col-12 col-xl-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-file-earmark-text me-2 text-primary"></i>{% trans "Recent Invoices" %}</h6>
+          <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-primary">{% trans "View All" %}</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "Invoice #" %}</th>
+                  <th>{% trans "Student" %}</th>
+                  <th class="d-none d-md-table-cell">{% trans "Amount" %}</th>
+                  <th class="d-none d-sm-table-cell">{% trans "Due" %}</th>
+                  <th>{% trans "Status" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for invoice in recent_invoices %}
+                <tr>
+                  <td class="ps-3">
+                    <a href="{% url 'finance:invoice_detail' pk=invoice.pk %}" class="fw-semibold text-decoration-none">
+                      {{ invoice.invoice_number }}
+                    </a>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="avatar-xs bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;font-size:.75rem;">
+                        {{ invoice.student.user.first_name|first }}{{ invoice.student.user.last_name|first }}
+                      </div>
+                      <span class="d-none d-sm-inline">{{ invoice.student.user.get_full_name }}</span>
+                    </div>
+                  </td>
+                  <td class="d-none d-md-table-cell fw-semibold">₦{{ invoice.total_amount|floatformat:2 }}</td>
+                  <td class="d-none d-sm-table-cell">
+                    <span class="{% if invoice.is_overdue %}text-danger{% else %}text-muted{% endif %} small">
+                      {{ invoice.due_date|date:"d M Y" }}
+                    </span>
+                  </td>
+                  <td>
+                    {% if invoice.status == 'paid' %}
+                      <span class="badge bg-success-subtle text-success">{% trans "Paid" %}</span>
+                    {% elif invoice.status == 'partial' %}
+                      <span class="badge bg-info-subtle text-info">{% trans "Partial" %}</span>
+                    {% elif invoice.status == 'overdue' or invoice.is_overdue %}
+                      <span class="badge bg-danger-subtle text-danger">{% trans "Overdue" %}</span>
+                    {% elif invoice.status == 'issued' %}
+                      <span class="badge bg-warning-subtle text-warning">{% trans "Issued" %}</span>
+                    {% else %}
+                      <span class="badge bg-secondary-subtle text-secondary">{{ invoice.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                    {% trans "No recent invoices" %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /invoices -->
+
+    <!-- Recent Payments -->
+    <div class="col-12 col-xl-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-cash-stack me-2 text-success"></i>{% trans "Recent Payments" %}</h6>
+          <a href="{% url 'finance:payment_list' %}" class="btn btn-sm btn-outline-success">{% trans "View All" %}</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for payment in recent_payments %}
+            <a href="{% url 'finance:payment_detail' pk=payment.pk %}" class="list-group-item list-group-item-action px-3 py-2 border-0">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="p-2 bg-success bg-opacity-10 rounded-circle">
+                    <i class="bi bi-{% if payment.payment_method == 'paystack' %}credit-card{% elif payment.payment_method == 'cash' %}cash{% else %}bank{% endif %} text-success small"></i>
+                  </div>
+                  <div>
+                    <p class="mb-0 fw-semibold small">{{ payment.student.user.get_full_name }}</p>
+                    <p class="mb-0 text-muted" style="font-size:.75rem;">{{ payment.get_payment_method_display }} · {{ payment.payment_date|date:"d M" }}</p>
+                  </div>
+                </div>
+                <span class="fw-bold text-success">₦{{ payment.amount|floatformat:2 }}</span>
+              </div>
+            </a>
+            {% empty %}
+            <div class="p-4 text-center text-muted">
+              <i class="bi bi-inbox display-6 d-block mb-2"></i>
+              {% trans "No recent payments" %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div><!-- /payments -->
+
+  </div><!-- /tables row -->
+
+  <!-- ── QUICK ACTIONS ──────────────────────────────────────────────── -->
+  <div class="row g-3">
+    <div class="col-12 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-lightning-charge me-2 text-warning"></i>{% trans "Quick Actions" %}</h6>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-6">
+              <a href="{% url 'finance:invoice_create' %}" class="btn btn-outline-primary w-100 d-flex flex-column align-items-center py-3 gap-1">
+                <i class="bi bi-file-earmark-plus fs-4"></i>
+                <span class="small">{% trans "New Invoice" %}</span>
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{% url 'finance:payment_create' %}" class="btn btn-outline-success w-100 d-flex flex-column align-items-center py-3 gap-1">
+                <i class="bi bi-cash-coin fs-4"></i>
+                <span class="small">{% trans "Record Payment" %}</span>
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{% url 'finance:expense_create' %}" class="btn btn-outline-warning w-100 d-flex flex-column align-items-center py-3 gap-1">
+                <i class="bi bi-receipt-cutoff fs-4"></i>
+                <span class="small">{% trans "Add Expense" %}</span>
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{% url 'finance:fee_structure_list' %}" class="btn btn-outline-secondary w-100 d-flex flex-column align-items-center py-3 gap-1">
+                <i class="bi bi-gear fs-4"></i>
+                <span class="small">{% trans "Fee Structures" %}</span>
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{% url 'finance:fee_discount_list' %}" class="btn btn-outline-info w-100 d-flex flex-column align-items-center py-3 gap-1">
+                <i class="bi bi-tags fs-4"></i>
+                <span class="small">{% trans "Discounts" %}</span>
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{% url 'finance:financial_report_list' %}" class="btn btn-outline-dark w-100 d-flex flex-column align-items-center py-3 gap-1">
+                <i class="bi bi-graph-up fs-4"></i>
+                <span class="small">{% trans "Reports" %}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Collection Summary -->
+    <div class="col-12 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>{% trans "Collection Summary" %}</h6>
+        </div>
+        <div class="card-body">
+          {% if total_invoiced %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="small text-muted">{% trans "Collected" %}</span>
+              <span class="small fw-semibold text-success">{% widthratio total_paid total_invoiced 100 %}%</span>
+            </div>
+            <div class="progress" style="height:8px;">
+              <div class="progress-bar bg-success rounded-pill"
+                   style="width:{% widthratio total_paid total_invoiced 100 %}%"></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="small text-muted">{% trans "Outstanding" %}</span>
+              <span class="small fw-semibold text-warning">{% widthratio total_outstanding total_invoiced 100 %}%</span>
+            </div>
+            <div class="progress" style="height:8px;">
+              <div class="progress-bar bg-warning rounded-pill"
+                   style="width:{% widthratio total_outstanding total_invoiced 100 %}%"></div>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="row g-2 text-center mt-2">
+            <div class="col-4">
+              <div class="p-2 bg-success bg-opacity-10 rounded-3">
+                <p class="mb-0 fw-bold text-success">₦{{ total_paid|floatformat:0 }}</p>
+                <p class="mb-0 text-muted" style="font-size:.7rem;">{% trans "Paid" %}</p>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 bg-warning bg-opacity-10 rounded-3">
+                <p class="mb-0 fw-bold text-warning">₦{{ total_outstanding|floatformat:0 }}</p>
+                <p class="mb-0 text-muted" style="font-size:.7rem;">{% trans "Outstanding" %}</p>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 bg-danger bg-opacity-10 rounded-3">
+                <p class="mb-0 fw-bold text-danger">{{ overdue_invoices_count }}</p>
+                <p class="mb-0 text-muted" style="font-size:.7rem;">{% trans "Overdue" %}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /quick actions -->
+
+</div><!-- /finance-dashboard -->
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.kpi-card { transition: transform .15s, box-shadow .15s; }
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.12)!important; }
+.kpi-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
+@media(max-width:575px){
+  .kpi-card h3 { font-size:1.1rem; }
+  .kpi-icon { width:38px;height:38px; }
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Placeholder for dynamic expense data
-        var expenseChart; // Declare chart variable globally or in a scope accessible for updates
+// ── Real monthly collection data from Django context ──────────────
+const MONTHLY_DATA = {{ monthly_collection|safe }};
 
-        function loadExpenseSummary() {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = today.getMonth() + 1; // Month is 0-indexed
+document.addEventListener('DOMContentLoaded', function () {
 
-            // Construct start and end dates for the current month
-            const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-            const endDate = `${year}-${String(month).padStart(2, '0')}-${new Date(year, month, 0).getDate()}`;
+  // ── Expense Doughnut ─────────────────────────────────────────────
+  function loadExpenseChart() {
+    const today = new Date();
+    const y = today.getFullYear(), m = today.getMonth() + 1;
+    const s = `${y}-${String(m).padStart(2,'0')}-01`;
+    const e = `${y}-${String(m).padStart(2,'0')}-${new Date(y, m, 0).getDate()}`;
 
-            fetch(`{% url "finance:api_expense_summary" %}?start_date=${startDate}&end_date=${endDate}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const labels = data.category_summary.map(item => item.category);
-                        const values = data.category_summary.map(item => parseFloat(item.total));
-
-                        const backgroundColors = [
-                            'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)', 'rgba(255, 206, 86, 0.8)',
-                            'rgba(75, 192, 192, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)'
-                        ];
-                        const borderColors = [
-                            'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)',
-                            'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'
-                        ];
-
-                        const expenseData = {
-                            labels: labels,
-                            datasets: [{
-                                label: '{% translate "Expenses by Category" %}',
-                                data: values,
-                                backgroundColor: backgroundColors.slice(0, labels.length),
-                                borderColor: borderColors.slice(0, labels.length),
-                                borderWidth: 1
-                            }]
-                        };
-
-                        const expenseConfig = {
-                            type: 'doughnut',
-                            data: expenseData,
-                            options: {
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
-                                    },
-                                    title: {
-                                        display: true,
-                                        text: '{% translate "Expense Distribution" %}'
-                                    }
-                                }
-                            },
-                        };
-
-                        if (expenseChart) {
-                            expenseChart.destroy(); // Destroy existing chart before creating a new one
-                        }
-                        expenseChart = new Chart(
-                            document.getElementById('expenseChart'),
-                            expenseConfig
-                        );
-                    } else {
-                        console.error('Error fetching expense summary:', data.message);
-                    }
-                })
-                .catch(error => console.error('Error fetching expense summary:', error));
+    fetch(`{% url "finance:api_expense_summary" %}?start_date=${s}&end_date=${e}`)
+      .then(r => r.json())
+      .then(data => {
+        const ctx = document.getElementById('expenseChart');
+        if (!ctx) return;
+        if (!data.success || !data.category_summary || !data.category_summary.length) {
+          ctx.closest('.card-body').innerHTML = '<p class="text-center text-muted py-4 small">No expense data for this month</p>';
+          return;
         }
+        const colors = ['#0d6efd','#198754','#ffc107','#dc3545','#0dcaf0','#6610f2','#fd7e14','#20c997'];
+        const labels = data.category_summary.map(x => x.category);
+        const values = data.category_summary.map(x => parseFloat(x.total));
 
-        loadExpenseSummary(); // Load data when the page loads
+        new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels,
+            datasets: [{ data: values, backgroundColor: colors.slice(0, labels.length), borderWidth: 2 }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: ctx => ` ₦${ctx.parsed.toLocaleString('en-NG')}` } }
+            },
+            cutout: '70%'
+          }
+        });
+
+        const leg = document.getElementById('expenseLegend');
+        if (leg) {
+          leg.innerHTML = labels.map((l, i) =>
+            `<div class="d-flex align-items-center justify-content-between mb-1">
+               <span class="d-flex align-items-center gap-1 small">
+                 <span style="width:10px;height:10px;border-radius:2px;background:${colors[i]};display:inline-block;flex-shrink:0;"></span>${l}
+               </span>
+               <span class="small fw-semibold">₦${values[i].toLocaleString('en-NG')}</span>
+             </div>`
+          ).join('');
+        }
+      }).catch(() => {});
+  }
+
+  // ── Monthly Collection Bar — REAL DATA from backend ───────────────
+  function loadCollectionChart() {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const invoiced = MONTHLY_DATA.map(d => d.invoiced);
+    const collected = MONTHLY_DATA.map(d => d.paid);
+
+    const ctx = document.getElementById('collectionChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: 'Invoiced',
+            data: invoiced,
+            backgroundColor: 'rgba(13,110,253,.15)',
+            borderColor: '#0d6efd',
+            borderWidth: 1.5,
+            borderRadius: 4
+          },
+          {
+            label: 'Collected',
+            data: collected,
+            backgroundColor: 'rgba(25,135,84,.7)',
+            borderColor: '#198754',
+            borderWidth: 1.5,
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, padding: 16 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ₦${ctx.parsed.y.toLocaleString('en-NG')}`
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: { callback: v => '₦' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v) },
+            grid: { color: 'rgba(0,0,0,.05)' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
     });
+  }
+
+  loadExpenseChart();
+  loadCollectionChart();
+});
 </script>
 {% endblock %}

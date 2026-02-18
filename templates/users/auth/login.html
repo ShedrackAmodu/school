@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static i18n %}
 
-{% block title %}{% trans "Login - School Management System" %}{% endblock %}
+{% block title %}{% trans "Login - Excellence Academy" %}{% endblock %}
 
 {% block meta_description %}{% trans "Login to access your school management system dashboard. Students, parents, teachers, and staff can access their accounts here." %}{% endblock %}
 
@@ -26,7 +26,7 @@
                         <!-- Header -->
                         <div class="text-center mb-4">
                             <a href="{% url 'users:guest_home' %}" class="d-inline-block mb-4">
-                                <img src="{% static 'images/prospectus.png' %}" alt="{% trans 'School Management System' %}" height="50"
+                                <img src="{% static 'images/prospectus.png' %}" alt="{% trans 'Excellence Academy' %}" height="50"
                                      onerror="this.onerror=null; this.src='{% static 'images/logo.png' %}'">
                             </a>
                             <h2 class="fw-bold text-primary">{% trans "Welcome Back" %}</h2>
@@ -274,7 +274,7 @@
                         </div>
                     </div>
                     <div class="col-6">
-                    <a href="mailto:support@yourschool.edu" class="text-decoration-none">
+                    <a href="mailto:support@excellenceacademy.edu" class="text-decoration-none">
                     <i class="bi bi-headset me-1"></i>
                     <small class="text-muted">{% trans "Need Help?" %}</small>
                      </a>
@@ -584,11 +584,11 @@ document.addEventListener('DOMContentLoaded', function() {
         loginButton.disabled = true;
 
         // Basic client-side validation
-        const email = document.getElementById('email').value.trim();
+        const emailOrUsername = document.getElementById('email_or_username').value.trim();
         const password = document.getElementById('password').value;
         const isChangePassword = changePasswordCheckbox && changePasswordCheckbox.checked;
 
-        if (!email || !password) {
+        if (!emailOrUsername || !password) {
             e.preventDefault();
             loginButton.classList.remove('btn-loading');
             loginButton.disabled = false;
@@ -625,8 +625,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     });
     
-    // Auto-focus on email field
-    const emailField = document.getElementById('email');
+    // Auto-focus on email/username field
+    const emailField = document.getElementById('email_or_username');
     if (emailField && !emailField.value) {
         emailField.focus();
     }

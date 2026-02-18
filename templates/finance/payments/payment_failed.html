@@ -1,83 +1,66 @@
-{% extends 'base.html' %}
+{% extends "base/base.html" %}
 {% load i18n %}
 
-{% block title %}{% trans "Payment Failed" %} - {{ block.super }}{% endblock %}
+{% block title %}{% trans "Payment Failed" %}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body text-center">
-                    <div class="mb-4">
-                        <i class="fas fa-times-circle fa-5x text-danger"></i>
-                    </div>
-                    <h2 class="card-title text-danger">{% trans "Payment Failed" %}</h2>
-                    <p class="card-text text-muted mb-4">
-                        {% trans "We're sorry, but your payment could not be processed. Please try again or contact support if the problem persists." %}
-                    </p>
-                    
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        {% trans "Reference Number:" %} <strong>{{ reference }}</strong>
-                    </div>
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+      <div class="card shadow border-0 text-center">
+        <div class="card-body p-4 p-md-5">
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">{% trans "What to Do Next" %}</h6>
-                                    <ul class="list-unstyled">
-                                        <li><i class="fas fa-check text-success"></i> {% trans "Check your payment details" %}</li>
-                                        <li><i class="fas fa-check text-success"></i> {% trans "Ensure sufficient funds" %}</li>
-                                        <li><i class="fas fa-check text-success"></i> {% trans "Try a different payment method" %}</li>
-                                        <li><i class="fas fa-check text-success"></i> {% trans "Contact your bank if needed" %}</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">{% trans "Need Help?" %}</h6>
-                                    <p class="text-muted">
-                                        {% trans "If you continue to experience issues, please contact our support team with the reference number above." %}
-                                    </p>
-                                    <a href="{% url 'support:contact' %}" class="btn btn-outline-primary">
-                                        <i class="fas fa-headset"></i> {% trans "Contact Support" %}
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+          <!-- Icon -->
+          <div class="mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger bg-opacity-10"
+                  style="width:90px;height:90px;">
+              <i class="bi bi-x-circle-fill text-danger" style="font-size:2.8rem;"></i>
+            </span>
+          </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
-                        <a href="{% url 'finance:student_invoices' %}" class="btn btn-primary btn-lg">
-                            <i class="fas fa-list"></i> {% trans "View Invoices" %}
-                        </a>
-                        <a href="{% url 'finance:student_payment_list' %}" class="btn btn-outline-primary btn-lg">
-                            <i class="fas fa-history"></i> {% trans "Payment History" %}
-                        </a>
-                        <a href="{% url 'users:dashboard' %}" class="btn btn-outline-secondary btn-lg">
-                            <i class="fas fa-home"></i> {% trans "Dashboard" %}
-                        </a>
-                    </div>
-                </div>
-            </div>
+          <h2 class="fw-bold text-danger mb-2">{% trans "Payment Failed" %}</h2>
+          <p class="text-muted mb-3">
+            {% trans "We were unable to process your payment. No amount has been deducted from your account." %}
+          </p>
+
+          {% if reference %}
+          <div class="alert alert-light border rounded-3 text-start mb-4 small">
+            <strong>{% trans "Reference:" %}</strong> <span class="text-muted font-monospace">{{ reference }}</span>
+          </div>
+          {% endif %}
+
+          <!-- Common reasons -->
+          <div class="text-start mb-4">
+            <p class="fw-semibold mb-2 small">{% trans "Possible reasons:" %}</p>
+            <ul class="list-unstyled small text-muted">
+              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Insufficient funds" %}</li>
+              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Card declined by bank" %}</li>
+              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Network or connection issue" %}</li>
+              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Payment session timed out" %}</li>
+            </ul>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="d-grid gap-2">
+            <a href="{% url 'finance:student_dashboard' %}" class="btn btn-primary btn-lg">
+              <i class="bi bi-arrow-repeat me-2"></i>{% trans "Try Again" %}
+            </a>
+            <a href="{% url 'finance:student_invoices' %}" class="btn btn-outline-secondary">
+              <i class="bi bi-receipt me-2"></i>{% trans "View My Invoices" %}
+            </a>
+            <a href="{% url 'users:dashboard' %}" class="btn btn-link text-muted small">
+              <i class="bi bi-house me-1"></i>{% trans "Go to Dashboard" %}
+            </a>
+          </div>
+
+          <!-- Support note -->
+          <p class="text-muted small mt-4 mb-0">
+            {% trans "If this problem persists, please contact the school's finance office or support." %}
+          </p>
+
         </div>
+      </div>
     </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-    .error-icon {
-        animation: shake 0.5s ease-in-out;
-    }
-    @keyframes shake {
-        0%, 100% {transform: translateX(0);}
-        25% {transform: translateX(-5px);}
-        75% {transform: translateX(5px);}
-    }
-</style>
 {% endblock %}

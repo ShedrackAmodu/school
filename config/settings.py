@@ -215,14 +215,17 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_URL = '/users/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 
-# Django Allauth Settings
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = False
+# Django Allauth Settings (updated for allauth >= 0.56.0)
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_EMAIL_CONFIRMATION_HMAC = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
-ACCOUNT_EMAIL_CONFIRMATION_COOLDOWN = 180
+ACCOUNT_RATE_LIMITS = {
+    'confirm_email': '5/180s',
+    'login_failed': '10/m',
+    'signup': '20/m',
+}
 
 # Disable automatic signup via social accounts - we only allow account linking
 ACCOUNT_ADAPTER = 'apps.users.adapters.CustomAccountAdapter'
@@ -259,7 +262,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ADMINISTRATORS
 # ============================
 
-ADMINS = [("Nexus Admin", "supereaglepilot@gmail.com")]
+ADMINS = [("Excellent Academy Admin", "supereaglepilot@gmail.com")]
 MANAGERS = ADMINS
 
 # ============================
@@ -275,8 +278,8 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', "supereaglepilot@gmail.com")  # Use environment variable
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', "lwuiaxslniodkwcr")  # Use environment variable (app password)
 EMAIL_TIMEOUT = 30
-DEFAULT_FROM_EMAIL = "noreply@NordaLMS.pythonanywhere.com"
-SERVER_EMAIL = "errors@NordaLMS.pythonanywhere.com"
+DEFAULT_FROM_EMAIL = "noreply@excellentacademy.pythonanywhere.com"
+SERVER_EMAIL = "errors@excellentacademy.pythonanywhere.com"
 
 # ============================
 # PAYSTACK CONFIGURATION
@@ -316,10 +319,8 @@ if ON_PYTHONANYWHERE:
     # Production settings for PythonAnywhere
     DEBUG = False
     ALLOWED_HOSTS = [
-        'NordaLMS.pythonanywhere.com',
-        'www.NordaLMS.pythonanywhere.com',
-        # Add tenant subdomains dynamically as institutions are created
-        # Example: 'school1.NordaLMS.pythonanywhere.com', 'school2.NordaLMS.pythonanywhere.com'
+        'excellentacademy.pythonanywhere.com',
+        'www.excellentacademy.pythonanywhere.com',
     ]
 
     # Production security settings
@@ -337,13 +338,12 @@ if ON_PYTHONANYWHERE:
 
     # CSRF trusted origins for PythonAnywhere
     CSRF_TRUSTED_ORIGINS = [
-        'https://NordaLMS.pythonanywhere.com',
-        'https://www.NordaLMS.pythonanywhere.com',
-        # Add tenant subdomains dynamically: 'https://*.NordaLMS.pythonanywhere.com'
+        'https://excellentacademy.pythonanywhere.com',
+        'https://www.excellentacademy.pythonanywhere.com',
     ]
 
-    # Update TENANT_DOMAIN for production
-    TENANT_DOMAIN = 'NordaLMS.pythonanywhere.com'
+    # Single-tenant: no subdomain routing needed
+    TENANT_DOMAIN = 'excellentacademy.pythonanywhere.com'
     
     # Adjust static files for PythonAnywhere production
     STATIC_ROOT = BASE_DIR / "static"
@@ -453,8 +453,8 @@ DATABASES = {
 # ============================
 
 # Site name for templates
-SITE_NAME = "Nexus Intelligence School Management System"
-SITE_DOMAIN = "NordaLMS.pythonanywhere.com"
+SITE_NAME = "Excellent Academy School Management System"
+SITE_DOMAIN = "excellentacademy.pythonanywhere.com"
 SITE_ID = 1
 
 # ============================

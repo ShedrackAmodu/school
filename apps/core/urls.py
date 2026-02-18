@@ -4,6 +4,10 @@ from . import views
 app_name = 'core'
 
 urlpatterns = [
+    # Dashboard URLs
+    path('dashboard/super-admin/', views.SuperAdminDashboardView.as_view(), name='super_admin_dashboard'),
+    path('dashboard/school-admin/', views.SchoolAdminDashboardView.as_view(), name='school_admin_dashboard'),
+
     # Configuration Management URLs
     path('configs/', views.SystemConfigListView.as_view(), name='config_list'),
     path('configs/dashboard/', views.SystemConfigDashboardView.as_view(), name='config_dashboard'),

@@ -1,5 +1,6 @@
 # apps/finance/models.py
 
+import logging
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
@@ -8,6 +9,8 @@ from django.utils import timezone
 from django.conf import settings
 import uuid
 import json
+
+logger = logging.getLogger(__name__)
 
 from apps.core.models import CoreBaseModel, AddressModel, ContactModel
 from apps.users.models import User
@@ -577,12 +580,40 @@ class Payment(CoreBaseModel):
                 sequence_type='receipt'
             )
             self.payment_number = sequence.get_next_number()
-        
-        # Update invoice payment status
+
+        # Only update invoice amount_paid when status FIRST changes to COMPLETED
         if self.status == self.PaymentStatus.COMPLETED:
-            self.invoice.amount_paid += self.amount
-            self.invoice.save()
-        
+            is_new = self._state.adding
+            if is_new:
+                # Brand new payment created as completed
+                from django.db import transaction
+                with transaction.atomic():
+                    invoice = Invoice.objects.select_for_update().get(pk=self.invoice_id)
+                    invoice.amount_paid = (invoice.amount_paid or Decimal('0.00')) + self.amount
+                    invoice.balance_due = max(Decimal('0.00'), invoice.total_amount - invoice.amount_paid)
+                    if invoice.amount_paid >= invoice.total_amount:
+                        invoice.status = Invoice.InvoiceStatus.PAID
+                    elif invoice.amount_paid > Decimal('0.00'):
+                        invoice.status = Invoice.InvoiceStatus.PARTIAL
+                    invoice.save(update_fields=['amount_paid', 'balance_due', 'status'])
+            else:
+                # Check if status changed TO completed (avoid double-counting on re-saves)
+                try:
+                    old_instance = Payment.objects.get(pk=self.pk)
+                    if old_instance.status != self.PaymentStatus.COMPLETED:
+                        from django.db import transaction
+                        with transaction.atomic():
+                            invoice = Invoice.objects.select_for_update().get(pk=self.invoice_id)
+                            invoice.amount_paid = (invoice.amount_paid or Decimal('0.00')) + self.amount
+                            invoice.balance_due = max(Decimal('0.00'), invoice.total_amount - invoice.amount_paid)
+                            if invoice.amount_paid >= invoice.total_amount:
+                                invoice.status = Invoice.InvoiceStatus.PAID
+                            elif invoice.amount_paid > Decimal('0.00'):
+                                invoice.status = Invoice.InvoiceStatus.PARTIAL
+                            invoice.save(update_fields=['amount_paid', 'balance_due', 'status'])
+                except Payment.DoesNotExist:
+                    pass
+
         super().save(*args, **kwargs)
 
 

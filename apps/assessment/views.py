@@ -6,13 +6,16 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q, Avg, Max, Min, Count, Sum
+from django.db import models
 from django.utils import timezone
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from decimal import Decimal
 import json
+from datetime import datetime
 
 from .models import (
     ExamType, GradingSystem, Grade, Exam, ExamAttendance, Mark,
@@ -299,7 +302,7 @@ def exam_attendance(request, exam_id):
                         updated_count += 1
 
                 # Additional processing if finalized
-                if is_final and not exam.is_locked_for_editing:
+                if is_final:
                     exam.save()  # Could add locking logic here
 
                 return JsonResponse({
@@ -892,21 +895,82 @@ class ReportCardDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return ReportCard.objects.select_related(
-            'student__user', 'academic_class', 'exam_type', 'result'
-        ).prefetch_related('result__subject_marks__subject')
+            'student__user', 'academic_class', 'exam_type', 'result',
+            'result__grade', 'generated_by__user', 'approved_by__user'
+        ).prefetch_related(
+            'result__subject_marks__subject',
+            'result__subject_marks__grade'
+        )
+
+    def dispatch(self, request, *args, **kwargs):
+        """Check permissions before rendering."""
+        response = super().dispatch(request, *args, **kwargs)
+        # Permission check happens after get_object
+        return response
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        user = self.request.user
+        # Students can only view their own approved report cards
+        if hasattr(user, 'student_profile') and obj.student != user.student_profile:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to view this report card.")
+        return obj
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Check permissions
-        user = self.request.user
         report_card = self.object
-        
-        if (hasattr(user, 'student_profile') and 
-            report_card.student != user.student_profile):
-            messages.error(self.request, 'You do not have permission to view this report card.')
-            return redirect('assessment:reportcard_list')
-        
+        result = report_card.result
+
+        # Subject marks for the table
+        subject_marks = result.subject_marks.select_related('subject', 'grade').order_by('subject__name')
+        context['subject_marks'] = subject_marks
+
+        # Build chart data lists for JavaScript
+        subject_names = [sm.subject.name for sm in subject_marks]
+        subject_percentages = [float(sm.percentage) for sm in subject_marks]
+        context['subject_names'] = subject_names
+        context['subject_percentages'] = subject_percentages
+
+        # Grade distribution for doughnut chart
+        grade_counts = {}
+        for sm in subject_marks:
+            g = sm.grade.grade if sm.grade else 'N/A'
+            grade_counts[g] = grade_counts.get(g, 0) + 1
+        context['grade_labels'] = list(grade_counts.keys())
+        context['grade_counts'] = list(grade_counts.values())
+
+        # Performance summary stats
+        if subject_marks.exists():
+            best_subject = subject_marks.order_by('-percentage').first()
+            worst_subject = subject_marks.order_by('percentage').first()
+            context['best_subject'] = best_subject
+            context['worst_subject'] = worst_subject
+            context['subjects_passed'] = subject_marks.filter(
+                marks_obtained__gte=models.F('max_marks') * Decimal('0.4')
+            ).count()
+            context['subjects_failed'] = subject_marks.count() - context['subjects_passed']
+
+        # Inject institution for report card header/footer
+        from apps.core.models import Institution
+        institution = None
+        if hasattr(report_card, 'institution') and report_card.institution:
+            institution = report_card.institution
+        elif hasattr(result, 'institution') and result.institution:
+            institution = result.institution
+        else:
+            institution = Institution.objects.filter(is_active=True).first()
+        context['institution'] = institution
+
+        # Inject academic session from the class
+        if hasattr(report_card.academic_class, 'academic_session'):
+            context['academic_session'] = report_card.academic_class.academic_session
+
+        # Check if current user is a parent with access
+        context['is_parent'] = hasattr(self.request.user, 'parent_profile')
+        context['is_teacher'] = hasattr(self.request.user, 'teacher_profile')
+        context['is_student'] = hasattr(self.request.user, 'student_profile')
+
         return context
 
 

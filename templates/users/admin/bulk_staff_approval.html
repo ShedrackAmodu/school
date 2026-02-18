@@ -16,7 +16,7 @@
 <div class="module">
     <h1>{% trans "Bulk Approve Staff Applications" %}</h1>
 
-    <p>{% trans "The selected applications will be approved for positions at Excellent Academy." %}</p>
+    <p>{% trans "The selected applications will be approved for positions at Excellence Academy." %}</p>
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
@@ -37,7 +37,7 @@
                         <td>{{ application.application_number }}</td>
                         <td>{{ application.full_name }}</td>
                         <td>{{ application.position_applied_for.name }}</td>
-                        <td>{% trans "Excellent Academy" %}</td>
+                        <td>{% trans "Excellence Academy" %}</td>
                     </tr>
                 {% endfor %}
             </tbody>

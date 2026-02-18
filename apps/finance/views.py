@@ -5,9 +5,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.db import models
-from django.db.models import Q, Count, Sum
+from django.db.models import Q, Count, Sum, Avg
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
 from django.core.paginator import Paginator
@@ -15,12 +15,15 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from decimal import Decimal
 import json
 import logging
 import uuid
 
 from .models import FeeStructure, FeeDiscount, Invoice, InvoiceItem, Payment, Expense, FinancialReport, PaystackPayment, PaystackWebhookEvent, PaymentMethod
+
+logger = logging.getLogger(__name__)
 from .forms import FeeStructureForm, FeeDiscountForm, InvoiceForm, InvoiceItemForm, PaymentForm, ExpenseForm, FinancialReportForm
 from .services import get_paystack_service, get_payment_service, get_webhook_service
 from apps.academics.models import AcademicSession, Student, Class
@@ -68,46 +71,67 @@ class AccountantRequiredMixin(UserPassesTestMixin):
 # DASHBOARD VIEWS
 # =============================================================================
 
-class DashboardView(AccountantRequiredMixin, View):
+class DashboardView(LoginRequiredMixin, AccountantRequiredMixin, View):
     """Accountant dashboard showing financial overview."""
 
     def get(self, request):
         current_session = AcademicSession.objects.filter(is_current=True).first()
-        
+
         # Fee Collection Summary
         total_invoiced = Invoice.objects.filter(
             academic_session=current_session
         ).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
-        
+
         total_paid = Invoice.objects.filter(
             academic_session=current_session
         ).aggregate(Sum('amount_paid'))['amount_paid__sum'] or Decimal('0.00')
-        
+
         total_outstanding = total_invoiced - total_paid
-        
+
         # Recent Invoices
         recent_invoices = Invoice.objects.filter(
             academic_session=current_session
-        ).select_related('student__user').order_by('-issue_date')[:5]
-        
+        ).select_related('student__user').order_by('-issue_date')[:8]
+
         # Recent Payments
         recent_payments = Payment.objects.filter(
-            invoice__academic_session=current_session
-        ).select_related('student__user', 'invoice').order_by('-payment_date')[:5]
-        
-        # Expense Summary
+            invoice__academic_session=current_session,
+            status=Payment.PaymentStatus.COMPLETED,
+        ).select_related('student__user', 'invoice').order_by('-payment_date')[:8]
+
+        # Expense Summary (current month)
+        now = timezone.now()
         total_expenses = Expense.objects.filter(
-            expense_date__year=timezone.now().year,
-            expense_date__month=timezone.now().month
+            expense_date__year=now.year,
+            expense_date__month=now.month,
         ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-        
-        # Overdue Invoices
+
+        # Overdue Invoices count
         overdue_invoices_count = Invoice.objects.filter(
             academic_session=current_session,
-            due_date__lt=timezone.now().date(),
-            balance_due__gt=Decimal('0.00')
+            due_date__lt=now.date(),
+            status__in=['issued', 'partial'],
         ).count()
-        
+
+        # ── Monthly collection data for chart (real data) ─────────────────
+        monthly_collection = []
+        for month in range(1, 13):
+            month_invoiced = Invoice.objects.filter(
+                academic_session=current_session,
+                issue_date__year=now.year,
+                issue_date__month=month,
+            ).aggregate(v=Sum('total_amount'))['v'] or 0
+            month_paid = Invoice.objects.filter(
+                academic_session=current_session,
+                issue_date__year=now.year,
+                issue_date__month=month,
+            ).aggregate(v=Sum('amount_paid'))['v'] or 0
+            monthly_collection.append({
+                'month': month,
+                'invoiced': float(month_invoiced),
+                'paid': float(month_paid),
+            })
+
         context = {
             'title': _('Accountant Dashboard'),
             'current_session': current_session,
@@ -118,6 +142,7 @@ class DashboardView(AccountantRequiredMixin, View):
             'recent_payments': recent_payments,
             'total_expenses': total_expenses,
             'overdue_invoices_count': overdue_invoices_count,
+            'monthly_collection': monthly_collection,
         }
         return render(request, 'finance/dashboard/accountant_dashboard.html', context)
 
@@ -464,22 +489,24 @@ class PaymentCallbackView(View):
         try:
             # Verify payment with Paystack
             verification_data = paystack_service.verify_payment(reference)
-            
+
             if verification_data.get('status') == 'success':
                 # Process payment verification
                 payment, paystack_payment = payment_service.process_payment_verification(
                     reference, verification_data
                 )
-                
                 messages.success(request, _('Payment completed successfully!'))
                 return redirect('finance:payment_success', pk=payment.pk)
             else:
-                messages.error(request, _('Payment verification failed.'))
-                return redirect('finance:payment_failed', pk=reference)
+                messages.error(request, _('Payment verification failed. Please try again or contact support.'))
+                from django.urls import reverse
+                return redirect(reverse('finance:payment_failed_generic') + f'?reference={reference}')
 
         except Exception as e:
-            messages.error(request, _(f"Payment processing failed: {str(e)}"))
-            return redirect('finance:invoice_list')
+            logger.error(f"PaymentCallbackView error for reference {reference}: {e}")
+            messages.error(request, _('Payment processing encountered an error. Please contact support.'))
+            from django.urls import reverse
+            return redirect(reverse('finance:payment_failed_generic') + f'?reference={reference}')
 
 
 class PaymentSuccessView(FinanceAccessMixin, DetailView):
@@ -1174,6 +1201,145 @@ class PublishFinancialReportAPIView(AccountantRequiredMixin, View):
 
 
 # =============================================================================
+# PAYSTACK AJAX API ENDPOINTS (called by Paystack inline popup JS)
+# =============================================================================
+
+@login_required
+def paystack_initialize(request):
+    """
+    AJAX POST: Initialize a Paystack payment for an invoice.
+    Expects JSON: { invoice_id, amount, email }
+    Returns JSON: { success, reference, access_code } or { success, error }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        invoice_id = data.get('invoice_id')
+        amount = Decimal(str(data.get('amount', 0)))
+        email = data.get('email', request.user.email).strip()
+
+        if not invoice_id or amount <= 0 or not email:
+            return JsonResponse({'success': False, 'error': 'invoice_id, amount and email are required'}, status=400)
+
+        invoice = get_object_or_404(Invoice, pk=invoice_id)
+
+        # Basic permission check
+        if hasattr(request.user, 'student_profile'):
+            if invoice.student != request.user.student_profile:
+                return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+        if amount > invoice.balance_due:
+            return JsonResponse({'success': False, 'error': 'Amount exceeds balance due'}, status=400)
+
+        # Create a pending payment record first
+        payment = Payment.objects.create(
+            invoice=invoice,
+            student=invoice.student,
+            amount=amount,
+            payment_method=Payment.PaymentMethod.PAYSTACK,
+            payment_date=timezone.now().date(),
+            status=Payment.PaymentStatus.PENDING,
+            paystack_customer_email=email,
+            paystack_metadata={
+                'invoice_id': str(invoice.pk),
+                'student_id': str(invoice.student.pk),
+                'source': 'inline_popup'
+            }
+        )
+
+        # Build unique reference
+        hex_suffix = uuid.uuid4().hex[:6].upper()
+        reference = "SCH-" + str(invoice.invoice_number) + "-" + str(payment.pk) + "-" + hex_suffix
+        payment.paystack_transaction_reference = reference
+        payment.save(update_fields=['paystack_transaction_reference'])
+
+        paystack_service = get_paystack_service()
+        meta = {
+            'payment_id': str(payment.pk),
+            'invoice_id': str(invoice.pk),
+            'student_name': invoice.student.user.get_full_name(),
+            'invoice_number': invoice.invoice_number,
+        }
+        payment_data = paystack_service.initialize_payment(
+            email=email,
+            amount=amount,
+            reference=reference,
+            metadata=meta,
+        )
+
+        # Create PaystackPayment tracking record
+        ps_create_kwargs = {
+            'payment': payment,
+            'paystack_reference': reference,
+            'customer_email': email,
+            'paystack_amount': amount,
+            'paystack_currency': 'NGN',
+        }
+        access_code = payment_data.get('access_code', '')
+        auth_url = payment_data.get('authorization_url', '')
+        if access_code:
+            ps_create_kwargs['paystack_access_code'] = access_code
+        if auth_url:
+            ps_create_kwargs['paystack_authorization_url'] = auth_url
+        PaystackPayment.objects.create(**ps_create_kwargs)
+
+        return JsonResponse({
+            'success': True,
+            'reference': reference,
+            'access_code': payment_data.get('access_code'),
+            'authorization_url': payment_data.get('authorization_url'),
+        })
+
+    except Invoice.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Invoice not found'}, status=404)
+    except Exception as e:
+        logger.error(f"paystack_initialize error: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def paystack_verify(request):
+    """
+    AJAX GET: Verify a Paystack payment by reference.
+    Query param: reference
+    Returns JSON: { success, payment_id, redirect_url } or { success: false, error }
+    """
+    reference = request.GET.get('reference', '').strip()
+    if not reference:
+        return JsonResponse({'success': False, 'error': 'reference is required'}, status=400)
+
+    try:
+        paystack_service = get_paystack_service()
+        verification_data = paystack_service.verify_payment(reference)
+
+        if verification_data.get('status') == 'success':
+            payment_service = get_payment_service()
+            payment, paystack_payment = payment_service.process_payment_verification(
+                reference, verification_data
+            )
+            # Use reverse() for a correct, namespaced URL
+            redirect_url = reverse('finance:payment_success', kwargs={'pk': payment.pk})
+            return JsonResponse({
+                'success': True,
+                'payment_id': str(payment.pk),
+                'amount': str(payment.amount),
+                'redirect_url': redirect_url,
+            })
+        else:
+            pstatus = verification_data.get('status', 'unknown')
+            return JsonResponse({
+                'success': False,
+                'error': 'Payment status: ' + str(pstatus)
+            }, status=400)
+
+    except Exception as e:
+        logger.error('paystack_verify error: %s', str(e))
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# =============================================================================
 # STUDENT FEE VIEWS
 # =============================================================================
 
@@ -1233,3 +1399,161 @@ class StudentInvoiceListView(LoginRequiredMixin, ListView):
                 })
 
         return context
+
+
+# =============================================================================
+# STUDENT FEE DASHBOARD (full overview with balance + all invoices)
+# =============================================================================
+
+class StudentFeeDashboardView(LoginRequiredMixin, View):
+    """Full fee dashboard for students/parents. Shows balances + invoices + history."""
+
+    def get(self, request):
+        from django.conf import settings as django_settings
+
+        # Determine student
+        student = getattr(request.user, 'student_profile', None)
+        if student is None:
+            # Parent viewing child — support multi-child later; take first linked child
+            parent = getattr(request.user, 'parent_profile', None)
+            if parent:
+                child_id = request.GET.get('child')
+                if child_id:
+                    student = get_object_or_404(Student, pk=child_id)
+                else:
+                    student = parent.children.filter(status='active').first()
+
+        if student is None:
+            messages.error(request, _('No student profile found for your account.'))
+            return redirect('users:dashboard')
+
+        current_session = AcademicSession.objects.filter(is_current=True).first()
+
+        # All invoices for this student
+        all_invoices_qs = Invoice.objects.filter(
+            student=student
+        ).select_related('academic_session').order_by('-issue_date')
+
+        status_filter = request.GET.get('status', 'all')
+        if status_filter == 'unpaid':
+            all_invoices_qs = all_invoices_qs.filter(
+                status__in=['issued', 'partial', 'overdue']
+            )
+        elif status_filter == 'paid':
+            all_invoices_qs = all_invoices_qs.filter(status='paid')
+
+        # Paginate
+        paginator = Paginator(all_invoices_qs, 10)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        # Aggregates (all time)
+        agg = Invoice.objects.filter(student=student).aggregate(
+            total_invoiced=Sum('total_amount'),
+            total_paid=Sum('amount_paid'),
+            total_balance=Sum('balance_due'),
+        )
+        total_invoiced = agg['total_invoiced'] or Decimal('0.00')
+        total_paid = agg['total_paid'] or Decimal('0.00')
+        total_balance = agg['total_balance'] or Decimal('0.00')
+
+        overdue_invoices = Invoice.objects.filter(
+            student=student,
+            due_date__lt=timezone.now().date(),
+            balance_due__gt=Decimal('0.00'),
+        )
+        overdue_count = overdue_invoices.count()
+
+        # Payment history
+        payment_history = Payment.objects.filter(
+            student=student
+        ).select_related('invoice').order_by('-payment_date')[:20]
+
+        context = {
+            'student': student,
+            'current_session': current_session,
+            'invoices': page_obj,
+            'page_obj': page_obj,
+            'status_filter': status_filter,
+            'total_invoiced': total_invoiced,
+            'total_paid': total_paid,
+            'total_balance': total_balance,
+            'overdue_invoices': overdue_invoices,
+            'overdue_count': overdue_count,
+            'payment_history': payment_history,
+        }
+        return render(request, 'finance/student/student_fee_dashboard.html', context)
+
+
+# =============================================================================
+# PAY INVOICE VIEW (student-facing, serves the inline Paystack popup page)
+# =============================================================================
+
+class PayInvoiceView(LoginRequiredMixin, View):
+    """Student/parent pay-invoice page that serves the Paystack inline popup."""
+
+    def get(self, request, pk):
+        from django.conf import settings as django_settings
+
+        invoice = get_object_or_404(Invoice, pk=pk)
+
+        # Permission check — student owns invoice OR parent owns child
+        if hasattr(request.user, 'student_profile'):
+            if invoice.student != request.user.student_profile:
+                messages.error(request, _('You do not have permission to view this invoice.'))
+                return redirect('finance:student_dashboard')
+        elif hasattr(request.user, 'parent_profile'):
+            parent = request.user.parent_profile
+            if invoice.student not in parent.children.all():
+                messages.error(request, _('You do not have permission to view this invoice.'))
+                return redirect('finance:student_dashboard')
+        elif not request.user.is_staff:
+            messages.error(request, _('Permission denied.'))
+            return redirect('users:dashboard')
+
+        paystack_public_key = getattr(
+            django_settings, 'PAYSTACK_PUBLIC_KEY', ''
+        )
+        context = {
+            'invoice': invoice,
+            'paystack_public_key': paystack_public_key,
+            'allow_bank_transfer': getattr(django_settings, 'FINANCE_ALLOW_BANK_TRANSFER', False),
+        }
+        return render(request, 'finance/student/pay_invoice.html', context)
+
+
+# =============================================================================
+# GENERIC SUCCESS / FAILED (no pk — used by AJAX verify redirect)
+# =============================================================================
+
+class GenericPaymentSuccessView(LoginRequiredMixin, View):
+    """Generic payment success page — most recent payment for logged-in student."""
+
+    def get(self, request):
+        payment = None
+        ref = request.GET.get('reference')
+        if ref:
+            payment = Payment.objects.filter(
+                paystack_transaction_reference=ref
+            ).select_related('invoice').first()
+        if payment is None and hasattr(request.user, 'student_profile'):
+            payment = Payment.objects.filter(
+                student=request.user.student_profile,
+                status=Payment.PaymentStatus.COMPLETED
+            ).select_related('invoice').order_by('-payment_date').first()
+
+        context = {
+            'payment': payment,
+        }
+        return render(request, 'finance/payments/payment_success.html', context)
+
+
+class GenericPaymentFailedView(LoginRequiredMixin, View):
+    """Generic payment failed page."""
+
+    def get(self, request):
+        reference = request.GET.get('reference', '')
+        context = {
+            'reference': reference,
+            'title': _('Payment Failed'),
+        }
+        return render(request, 'finance/payments/payment_failed.html', context)

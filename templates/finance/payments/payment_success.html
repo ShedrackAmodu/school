@@ -1,109 +1,84 @@
-{% extends 'base.html' %}
-{% load i18n %}
+{% extends 'base/base.html' %}
+{% load i18n static %}
 
-{% block title %}{% trans "Payment Successful" %} - {{ block.super }}{% endblock %}
+{% block title %}Payment Successful{% endblock %}
+{% block page_title %}Payment Successful{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body text-center">
-                    <div class="mb-4">
-                        <i class="fas fa-check-circle fa-5x text-success"></i>
-                    </div>
-                    <h2 class="card-title text-success">{% trans "Payment Successful!" %}</h2>
-                    <p class="card-text text-muted mb-4">
-                        {% trans "Your payment has been processed successfully. Thank you for your payment." %}
-                    </p>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">{% trans "Payment Details" %}</h6>
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <td><strong>{% trans "Payment ID" %}:</strong></td>
-                                            <td>{{ payment.payment_number }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>{% trans "Amount" %}:</strong></td>
-                                            <td><span class="badge bg-success">₦{{ payment.amount|floatformat:2 }}</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>{% trans "Method" %}:</strong></td>
-                                            <td>{{ payment.get_payment_method_display }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>{% trans "Date" %}:</strong></td>
-                                            <td>{{ payment.payment_date|date:"F j, Y" }}</td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6 class="card-title">{% trans "Invoice Details" %}</h6>
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <td><strong>{% trans "Invoice Number" %}:</strong></td>
-                                            <td>{{ payment.invoice.invoice_number }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>{% trans "Billing Period" %}:</strong></td>
-                                            <td>{{ payment.invoice.billing_period }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>{% trans "Total Amount" %}:</strong></td>
-                                            <td>₦{{ payment.invoice.total_amount|floatformat:2 }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>{% trans "Balance Due" %}:</strong></td>
-                                            <td><span class="badge bg-info">₦{{ payment.invoice.balance_due|floatformat:2 }}</span></td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-4">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            {% trans "A receipt has been sent to your email address. You can also download your receipt from your payment history." %}
-                        </div>
-                    </div>
-
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                        <a href="{% url 'finance:receipt_download' payment.pk %}" class="btn btn-primary btn-lg">
-                            <i class="fas fa-download"></i> {% trans "Download Receipt" %}
-                        </a>
-                        <a href="{% url 'finance:student_invoices' %}" class="btn btn-outline-primary btn-lg">
-                            <i class="fas fa-list"></i> {% trans "View Invoices" %}
-                        </a>
-                        <a href="{% url 'users:dashboard' %}" class="btn btn-outline-secondary btn-lg">
-                            <i class="fas fa-home"></i> {% trans "Dashboard" %}
-                        </a>
-                    </div>
-                </div>
-            </div>
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="card border-0 shadow text-center py-5">
+      <div class="card-body">
+        <!-- Success Animation -->
+        <div class="mb-4">
+          <div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 rounded-circle mb-3" style="width:100px;height:100px;">
+            <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
+          </div>
         </div>
-    </div>
-</div>
-{% endblock %}
+        <h3 class="fw-bold text-success mb-2">Payment Successful!</h3>
+        <p class="text-muted mb-4">Your payment has been processed and confirmed.</p>
 
-{% block extra_css %}
-<style>
-    .success-icon {
-        animation: bounce 1s ease-in-out;
-    }
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-        40% {transform: translateY(-30px);}
-        60% {transform: translateY(-15px);}
-    }
-</style>
+        {% if payment %}
+        <div class="bg-light rounded-3 p-4 mb-4 text-start">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">Receipt #</span>
+            <span class="fw-semibold small">{{ payment.payment_number }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">Amount Paid</span>
+            <span class="fw-bold text-success">₦{{ payment.amount|floatformat:2 }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">Payment Method</span>
+            <span class="small">{{ payment.get_payment_method_display }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted small">Date</span>
+            <span class="small">{{ payment.payment_date|date:"d M Y, H:i" }}</span>
+          </div>
+          {% if payment.paystack_transaction_reference %}
+          <div class="d-flex justify-content-between">
+            <span class="text-muted small">Transaction Ref</span>
+            <span class="small fw-semibold text-primary">{{ payment.paystack_transaction_reference }}</span>
+          </div>
+          {% endif %}
+          {% if payment.invoice.balance_due > 0 %}
+          <hr>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted small">Remaining Balance</span>
+            <span class="fw-bold text-warning">₦{{ payment.invoice.balance_due|floatformat:2 }}</span>
+          </div>
+          {% else %}
+          <hr>
+          <div class="text-center">
+            <span class="badge bg-success px-3 py-2">Invoice Fully Paid ✓</span>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="d-grid gap-2">
+          {% if payment %}
+          <a href="{% url 'finance:invoice_detail' pk=payment.invoice.pk %}" class="btn btn-primary">
+            <i class="bi bi-file-earmark-text me-2"></i>View Invoice
+          </a>
+          {% if payment.invoice.balance_due > 0 %}
+          <a href="{% url 'finance:pay_invoice' pk=payment.invoice.pk %}" class="btn btn-warning">
+            <i class="bi bi-credit-card me-2"></i>Pay Remaining Balance
+          </a>
+          {% endif %}
+          {% endif %}
+          <a href="{% url 'finance:student_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-house me-2"></i>Back to Fee Dashboard
+          </a>
+        </div>
+
+        <div class="mt-4 text-muted small">
+          <i class="bi bi-envelope me-1"></i>
+          A confirmation email has been sent to {{ request.user.email }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

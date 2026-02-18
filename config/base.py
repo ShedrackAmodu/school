@@ -22,7 +22,10 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = os.environ.get("DEBUG", "True").lower() in ('true', '1', 't')
 
 # SECURITY WARNING: restrict allowed hosts in production!
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(',')
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,learningmanagementsystem.pythonanywhere.com").split(',')
+# Ensure PythonAnywhere domain is always included for production
+if 'learningmanagementsystem.pythonanywhere.com' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('learningmanagementsystem.pythonanywhere.com')
 
 # Application definition
 INSTALLED_APPS = [
@@ -155,6 +158,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Custom user model
 AUTH_USER_MODEL = 'users.User'
+
+# Authentication backends — allows login with username OR email
+AUTHENTICATION_BACKENDS = [
+    'apps.users.backends.EmailOrUsernameBackend',
+    'django.contrib.auth.backends.ModelBackend',  # Keep as fallback for admin
+]
 
 # Site framework settings
 SITE_ID = 1

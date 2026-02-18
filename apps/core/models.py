@@ -270,22 +270,23 @@ class CoreBaseModel(models.Model):
                 # Object doesn't exist yet (shouldn't happen in normal flow)
                 pass
 
-        # Set default institution if none is set and this is a new instance
+        # Set default institution if none is set and this is a new instance.
+        # In single-tenant mode this is always Excellent Academy.
         if self._state.adding and getattr(self, 'institution_id', None) is None:
             try:
                 default_institution = Institution.objects.filter(
-                    code='DEFAULT',
+                    code='EXCELLENT_ACADEMY',
                     is_active=True
                 ).first()
                 if default_institution:
                     self.institution = default_institution
                 else:
-                    # If no default exists, try to get any active institution
+                    # Fallback: get any active institution
                     any_institution = Institution.objects.filter(is_active=True).first()
                     if any_institution:
                         self.institution = any_institution
             except Institution.DoesNotExist:
-                pass  # Let it fail with proper error message
+                pass  # Let it fail with a clear error message
 
         super().save(*args, **kwargs)
 

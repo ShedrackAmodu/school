@@ -108,6 +108,8 @@ class User(AbstractUser):
     email = models.EmailField(
         _('email address'),
         unique=True,
+        null=True,
+        blank=True,
         db_index=True,
         help_text=_('Primary email address for communication')
     )
@@ -181,7 +183,7 @@ class User(AbstractUser):
         ]
 
     def __str__(self):
-        return self.email
+        return self.email or self.username or str(self.id)
 
     def get_initials(self):
         """Return initials for the user (e.g. 'JD' for John Doe)."""
