@@ -803,9 +803,11 @@ class FeePaymentForm(forms.Form):
         }),
         label=_('Amount')
     )
-    
+    # Safely obtain choices from the model field; fallback to an empty list
+    _pm_choices = HostelFee._meta.get_field('payment_method').choices or []
     payment_method = forms.ChoiceField(
-        choices=HostelFee._meta.get_field('payment_method').choices,
+        choices=list(_pm_choices),
+        required=False,
         widget=forms.Select(attrs={'class': 'form-control'}),
         label=_('Payment Method')
     )

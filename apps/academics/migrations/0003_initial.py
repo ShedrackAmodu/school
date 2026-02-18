@@ -1051,14 +1051,14 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="academicsession",
             constraint=models.CheckConstraint(
-                condition=models.Q(("end_date__gt", models.F("start_date"))),
+                check=models.Q(("end_date__gt", models.F("start_date"))),
                 name="end_date_after_start_date",
             ),
         ),
         migrations.AddConstraint(
             model_name="academicsession",
             constraint=models.CheckConstraint(
-                condition=models.Q(
+                check=models.Q(
                     ("term_number__isnull", True),
                     ("term_number__lte", models.F("number_of_semesters")),
                     _connector="OR",

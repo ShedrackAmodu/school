@@ -12,6 +12,14 @@
                     <h4 class="card-title">{% trans "Pay Invoice" %}</h4>
                     <p class="card-subtitle text-muted">{% trans "Complete your payment securely through Paystack" %}</p>
                 </div>
+                {% block extra_css %}
+                <style>
+                    .card-header { background: linear-gradient(90deg,#f6fbff,#f3fbfb); border-bottom: none; }
+                    .payment-method-card { border-radius: 10px; box-shadow: 0 6px 18px rgba(4,38,59,0.04); }
+                    .paystack-cta { background: linear-gradient(90deg,#2b98ff,#5ad0ff); color: white; border: none; }
+                    .paystack-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(43,152,255,0.14); }
+                </style>
+                {% endblock %}
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
@@ -131,9 +139,9 @@
                                     </div>
 
                                     <div class="d-grid gap-2">
-                                        <button type="submit" class="btn btn-primary btn-lg">
-                                            <i class="fas fa-credit-card"></i>
-                                            {% trans "Proceed to Payment" %}
+                                        <button type="submit" class="btn paystack-cta btn-lg">
+                                            <img src="{% static 'images/paystack-logo.png' %}" alt="Paystack" style="height:22px; vertical-align:middle; margin-right:8px; filter:brightness(0) invert(1);">
+                                            {% trans "Pay with Paystack" %}
                                         </button>
                                         <a href="{% url 'finance:student_invoices' %}" class="btn btn-secondary">
                                             <i class="fas fa-arrow-left"></i>

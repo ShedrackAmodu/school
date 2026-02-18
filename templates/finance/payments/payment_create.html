@@ -21,8 +21,8 @@
     }
     
     .invoice-summary-card {
-        background: linear-gradient(135deg, #007bff, #65a0f9);
-        color: white;
+        background: linear-gradient(135deg, #68a0d9, #a7d7ff);
+        color: #04263b;
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 2rem;
@@ -36,37 +36,37 @@
     }
     
     .payment-method-card {
-        border: 2px solid var(--bs-border-color);
-        border-radius: 10px;
+        border: 1px solid rgba(4,38,59,0.06);
+        border-radius: 14px;
         padding: 1.5rem;
         text-align: center;
         cursor: pointer;
-        transition: all 0.3s ease;
-        background: white;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        background: linear-gradient(180deg, #ffffff, #fbfdff);
     }
     
     .payment-method-card:hover {
-        border-color: var(--bs-primary);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 8px 24px rgba(4,38,59,0.08);
     }
     
     .payment-method-card.selected {
-        border-color: var(--bs-primary);
-        background-color: rgba(0, 123, 255, 0.05);
+        border-color: rgba(4,38,59,0.12);
+        background-color: #eef8ff;
+        box-shadow: 0 8px 20px rgba(104,160,217,0.12);
     }
     
     .payment-method-icon {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-        color: var(--bs-primary);
+        font-size: 2.25rem;
+        margin-bottom: 0.75rem;
+        color: #0b5f8a;
     }
     
     .payment-form-section {
-        background: white;
+        background: linear-gradient(180deg, #ffffff, #fbfdff);
         border-radius: 12px;
         padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 6px 18px rgba(4,38,59,0.04);
         margin-bottom: 2rem;
     }
     
@@ -128,9 +128,10 @@
     }
     
     .gateway-logo {
-        height: 40px;
-        opacity: 0.7;
-        transition: opacity 0.2s ease;
+        height: 44px;
+        opacity: 0.85;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+        filter: drop-shadow(0 4px 8px rgba(104,160,217,0.08));
     }
     
     .gateway-logo:hover {
@@ -145,11 +146,11 @@
     }
     
     .security-badge {
-        font-size: 0.75rem;
-        padding: 0.5rem 1rem;
-        background: var(--bs-success);
+        font-size: 0.85rem;
+        padding: 0.45rem 1rem;
+        background: #0b8a63;
         color: white;
-        border-radius: 20px;
+        border-radius: 999px;
     }
     
     .payment-processing {
@@ -550,13 +551,12 @@
             paymentForm.style.display = 'none';
             processingSection.style.display = 'block';
             
-            // For online payments, redirect to gateway
+            // For online payments, redirect to the Paystack gateway initialization view
             if (selectedMethod === 'online') {
+                // Show processing UI briefly then navigate to gateway initializer
                 setTimeout(() => {
-                    // In a real implementation, this would redirect to the payment gateway
-                    // For now, we'll simulate a successful payment
-                    window.location.href = "{% url 'finance:payment_success' '00000000-0000-0000-0000-000000000000' %}".replace('00000000-0000-0000-0000-000000000000', '{{ invoice.pk }}');
-                }, 3000);
+                    window.location.href = "{% url 'finance:payment_gateway' invoice.pk %}";
+                }, 700);
             } else {
                 // For other methods, submit the form normally
                 this.submit();

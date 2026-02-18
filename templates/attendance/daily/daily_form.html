@@ -9,26 +9,44 @@
 {% block extra_css %}
 <style>
 .attendance-form-card {
-    border-left: 4px solid #007bff;
+    border-left: 6px solid rgba(16,124,119,0.15);
+    border-radius: 12px;
 }
 .student-info-card {
-    background: #f8f9fa;
-    border: 1px solid #e3e6f0;
+    background: linear-gradient(90deg, #fbfdff, #f3fbfb);
+    border: 1px solid rgba(11,95,138,0.06);
+    border-radius: 12px;
 }
 .time-input-group {
-    max-width: 200px;
+    max-width: 220px;
 }
 .status-badge {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 999px;
 }
 .calculated-field {
-    background-color: #e9ecef;
-    opacity: 1;
+    background-color: #ffffff;
+    border: 1px solid rgba(4,38,59,0.06);
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
 }
 .required-field::after {
     content: " *";
-    color: #dc3545;
+    color: #d2343a;
 }
+
+/* Make badges more readable and use calming colors */
+.badge.bg-success { background-color: #1fa67a; }
+.badge.bg-warning { background-color: #f1b24a; color: #2b2b2b; }
+.badge.bg-danger { background-color: #e45b5b; }
+.badge.bg-info { background-color: #4aa3d9; }
+
+/* Recent history rows improvements */
+table.table tbody tr.table-info { background: linear-gradient(90deg,#f0fbff,#ffffff); }
+
+/* Improve preview modal look */
+.modal-content { border-radius: 12px; }
 </style>
 {% endblock %}
 
