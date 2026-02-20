@@ -3,14 +3,14 @@
 {% load static %}
 {% load assessment_filters %}
 
-{% block title %}My Marks{% endblock %}
+{% block title %}My CBT Results{% endblock %}
 
-{% block page_title %}My Marks & Performance{% endblock %}
+{% block page_title %}My CBT Results & Performance{% endblock %}
 
 {% block breadcrumb_items %}
     <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}">Home</a></li>
     <li class="breadcrumb-item"><a href="{% url 'assessment:dashboard' %}">Assessment</a></li>
-    <li class="breadcrumb-item active" aria-current="page">My Marks</li>
+    <li class="breadcrumb-item active" aria-current="page">My CBT Results</li>
 {% endblock %}
 
 {% block page_actions %}
@@ -49,7 +49,7 @@
                         </div>
                         <div class="ms-3">
                             <h4 class="mb-0">{{ total_exams }}</h4>
-                            <p class="text-muted mb-0">Total Exams</p>
+                            <p class="text-muted mb-0">Total CBTs</p>
                         </div>
                     </div>
                 </div>
@@ -65,7 +65,7 @@
                         </div>
                         <div class="ms-3">
                             <h4 class="mb-0">{{ passed_exams }}</h4>
-                            <p class="text-muted mb-0">Exams Passed</p>
+                            <p class="text-muted mb-0">CBTs Passed</p>
                         </div>
                     </div>
                     <div class="stat-trend mt-2">
@@ -147,7 +147,7 @@
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-between mt-1">
-                                    <small class="text-muted">{{ performance.exam_count }} exam(s)</small>
+                                        <small class="text-muted">{{ performance.exam_count }} CBT(s)</small>
                                     <small class="text-muted">
                                         Best: {{ performance.highest|floatformat:1 }}%
                                     </small>
@@ -172,7 +172,7 @@
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">
-                    <i class="bi bi-list-check me-2"></i>All Exam Marks
+                    <i class="bi bi-list-check me-2"></i>All CBT Marks
                 </h5>
                 
                 <!-- Search and Filter Badges -->
@@ -193,7 +193,7 @@
                     {% endif %}
                     
                     <div class="input-group input-group-sm" style="width: 250px;">
-                        <input type="text" class="form-control" placeholder="Search exams..." id="searchInput">
+                        <input type="text" class="form-control" placeholder="Search CBTs..." id="searchInput">
                         <button class="btn btn-outline-secondary" type="button" id="searchButton">
                             <i class="bi bi-search"></i>
                         </button>
@@ -208,7 +208,7 @@
                 <table class="table table-hover" id="marksTable">
                     <thead>
                         <tr>
-                            <th>Exam</th>
+                            <th>CBT</th>
                             <th>Subject</th>
                             <th>Date</th>
                             <th>Marks Obtained</th>
@@ -294,8 +294,8 @@
                             
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{% url 'assessment:exam_detail' mark.exam.pk %}" 
-                                       class="btn btn-outline-primary" title="View Exam Details">
+                                        <a href="{% url 'assessment:exam_detail' mark.exam.pk %}" 
+                                       class="btn btn-outline-primary" title="View CBT Details">
                                         <i class="bi bi-eye"></i>
                                     </a>
                                     <button type="button" 
@@ -427,8 +427,8 @@
                 <i class="bi bi-inbox display-4 text-muted mb-3"></i>
                 <h4>No Marks Available</h4>
                 <p class="text-muted">You don't have any marks recorded yet.</p>
-                <a href="{% url 'assessment:exam_list' %}" class="btn btn-primary">
-                    <i class="bi bi-calendar-event me-1"></i> View Upcoming Exams
+                                            <a href="{% url 'assessment:exam_list' %}" class="btn btn-primary">
+                    <i class="bi bi-calendar-event me-1"></i> View Upcoming CBTs
                 </a>
             </div>
             {% endif %}
@@ -462,9 +462,9 @@
                         </div>
                         
                         <div class="col-12">
-                            <label for="examTypeFilter" class="form-label">Exam Type</label>
+                            <label for="examTypeFilter" class="form-label">CBT Type</label>
                             <select class="form-select" id="examTypeFilter" name="exam_type">
-                                <option value="">All Exam Types</option>
+                                <option value="">All CBT Types</option>
                                 {% for exam_type in exam_types %}
                                 <option value="{{ exam_type.id }}" {% if request.GET.exam_type == exam_type.id|stringformat:"i" %}selected{% endif %}>
                                     {{ exam_type.name }}
@@ -513,7 +513,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="remarksModalTitle">Exam Remarks</h5>
+                <h5 class="modal-title" id="remarksModalTitle">CBT Remarks</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -751,7 +751,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (remarks && remarks.trim() !== '') {
                     remarksContent.textContent = remarks;
                 } else {
-                    remarksContent.textContent = 'No remarks available for this exam.';
+                    remarksContent.textContent = 'No remarks available for this CBT.';
                     remarksContent.className = 'text-muted fst-italic';
                 }
                 

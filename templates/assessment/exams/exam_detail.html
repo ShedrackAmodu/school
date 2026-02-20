@@ -1,16 +1,16 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}{% if form.instance.pk %}Edit Exam{% else %}Create New Exam{% endif %}{% endblock %}
+{% block title %}{% if form.instance.pk %}Edit CBT{% else %}Create New CBT{% endif %}{% endblock %}
 
 {% block page_title %}
-    {% if form.instance.pk %}Edit Exam{% else %}Create New Exam{% endif %}
+    {% if form.instance.pk %}Edit CBT{% else %}Create New CBT{% endif %}
 {% endblock %}
 
 {% block breadcrumb_items %}
-    <li class="breadcrumb-item"><a href="{% url 'assessment:exam_list' %}">Exams</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'assessment:exam_list' %}">CBTs</a></li>
     <li class="breadcrumb-item active" aria-current="page">
-        {% if form.instance.pk %}Edit Exam{% else %}Create Exam{% endif %}
+        {% if form.instance.pk %}Edit CBT{% else %}Create CBT{% endif %}
     </li>
 {% endblock %}
 
@@ -24,7 +24,7 @@
             <i class="bi bi-file-earmark me-1"></i> Save Draft
         </button>
         <button type="button" class="btn btn-success" id="publishBtn" {% if not form.instance.pk %}disabled{% endif %}>
-            <i class="bi bi-send-check me-1"></i> Publish Exam
+            <i class="bi bi-send-check me-1"></i> Publish CBT
         </button>
     </div>
 </div>
@@ -39,7 +39,7 @@
                 <div class="card-header bg-primary text-white">
                     <h5 class="card-title mb-0">
                         <i class="bi bi-file-earmark-plus me-2"></i>
-                        {% if form.instance.pk %}Edit Exam{% else %}Create New Exam{% endif %}
+                        {% if form.instance.pk %}Edit CBT{% else %}Create New CBT{% endif %}
                     </h5>
                 </div>
                 <div class="card-body">
@@ -71,7 +71,7 @@
                                             {% endfor %}
                                         </div>
                                     {% endif %}
-                                    <div class="form-text">Enter a descriptive name for the exam</div>
+                                    <div class="form-text">Enter a descriptive name for the CBT</div>
                                 </div>
                                 
                                 <div class="col-md-6 mb-3">
@@ -84,7 +84,7 @@
                                             {% endfor %}
                                         </div>
                                     {% endif %}
-                                    <div class="form-text">Unique exam code identifier</div>
+                                    <div class="form-text">Unique CBT code identifier</div>
                                 </div>
                             </div>
                             
@@ -137,7 +137,7 @@
                                             {% endfor %}
                                         </div>
                                     {% endif %}
-                                    <div class="form-text">Exam hall or room location</div>
+                                    <div class="form-text">CBT venue or room location</div>
                                 </div>
                             </div>
                         </div>
@@ -205,7 +205,7 @@
                                             {% endfor %}
                                         </div>
                                     {% endif %}
-                                    <div class="form-text">Maximum marks for this exam</div>
+                                    <div class="form-text">Maximum marks for this CBT</div>
                                 </div>
                                 
                                 <div class="col-md-6 mb-3">
@@ -265,7 +265,7 @@
                                     </div>
                                 {% endif %}
                                 <div class="form-text">
-                                    Published exams are visible to students. Once published, changes may be restricted.
+                                    Published CBTs are visible to students. Once published, changes may be restricted.
                                 </div>
                             </div>
                         </div>
@@ -286,7 +286,7 @@
                 </div>
                 <div class="card-body">
                     <div class="summary-item mb-2">
-                        <strong>Exam Name:</strong>
+                        <strong>CBT Name:</strong>
                         <span id="summaryName" class="text-muted">Not set</span>
                     </div>
                     <div class="summary-item mb-2">
@@ -328,7 +328,7 @@
                             <i class="bi bi-arrow-clockwise me-1"></i> Clear Form
                         </button>
                         <button type="button" class="btn btn-outline-info" id="previewExamBtn">
-                            <i class="bi bi-eye me-1"></i> Preview Exam
+                            <i class="bi bi-eye me-1"></i> Preview CBT
                         </button>
                     </div>
                 </div>
@@ -378,7 +378,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="previewModalLabel">Exam Preview</h5>
+                <h5 class="modal-title" id="previewModalLabel">CBT Preview</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="previewContent">
@@ -387,7 +387,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" onclick="document.getElementById('examForm').submit()">
-                    Save Exam
+                    Save CBT
                 </button>
             </div>
         </div>
@@ -403,12 +403,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>How would you like to save this exam?</p>
+                <p>How would you like to save this CBT?</p>
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="radio" name="saveOption" id="saveDraftOption" value="draft" checked>
                     <label class="form-check-label" for="saveDraftOption">
                         <strong>Save as Draft</strong><br>
-                        <small class="text-muted">Save without publishing. Students won't see this exam.</small>
+                        <small class="text-muted">Save without publishing. Students won't see this CBT.</small>
                     </label>
                 </div>
                 {% if form.instance.pk %}
@@ -416,7 +416,7 @@
                     <input class="form-check-input" type="radio" name="saveOption" id="savePublishOption" value="publish">
                     <label class="form-check-label" for="savePublishOption">
                         <strong>Save and Publish</strong><br>
-                        <small class="text-muted">Publish this exam to make it visible to students.</small>
+                        <small class="text-muted">Publish this CBT to make it visible to students.</small>
                     </label>
                 </div>
                 {% endif %}

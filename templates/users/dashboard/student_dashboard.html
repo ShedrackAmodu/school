@@ -13,7 +13,7 @@
                         {{ performance_stats.average_percentage|default:"0" }}%
                     </h4>
                     <p class="text-muted small mb-0">{% trans "Average Grade" %}</p>
-                    <small class="text-muted">{{ performance_stats.total_exams|default:"0" }} {% trans "exams" %}</small>
+                    <small class="text-muted">{{ performance_stats.total_exams|default:"0" }} {% trans "CBTs" %}</small>
                 </div>
             </div>
         </div>
@@ -218,7 +218,7 @@
                         </a>
                         <a href="{% url 'assessment:student_marks' %}" class="btn btn-outline-success text-start">
                             <i class="bi bi-journal-check me-2"></i>
-                            {% trans "My Grades" %}
+                            {% trans "My CBT Results" %}
                         </a>
                         <a href="{% url 'attendance:student_my_attendance' %}" class="btn btn-outline-info text-start">
                             <i class="bi bi-calendar-check me-2"></i>

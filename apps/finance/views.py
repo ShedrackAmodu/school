@@ -110,7 +110,7 @@ class DashboardView(LoginRequiredMixin, AccountantRequiredMixin, View):
         overdue_invoices_count = Invoice.objects.filter(
             academic_session=current_session,
             due_date__lt=now.date(),
-            status__in=['issued', 'partial'],
+            balance_due__gt=Decimal('0.00'),
         ).count()
 
         # ── Monthly collection data for chart (real data) ─────────────────
@@ -424,28 +424,44 @@ class PaymentDetailView(FinanceAccessMixin, DetailView):
 class PaymentGatewayView(FinanceAccessMixin, View):
     """
     View for handling Paystack payment gateway redirection and processing.
+    Enhanced with better error handling and user feedback.
     """
     def get(self, request, invoice_pk):
         invoice = get_object_or_404(Invoice, pk=invoice_pk)
         paystack_service = get_paystack_service()
         payment_service = get_payment_service()
 
+        # Validate invoice status
+        if invoice.status == 'paid':
+            messages.warning(request, _('This invoice has already been paid in full.'))
+            return redirect('finance:invoice_detail', pk=invoice_pk)
+        
+        if invoice.balance_due <= 0:
+            messages.warning(request, _('This invoice has no balance due.'))
+            return redirect('finance:invoice_detail', pk=invoice_pk)
+
         # Create payment record
-        payment = payment_service.create_payment_from_invoice(
-            invoice=invoice,
-            amount=invoice.balance_due,
-            payment_method='paystack',
-            customer_email=invoice.student.user.email,
-            metadata={
-                'invoice_id': str(invoice.id),
-                'student_id': str(invoice.student.id),
-                'institution_id': str(invoice.institution.id),
-                'payment_type': 'invoice_payment'
-            }
-        )
+        try:
+            payment = payment_service.create_payment_from_invoice(
+                invoice=invoice,
+                amount=invoice.balance_due,
+                payment_method='paystack',
+                customer_email=invoice.student.user.email,
+                metadata={
+                    'invoice_id': str(invoice.id),
+                    'student_id': str(invoice.student.id),
+                    'institution_id': str(invoice.institution.id),
+                    'payment_type': 'invoice_payment',
+                    'initiated_by': str(request.user.id) if request.user.is_authenticated else 'system'
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to create payment record for invoice {invoice_pk}: {e}")
+            messages.error(request, _('Unable to create payment record. Please try again or contact support.'))
+            return redirect('finance:invoice_detail', pk=invoice_pk)
 
         # Generate unique reference
-        reference = f"INV-{invoice.invoice_number}-{payment.payment_number}"
+        reference = f"INV-{invoice.invoice_number}-{payment.payment_number}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
 
         try:
             # Initialize payment with Paystack
@@ -468,13 +484,27 @@ class PaymentGatewayView(FinanceAccessMixin, View):
             # Update payment with Paystack details
             payment.paystack_payment_id = reference
             payment.paystack_transaction_reference = reference
+            payment.status = Payment.PaymentStatus.PENDING
             payment.save()
+
+            # Log the payment initiation
+            AuditLog.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                action='PAYMENT_INITIATED',
+                model_name='Payment',
+                model_id=payment.id,
+                details=f'Payment initiated for invoice {invoice.invoice_number} via Paystack. Reference: {reference}'
+            )
 
             # Redirect to Paystack authorization URL
             return redirect(payment_data['authorization_url'])
 
         except Exception as e:
-            messages.error(request, _(f"Failed to initialize payment: {str(e)}"))
+            logger.error(f"Paystack initialization failed for invoice {invoice_pk}: {e}")
+            # Mark payment as failed
+            payment.status = Payment.PaymentStatus.FAILED
+            payment.save()
+            messages.error(request, _('Payment gateway is currently unavailable. Please try again in a few minutes or contact support.'))
             return redirect('finance:invoice_detail', pk=invoice_pk)
 
 
@@ -1480,6 +1510,154 @@ class StudentFeeDashboardView(LoginRequiredMixin, View):
             'overdue_invoices': overdue_invoices,
             'overdue_count': overdue_count,
             'payment_history': payment_history,
+        }
+        return render(request, 'finance/student/student_fee_dashboard.html', context)
+
+
+# =============================================================================
+# STUDENT FEE DASHBOARD (Accountant View)
+# =============================================================================
+
+class AccountantStudentFeeDashboardView(FinanceAccessMixin, View):
+    """Student Fee Dashboard for accountants - comprehensive view of all student fees."""
+
+    def get(self, request):
+        current_session = AcademicSession.objects.filter(is_current=True).first()
+        institution = getattr(request.user, 'current_institution', None)
+
+        # Fee Overview Statistics
+        total_invoiced = Invoice.objects.filter(
+            academic_session=current_session
+        ).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+
+        total_paid = Invoice.objects.filter(
+            academic_session=current_session
+        ).aggregate(Sum('amount_paid'))['amount_paid__sum'] or Decimal('0.00')
+
+        total_outstanding = total_invoiced - total_paid
+
+        # Overdue Invoices count
+        overdue_invoices_count = Invoice.objects.filter(
+            academic_session=current_session,
+            due_date__lt=timezone.now().date(),
+            balance_due__gt=Decimal('0.00'),
+        ).count()
+
+        # Recent Invoices
+        recent_invoices = Invoice.objects.filter(
+            academic_session=current_session
+        ).select_related('student__user', 'academic_session').order_by('-issue_date')[:10]
+
+        # Recent Payments
+        recent_payments = Payment.objects.filter(
+            invoice__academic_session=current_session,
+            status=Payment.PaymentStatus.COMPLETED,
+        ).select_related('student__user', 'invoice').order_by('-payment_date')[:10]
+
+        # Search and Filter
+        search_query = request.GET.get('search', '')
+        class_filter = request.GET.get('class', '')
+        status_filter = request.GET.get('status', '')
+        payment_status_filter = request.GET.get('payment_status', '')
+
+        # Base queryset for students
+        students = Student.objects.filter(status='active').select_related('user')
+        if institution:
+            students = students.filter(institution=institution)
+
+        # Apply filters
+        if search_query:
+            students = students.filter(
+                Q(user__first_name__icontains=search_query) |
+                Q(user__last_name__icontains=search_query) |
+                Q(admission_number__icontains=search_query) |
+                Q(user__email__icontains=search_query)
+            )
+
+        if class_filter:
+            students = students.filter(
+                enrollments__class_enrolled_id=class_filter,
+                enrollments__academic_session=current_session,
+                enrollments__enrollment_status='active'
+            ).distinct()
+
+        # Get student fee data with annotations
+        student_fee_data = []
+        for student in students[:50]:  # Limit to first 50 for performance
+            student_invoices = Invoice.objects.filter(
+                student=student,
+                academic_session=current_session
+            )
+            
+            student_total_invoiced = student_invoices.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+            student_total_paid = student_invoices.aggregate(Sum('amount_paid'))['amount_paid__sum'] or Decimal('0.00')
+            student_balance = student_total_invoiced - student_total_paid
+
+            # Apply payment status filter
+            if payment_status_filter == 'paid' and student_balance > 0:
+                continue
+            elif payment_status_filter == 'unpaid' and student_balance == 0:
+                continue
+            elif payment_status_filter == 'overdue':
+                overdue_exists = student_invoices.filter(
+                    due_date__lt=timezone.now().date(),
+                    balance_due__gt=Decimal('0.00')
+                ).exists()
+                if not overdue_exists:
+                    continue
+
+            # Apply status filter
+            if status_filter and student_invoices.filter(status=status_filter).count() == 0:
+                continue
+
+            # Get current class
+            current_class = student.enrollments.filter(
+                academic_session=current_session,
+                enrollment_status='active'
+            ).first()
+            class_name = current_class.class_enrolled.name if current_class else 'Not Enrolled'
+
+            student_fee_data.append({
+                'student': student,
+                'admission_number': student.admission_number,
+                'full_name': student.user.get_full_name(),
+                'email': student.user.email,
+                'class_name': class_name,
+                'total_invoiced': student_total_invoiced,
+                'total_paid': student_total_paid,
+                'balance': student_balance,
+                'invoice_count': student_invoices.count(),
+                'overdue_count': student_invoices.filter(
+                    due_date__lt=timezone.now().date(),
+                    balance_due__gt=Decimal('0.00')
+                ).count(),
+                'latest_invoice': student_invoices.order_by('-issue_date').first(),
+            })
+
+        # Sort by balance due (highest first)
+        student_fee_data.sort(key=lambda x: x['balance'], reverse=True)
+
+        # Get classes for filter dropdown
+        classes = Class.objects.filter(status='active')
+        if institution:
+            classes = classes.filter(institution=institution)
+
+        context = {
+            'title': _('Student Fee Dashboard'),
+            'current_session': current_session,
+            'total_invoiced': total_invoiced,
+            'total_paid': total_paid,
+            'total_outstanding': total_outstanding,
+            'overdue_invoices_count': overdue_invoices_count,
+            'recent_invoices': recent_invoices,
+            'recent_payments': recent_payments,
+            'student_fee_data': student_fee_data,
+            'search_query': search_query,
+            'class_filter': class_filter,
+            'status_filter': status_filter,
+            'payment_status_filter': payment_status_filter,
+            'classes': classes,
+            'invoice_statuses': Invoice.InvoiceStatus.choices,
         }
         return render(request, 'finance/student/student_fee_dashboard.html', context)
 

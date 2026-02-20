@@ -10,7 +10,8 @@ from django.urls import reverse
 from django import forms
 from .models import (
     User, UserProfile, Role, UserRole, LoginHistory,
-    PasswordHistory, UserSession, ParentStudentRelationship, StudentApplication, StaffApplication
+    PasswordHistory, UserSession, ParentStudentRelationship, StudentApplication, StaffApplication,
+    ApplicationStatus
 )
 from apps.core.models import Institution
 
@@ -75,7 +76,7 @@ class StudentApplicationAdmin(admin.ModelAdmin):
         }),
         (_('Address Information'), {
             'fields': (
-                'address', 'city', 'state', 'postal_code', 'country'
+                'address_line_1', 'city', 'state', 'postal_code', 'country'
             )
         }),
         (_('Review Information'), {
@@ -101,16 +102,16 @@ class StudentApplicationAdmin(admin.ModelAdmin):
         approved_count = 0
         skipped_count = 0
         for application in queryset:
-            if application.application_status == StudentApplication.ApplicationStatus.APPROVED:
+            if application.application_status == ApplicationStatus.APPROVED:
                 skipped_count += 1
                 continue
-            elif application.application_status == StudentApplication.ApplicationStatus.PENDING:
+            elif application.application_status == ApplicationStatus.PENDING:
                 try:
                     # Create user account
                     user, temp_password = self.create_user_from_application(application, request.user)
 
                     # Update application
-                    application.application_status = StudentApplication.ApplicationStatus.APPROVED
+                    application.application_status = ApplicationStatus.APPROVED
                     application.reviewed_by = request.user
                     application.reviewed_at = timezone.now()
                     application.user_account = user
@@ -145,7 +146,7 @@ class StudentApplicationAdmin(admin.ModelAdmin):
     def reject_applications(self, request, queryset):
         """Admin action to reject selected applications."""
         updated = queryset.update(
-            application_status=StudentApplication.ApplicationStatus.REJECTED,
+            application_status=ApplicationStatus.REJECTED,
             reviewed_by=request.user,
             reviewed_at=timezone.now()
         )
@@ -159,7 +160,7 @@ class StudentApplicationAdmin(admin.ModelAdmin):
     def mark_under_review(self, request, queryset):
         """Admin action to mark applications as under review."""
         updated = queryset.update(
-            application_status=StudentApplication.ApplicationStatus.UNDER_REVIEW
+            application_status=ApplicationStatus.UNDER_REVIEW
         )
         self.message_user(
             request, 
@@ -244,7 +245,7 @@ class StaffApplicationAdmin(admin.ModelAdmin):
         }),
         (_('Address Information'), {
             'fields': (
-                'address', 'city', 'state', 'postal_code', 'country'
+                'address_line_1', 'city', 'state', 'postal_code', 'country'
             )
         }),
         (_('Review Information'), {
@@ -303,10 +304,10 @@ class StaffApplicationAdmin(admin.ModelAdmin):
             errors = []
 
             for application in queryset:
-                if application.application_status == StaffApplication.ApplicationStatus.APPROVED:
+                if application.application_status == ApplicationStatus.APPROVED:
                     skipped_count += 1
                     continue
-                elif application.application_status == StaffApplication.ApplicationStatus.PENDING:
+                elif application.application_status == ApplicationStatus.PENDING:
                     try:
                         # Create user account and assign to applicant's chosen institution
                         user, temp_password = self.create_user_from_application(
@@ -314,7 +315,7 @@ class StaffApplicationAdmin(admin.ModelAdmin):
                         )
 
                         # Update application
-                        application.application_status = StaffApplication.ApplicationStatus.APPROVED
+                        application.application_status = ApplicationStatus.APPROVED
                         application.reviewed_by = request.user
                         application.reviewed_at = timezone.now()
                         application.user_account = user
@@ -382,7 +383,7 @@ class StaffApplicationAdmin(admin.ModelAdmin):
                 )
 
                 # Update application
-                application.application_status = StaffApplication.ApplicationStatus.APPROVED
+                application.application_status = ApplicationStatus.APPROVED
                 application.reviewed_by = request.user
                 application.reviewed_at = timezone.now()
                 application.user_account = user
@@ -413,7 +414,7 @@ class StaffApplicationAdmin(admin.ModelAdmin):
     def schedule_interview(self, request, queryset):
         """Admin action to schedule interviews."""
         for application in queryset:
-            application.application_status = StaffApplication.ApplicationStatus.INTERVIEW_SCHEDULED
+            application.application_status = ApplicationStatus.INTERVIEW_SCHEDULED
             application.save()
         
         self.message_user(
@@ -426,7 +427,7 @@ class StaffApplicationAdmin(admin.ModelAdmin):
     def reject_applications(self, request, queryset):
         """Admin action to reject selected staff applications."""
         updated = queryset.update(
-            application_status=StaffApplication.ApplicationStatus.REJECTED,
+            application_status=ApplicationStatus.REJECTED,
             reviewed_by=request.user,
             reviewed_at=timezone.now()
         )
@@ -475,7 +476,7 @@ class StaffApplicationAdmin(admin.ModelAdmin):
                 'date_of_birth': application.date_of_birth,
                 'gender': application.gender,
                 'nationality': application.nationality,
-                'address_line_1': application.address,
+                'address_line_1': application.address_line_1,
                 'city': application.city,
                 'state': application.state,
                 'postal_code': application.postal_code,
@@ -491,7 +492,7 @@ class StaffApplicationAdmin(admin.ModelAdmin):
             profile.date_of_birth = application.date_of_birth
             profile.gender = application.gender
             profile.nationality = application.nationality
-            profile.address_line_1 = application.address
+            profile.address_line_1 = application.address_line_1
             profile.city = application.city
             profile.state = application.state
             profile.postal_code = application.postal_code

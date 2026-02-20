@@ -13,16 +13,16 @@
         *   **Steps:** Make a configuration change -> Navigate to Audit Logs -> Filter for configuration events.
         *   **Expected Result:** A new audit log entry details the change, including user, timestamp, old value, and new value.
 
-### 🏫 Feature 1.2: Multi-Institution Management
-*   **Testing Focus:** Verify the creation, configuration, and data isolation of multiple school instances.
+### 🏫 Feature 1.2: Institution Management (Single-Tenant)
+*   **Testing Focus:** Verify institution configuration and global data behavior for a single deployment (Excellence Academy).
 *   **Test Scenarios:**
-    1.  **Scenario:** Create a new school instance.
-        *   **Steps:** Log in as Super Admin -> Navigate to Institution Management -> Create New -> Fill in required details (name, code, type, capacity) -> Save.
-        *   **Expected Result:** The new institution appears in the list and can be selected by assigned administrators.
-        *   **Edge Case:** Attempt to create an institution with a duplicate code.
-    2.  **Scenario:** Test data isolation between institutions.
-        *   **Steps:** Create two institutions, A and B -> In Institution A, create a student -> Switch to Institution B's context and search for the student created in A.
-        *   **Expected Result:** The student from Institution A is not visible or accessible in Institution B.
+    1.  **Scenario:** Review default institution settings.
+        *   **Steps:** Log in as Super Admin -> Navigate to Institution Management -> Open default institution -> Verify name, code, and basic settings.
+        *   **Expected Result:** The default institution (Excellence Academy) is correctly configured and editable by administrators.
+        *   **Edge Case:** Attempt to change the institution code to a conflicting value and verify validation.
+    2.  **Scenario:** Verify that data is globally available across the deployment.
+        *   **Steps:** Create a student record -> Access the student from different admin views and verify visibility.
+        *   **Expected Result:** Records are visible within the single institution context; institution switching is disabled.
 
 ### 🛡️ Feature 1.3: User Role Hierarchy Management
 *   **Testing Focus:** Verify that roles can be created and modified with specific permission levels, and role assignments are tracked.

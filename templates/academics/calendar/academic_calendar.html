@@ -22,10 +22,15 @@
     <div class="calendar-header mb-4">
         <div class="row align-items-center">
             <div class="col-md-6">
-                <h2 class="h4 mb-1">{{ current_session.name }}</h2>
-                <p class="text-muted mb-0">
-                    {{ current_session.start_date|date:"F j, Y" }} - {{ current_session.end_date|date:"F j, Y" }}
-                </p>
+                {% if current_session %}
+                    <h2 class="h4 mb-1">{{ current_session.name }}</h2>
+                    <p class="text-muted mb-0">
+                        {{ current_session.start_date|date:"F j, Y" }} - {{ current_session.end_date|date:"F j, Y" }}
+                    </p>
+                {% else %}
+                    <h2 class="h4 mb-1">{% trans "Academic Calendar" %}</h2>
+                    <p class="text-muted mb-0">{% trans "No current academic session" %}</p>
+                {% endif %}
             </div>
             <div class="col-md-6 text-md-end">
                 <div class="btn-group" role="group">
@@ -51,7 +56,11 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h6 class="card-title mb-1">{% trans "Current Session" %}</h6>
-                            <p class="card-text mb-0">{{ current_session.name }}</p>
+                            {% if current_session %}
+                                <p class="card-text mb-0">{{ current_session.name }}</p>
+                            {% else %}
+                                <p class="card-text mb-0 text-muted">{% trans "No current session" %}</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -66,7 +75,11 @@
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h6 class="card-title mb-1">{% trans "Duration" %}</h6>
-                            <p class="card-text mb-0">{{ current_session.start_date|timesince:current_session.end_date }}</p>
+                            {% if current_session %}
+                                <p class="card-text mb-0">{{ current_session.start_date|timesince:current_session.end_date }}</p>
+                            {% else %}
+                                <p class="card-text mb-0 text-muted">{% trans "No current session" %}</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -185,6 +198,7 @@
                 <h5 class="card-title mb-0">{% trans "Important Academic Dates" %}</h5>
             </div>
             <div class="card-body">
+                {% if current_session %}
                 <div class="row">
                     <div class="col-md-6">
                         <ul class="list-unstyled important-dates-list">
@@ -231,6 +245,12 @@
                         </ul>
                     </div>
                 </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-calendar-x text-muted fs-1"></i>
+                    <p class="text-muted mt-2">{% trans "No current academic session to display important dates." %}</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -289,11 +309,11 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const calendar = new AcademicCalendar({
-            currentSession: {
+            currentSession: {% if current_session %}{
                 startDate: '{{ current_session.start_date|date:"Y-m-d" }}',
                 endDate: '{{ current_session.end_date|date:"Y-m-d" }}',
                 name: '{{ current_session.name }}'
-            },
+            }{% else %}null{% endif %},
             holidays: [
                 {% for holiday in holidays %}
                 {

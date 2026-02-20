@@ -9,13 +9,12 @@ _local = threading.local()
 
 
 def get_default_institution():
-    """Get the single tenant institution for Excellent Academy."""
-    try:
-        institution = Institution.objects.get(code='EXCELLENT_ACADEMY', is_active=True)
-        return institution
-    except Institution.DoesNotExist:
-        # Fallback: get any active institution
-        return Institution.objects.filter(is_active=True).first()
+    """Return the primary institution for this deployment.
+
+    This no longer assumes a pre-created default institution code. If any
+    active Institution exists, return the first one; otherwise return None.
+    """
+    return Institution.objects.filter(is_active=True).first()
 
 
 class TenantMiddleware(MiddlewareMixin):
@@ -46,7 +45,7 @@ class TenantMiddleware(MiddlewareMixin):
 def get_current_institution():
     """
     Get the current institution from thread-local storage.
-    In single-tenant mode, this is always Excellent Academy.
+    In single-tenant mode, this returns the configured institution (if any).
     """
     return getattr(_local, 'current_institution', None)
 
@@ -79,6 +78,6 @@ def filter_queryset_by_institution(queryset, user, institution_field='institutio
 
 def get_user_accessible_institutions(user):
     """
-    In single-tenant mode, return only the Excellent Academy institution.
+    In single-tenant mode, return all active institutions (single site typically).
     """
-    return Institution.objects.filter(code='EXCELLENT_ACADEMY', is_active=True)
+    return Institution.objects.filter(is_active=True)

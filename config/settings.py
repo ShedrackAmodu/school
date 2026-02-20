@@ -75,7 +75,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 
-    # Single-tenant middleware (sets Excellent Academy as default)
+    # Single-tenant middleware (sets Excellence Academy as default)
     "apps.core.middleware.TenantMiddleware",
 
     # Allauth middleware
@@ -262,7 +262,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ADMINISTRATORS
 # ============================
 
-ADMINS = [("Excellent Academy Admin", "supereaglepilot@gmail.com")]
+ADMINS = [("Excellence Academy Admin", "supereaglepilot@gmail.com")]
 MANAGERS = ADMINS
 
 # ============================
@@ -278,8 +278,8 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', "supereaglepilot@gmail.com")  # Use environment variable
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', "lwuiaxslniodkwcr")  # Use environment variable (app password)
 EMAIL_TIMEOUT = 30
-DEFAULT_FROM_EMAIL = "noreply@excellentacademy.pythonanywhere.com"
-SERVER_EMAIL = "errors@excellentacademy.pythonanywhere.com"
+DEFAULT_FROM_EMAIL = "noreply@excellenceacademy.pythonanywhere.com"
+SERVER_EMAIL = "errors@excellenceacademy.pythonanywhere.com"
 
 # ============================
 # PAYSTACK CONFIGURATION
@@ -319,8 +319,8 @@ if ON_PYTHONANYWHERE:
     # Production settings for PythonAnywhere
     DEBUG = False
     ALLOWED_HOSTS = [
-        'excellentacademy.pythonanywhere.com',
-        'www.excellentacademy.pythonanywhere.com',
+        'excellenceacademy.pythonanywhere.com',
+        'www.excellenceacademy.pythonanywhere.com',
     ]
 
     # Production security settings
@@ -338,12 +338,12 @@ if ON_PYTHONANYWHERE:
 
     # CSRF trusted origins for PythonAnywhere
     CSRF_TRUSTED_ORIGINS = [
-        'https://excellentacademy.pythonanywhere.com',
-        'https://www.excellentacademy.pythonanywhere.com',
+        'https://excellenceacademy.pythonanywhere.com',
+        'https://www.excellenceacademy.pythonanywhere.com',
     ]
 
     # Single-tenant: no subdomain routing needed
-    TENANT_DOMAIN = 'excellentacademy.pythonanywhere.com'
+    TENANT_DOMAIN = 'excellenceacademy.pythonanywhere.com'
     
     # Adjust static files for PythonAnywhere production
     STATIC_ROOT = BASE_DIR / "static"
@@ -453,18 +453,16 @@ DATABASES = {
 # ============================
 
 # Site name for templates
-SITE_NAME = "Excellent Academy School Management System"
-SITE_DOMAIN = "excellentacademy.pythonanywhere.com"
+SITE_NAME = "Excellence Academy School Management System"
+SITE_DOMAIN = "excellenceacademy.pythonanywhere.com"
 SITE_ID = 1
 
 # ============================
 # SINGLE-TENANT MODE
 # ============================
 
-# Single institution setup for Excellent Academy
+# Single-tenant mode enabled for this deployment
 SINGLE_TENANT_MODE = True
-DEFAULT_INSTITUTION_CODE = 'EXCELLENT_ACADEMY'
-DEFAULT_INSTITUTION_NAME = 'Excellent Academy'
 
 # Disable institution subdomain routing
 TENANT_SUBDOMAIN_ENABLED = False

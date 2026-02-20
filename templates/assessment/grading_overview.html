@@ -13,7 +13,7 @@
                     <h3 class="card-title">{% trans "Grading Overview" %}</h3>
                     <div class="card-tools">
                         <a href="{% url 'assessment:exam_list' %}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-plus"></i> {% trans "Create New Exam" %}
+                            <i class="fas fa-plus"></i> {% trans "Create New CBT" %}
                         </a>
                     </div>
                 </div>
@@ -23,10 +23,10 @@
                             <table class="table table-bordered table-hover">
                                 <thead>
                                     <tr>
-                                        <th>{% trans "Exam Name" %}</th>
+                                        <th>{% trans "CBT Name" %}</th>
                                         <th>{% trans "Class" %}</th>
                                         <th>{% trans "Subject" %}</th>
-                                        <th>{% trans "Exam Date" %}</th>
+                                        <th>{% trans "CBT Date" %}</th>
                                         <th>{% trans "Type" %}</th>
                                         <th>{% trans "Marks Entered" %}</th>
                                         <th>{% trans "Progress" %}</th>
@@ -64,7 +64,7 @@
                                         </td>
                                         <td>
                                             {% if data.completion_percentage < 100 %}
-                                                <a href="{% url 'assessment:enter_marks' data.exam.id %}"
+                                                    <a href="{% url 'assessment:enter_marks' data.exam.id %}"
                                                    class="btn btn-sm btn-primary">
                                                     <i class="fas fa-edit"></i> {% trans "Enter Marks" %}
                                                 </a>
@@ -93,7 +93,7 @@
                                 <div class="card bg-light">
                                     <div class="card-body text-center">
                                         <h4 class="text-primary">{{ exam_data|length }}</h4>
-                                        <p class="mb-0">{% trans "Total Exams" %}</p>
+                                        <p class="mb-0">{% trans "Total CBTs" %}</p>
                                     </div>
                                 </div>
                             </div>
@@ -135,12 +135,12 @@
                             </div>
                         </div>
                     {% else %}
-                        <div class="text-center py-5">
+                            <div class="text-center py-5">
                             <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
-                            <h4>{% trans "No Exams Found" %}</h4>
-                            <p class="text-muted">{% trans "You don't have any exams to grade at the moment." %}</p>
+                            <h4>{% trans "No CBTs Found" %}</h4>
+                            <p class="text-muted">{% trans "You don't have any CBTs to grade at the moment." %}</p>
                             <a href="{% url 'assessment:exam_list' %}" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> {% trans "Create Your First Exam" %}
+                                <i class="fas fa-plus"></i> {% trans "Create Your First CBT" %}
                             </a>
                         </div>
                     {% endif %}

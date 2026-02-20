@@ -29,7 +29,7 @@
 
   <!-- Quick Stats -->
   <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
+            <div class="col-6 col-md-3">
       <div class="card border-0 shadow-sm text-center p-3 h-100">
         <div class="rounded-3 bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mx-auto mb-2" style="width:48px;height:48px;">
           <i class="bi bi-people-fill text-primary fs-4"></i>
@@ -62,7 +62,7 @@
           <i class="bi bi-clipboard2-check text-info fs-4"></i>
         </div>
         <h3 class="fw-bold text-info mb-0">{{ upcoming_exams|length|default:0 }}</h3>
-        <p class="text-muted small mb-0">Upcoming Exams</p>
+        <p class="text-muted small mb-0">Upcoming CBTs</p>
       </div>
     </div>
   </div>
@@ -101,10 +101,10 @@
       </div>
       {% endif %}
 
-      <!-- Upcoming Exams -->
+      <!-- Upcoming CBTs -->
       <div class="card border-0 shadow-sm mb-3">
         <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
-          <h6 class="fw-semibold mb-0"><i class="bi bi-calendar-event me-2 text-danger"></i>Upcoming Exams</h6>
+          <h6 class="fw-semibold mb-0"><i class="bi bi-calendar-event me-2 text-danger"></i>Upcoming CBTs</h6>
           <a href="{% url 'assessment:exam_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
         </div>
         <div class="card-body p-0">
@@ -129,7 +129,7 @@
           {% empty %}
           <div class="text-center py-4 text-muted">
             <i class="bi bi-calendar-check display-6 d-block mb-2 opacity-25"></i>
-            No upcoming exams scheduled
+            No upcoming CBTs scheduled
           </div>
           {% endfor %}
         </div>
@@ -184,7 +184,7 @@
         <div class="card-body">
           <div class="d-grid gap-2">
             <a href="{% url 'assessment:exam_create' %}" class="btn btn-outline-primary d-flex align-items-center gap-2">
-              <i class="bi bi-plus-circle"></i>Create Exam
+              <i class="bi bi-plus-circle"></i>Create CBT
             </a>
             <a href="{% url 'assessment:assignment_create' %}" class="btn btn-outline-info d-flex align-items-center gap-2">
               <i class="bi bi-clipboard-plus"></i>Create Assignment

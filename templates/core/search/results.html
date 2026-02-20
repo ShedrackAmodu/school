@@ -37,7 +37,7 @@
                     <div class="card-body text-center py-5">
                         <i class="bi bi-search text-muted" style="font-size: 4rem;"></i>
                         <h3 class="text-muted mt-3">{% trans "Enter a search term to find results" %}</h3>
-                        <p class="text-muted">{% trans "Search across students, teachers, classes, subjects, exams, assignments, invoices, payments, and documents" %}</p>
+                        <p class="text-muted">{% trans "Search across students, teachers, classes, subjects, CBTs, assignments, invoices, payments, and documents" %}</p>
                     </div>
                 </div>
             {% else %}
@@ -93,7 +93,7 @@
                             <li class="nav-item">
                                 <a class="nav-link {% if filter_type == 'exams' %}active{% endif %}"
                                    href="?q={{ query|urlencode }}&filter=exams">
-                                    {% trans "Exams" %}
+                                    {% trans "CBTs" %}
                                     {% if filter_type == 'exams' %}
                                         <span class="badge bg-primary ms-1">{{ results.exams|length }}</span>
                                     {% endif %}
@@ -316,7 +316,7 @@
                             <div class="card-header">
                                 <h5 class="mb-0">
                                     <i class="bi bi-calendar-check me-2"></i>
-                                    {% trans "Exams" %}
+                                    {% trans "CBTs" %}
                                     <span class="badge bg-secondary ms-1">{{ results.exams|length }}</span>
                                 </h5>
                             </div>

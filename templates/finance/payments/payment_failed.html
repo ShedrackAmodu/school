@@ -2,6 +2,7 @@
 {% load i18n %}
 
 {% block title %}{% trans "Payment Failed" %}{% endblock %}
+{% block page_title %}{% trans "Payment Failed" %}{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -33,11 +34,30 @@
           <div class="text-start mb-4">
             <p class="fw-semibold mb-2 small">{% trans "Possible reasons:" %}</p>
             <ul class="list-unstyled small text-muted">
-              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Insufficient funds" %}</li>
-              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Card declined by bank" %}</li>
+              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Insufficient funds in your account" %}</li>
+              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Card declined by your bank" %}</li>
+              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Incorrect card details entered" %}</li>
               <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Network or connection issue" %}</li>
               <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Payment session timed out" %}</li>
+              <li class="mb-1"><i class="bi bi-dot text-danger"></i> {% trans "Card not enabled for online payments" %}</li>
             </ul>
+          </div>
+
+          <!-- Troubleshooting Tips -->
+          <div class="alert alert-warning border-0 bg-warning bg-opacity-10 mb-4">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-lightbulb-fill text-warning fs-4 me-3 mt-1"></i>
+              <div>
+                <h6 class="fw-semibold mb-1">Troubleshooting Tips</h6>
+                <ul class="mb-0 small">
+                  <li>Check your account balance and try again</li>
+                  <li>Verify your card details are correct</li>
+                  <li>Ensure your card is enabled for online transactions</li>
+                  <li>Try using a different card or payment method</li>
+                  <li>Check your internet connection and refresh the page</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           <!-- Action Buttons -->
@@ -48,15 +68,27 @@
             <a href="{% url 'finance:student_invoices' %}" class="btn btn-outline-secondary">
               <i class="bi bi-receipt me-2"></i>{% trans "View My Invoices" %}
             </a>
+            {% if invoice %}
+            <a href="{% url 'finance:pay_invoice' pk=invoice.pk %}" class="btn btn-outline-warning">
+              <i class="bi bi-credit-card me-2"></i>{% trans "Pay Different Amount" %}
+            </a>
+            {% endif %}
             <a href="{% url 'users:dashboard' %}" class="btn btn-link text-muted small">
               <i class="bi bi-house me-1"></i>{% trans "Go to Dashboard" %}
             </a>
           </div>
 
           <!-- Support note -->
-          <p class="text-muted small mt-4 mb-0">
-            {% trans "If this problem persists, please contact the school's finance office or support." %}
-          </p>
+          <div class="mt-4 p-3 bg-light rounded-3">
+            <h6 class="fw-semibold mb-2">Need Help?</h6>
+            <p class="text-muted small mb-2">
+              {% trans "If this problem persists, please contact the school's finance office or support team." %}
+            </p>
+            <div class="small">
+              <p class="mb-1"><i class="bi bi-envelope me-1"></i> Email: finance@school.edu</p>
+              <p class="mb-0"><i class="bi bi-telephone me-1"></i> Phone: +234-XXX-XXXX</p>
+            </div>
+          </div>
 
         </div>
       </div>

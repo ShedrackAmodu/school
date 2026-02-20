@@ -17,7 +17,7 @@ urlpatterns = [
     path('configs/<uuid:pk>/delete/', views.SystemConfigDeleteView.as_view(), name='config_delete'),
     path('configs/bulk-update/', views.SystemConfigBulkUpdateView.as_view(), name='config_bulk_update'),
 
-    # Institution Details (Excellent Academy)
+    # Institution Details (Excellence Academy)
     path('institution/', views.InstitutionDetailView.as_view(), name='institution_detail'),
     path('principal/curriculum-planning/', views.PrincipalCurriculumPlanningView.as_view(), name='principal_curriculum_planning'),
     path('principal/communication/', views.PrincipalCommunicationView.as_view(), name='principal_communication'),

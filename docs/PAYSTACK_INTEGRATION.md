@@ -9,7 +9,7 @@ The Paystack integration provides a complete payment processing solution for sch
 - **Online Payment Processing**: Secure payment gateway integration with Paystack
 - **Payment Tracking**: Detailed tracking of payment transactions and statuses
 - **Webhook Handling**: Automatic processing of payment status updates
-- **Multi-tenant Support**: Payment processing across multiple institutions
+- **Single-tenant Deployment**: Payment processing configured for this single institution (Excellence Academy)
 - **Student/Parent Interface**: User-friendly payment interface for students and parents
 
 ## Architecture
@@ -397,4 +397,4 @@ For issues related to Paystack integration:
   - Basic payment processing
   - Webhook handling
   - Student payment interface
-  - Multi-tenant support
+    - Single-tenant deployment (no multi-tenant routing)

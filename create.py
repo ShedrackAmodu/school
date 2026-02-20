@@ -4,7 +4,7 @@ Consolidated System Creation Script
 
 This script consolidates all school management system creation and setup functions
 into a single executable file. It combines role creation, permission assignment,
-multi-tenancy setup, analytics setup, and other initialization tasks.
+institution mapping/setup, analytics setup, and other initialization tasks for a single-tenant deployment.
 
 Usage:
     python create.py
@@ -248,169 +248,10 @@ class SystemCreator:
 
         self.log_success(f'Total permissions assigned: {total_assigned}')
 
-    def setup_multitenancy(self):
-        """Set up multi-tenancy infrastructure and automatically map users to institutions."""
-        self.log_info("Setting up multi-tenancy infrastructure...")
+    
 
-        institution_name = "Default School"
-        institution_code = "DEFAULT"
-        institution_domain = getattr(settings, 'SITE_DOMAIN', 'localhost')
-
-        # Create default institution if it doesn't exist
-        institution, created = Institution.objects.get_or_create(
-            code=institution_code,
-            defaults={
-                'name': institution_name,
-                'short_name': institution_name[:50],
-                'website': f'https://{institution_domain}',
-                'description': f'Default institution: {institution_name}',
-                'institution_type': 'high_school',
-                'ownership_type': 'private',
-                'max_students': 1000,
-                'max_staff': 100,
-                'timezone': 'UTC',
-                'is_active': True,
-            }
-        )
-
-        if created:
-            self.created += 1
-            self.log_success(f'Created default institution: {institution.name} ({institution.code})')
-        else:
-            self.updated += 1
-            self.log_warning(f'Institution already exists: {institution.name} ({institution.code})')
-
-        # Automatically map users to institutions based on their roles
-        users_assigned = 0
-        users_updated = 0
-
-        # Define staff role types that require institution mapping
-        staff_role_types = [
-            'super_admin', 'admin', 'principal', 'department_head', 'counselor',
-            'teacher', 'accountant', 'librarian', 'driver', 'support',
-            'transport_manager', 'hostel_warden'
-        ]
-
-        # Find users with staff roles but no institution mapping
-        from django.db.models import Q
-
-        unmapped_staff = User.objects.filter(
-            Q(user_roles__role__role_type__in=staff_role_types, user_roles__status='active') &
-            ~Q(institution_memberships__isnull=False)
-        ).distinct()
-
-        for user in unmapped_staff:
-            try:
-                # Get the user's primary role for employee ID generation
-                primary_role = user.user_roles.filter(
-                    is_primary=True,
-                    status='active'
-                ).first()
-
-                if primary_role:
-                    role_type = primary_role.role.role_type
-                else:
-                    # Use the first active staff role
-                    staff_role = user.user_roles.filter(
-                        role__role_type__in=staff_role_types,
-                        status='active'
-                    ).first()
-                    role_type = staff_role.role.role_type if staff_role else 'staff'
-
-                # Generate employee ID
-                employee_id = f'{role_type}_{institution.code}_{user.id}'
-
-                # Create institution-user relationship
-                institution_user, membership_created = InstitutionUser.objects.get_or_create(
-                    user=user,
-                    institution=institution,
-                    defaults={
-                        'is_primary': True,
-                        'employee_id': employee_id,
-                    }
-                )
-
-                if membership_created:
-                    users_assigned += 1
-                    self.log_success(f'Mapped {user.email} to {institution.code} with ID {employee_id}')
-                else:
-                    users_updated += 1
-                    self.log_info(f'Updated mapping for {user.email}')
-
-                # Update user profile with employee ID
-                if hasattr(user, 'profile') and user.profile and not user.profile.employee_id:
-                    user.profile.employee_id = employee_id
-                    user.profile.save()
-
-            except Exception as e:
-                self.log_error(f'Error mapping user {user.email}: {str(e)}')
-
-        # Special handling for superusers (always map to all institutions)
-        superusers = User.objects.filter(is_superuser=True)
-        superuser_mappings = 0
-
-        for superuser in superusers:
-            # Create default mapping for superuser
-            if not InstitutionUser.objects.filter(user=superuser, institution=institution).exists():
-                InstitutionUser.objects.get_or_create(
-                    user=superuser,
-                    institution=institution,
-                    defaults={
-                        'is_primary': True,
-                        'employee_id': f'superuser_{institution.code}_{superuser.id}',
-                    }
-                )
-                superuser_mappings += 1
-                self.log_success(f'Mapped superuser {superuser.email} to {institution.code}')
-
-        # Map non-staff users with roles to default institution (parents, students)
-        other_users = User.objects.filter(
-            is_staff=False,
-            is_superuser=False,
-            user_roles__isnull=False
-        ).exclude(institution_memberships__isnull=False).distinct()
-
-        for user in other_users:
-            # For students and parents, assign to default institution
-            InstitutionUser.objects.get_or_create(
-                user=user,
-                institution=institution,
-                defaults={
-                    'is_primary': True,
-                }
-            )
-            users_assigned += 1
-            self.log_info(f'Mapped {user.email} (non-staff) to {institution.code}')
-
-        self.log_success(f'Multi-tenancy setup complete!')
-        self.log_info(f'  - Staff/users mapped: {users_assigned}')
-        self.log_info(f'  - Existing mappings updated: {users_updated}')
-
-        # Display comprehensive summary
-        total_users = User.objects.count()
-        total_staff = User.objects.filter(
-            user_roles__role__role_type__in=staff_role_types,
-            user_roles__status='active'
-        ).distinct().count()
-
-        institution_staff = InstitutionUser.objects.filter(
-            institution=institution,
-            user__user_roles__role__role_type__in=staff_role_types,
-            user__user_roles__status='active'
-        ).distinct().count()
-
-        institution_users = InstitutionUser.objects.filter(institution=institution).distinct().count()
-
-        self.log_info(f'Institution: {institution.name} ({institution.code})')
-        self.log_info(f'  - Total users in system: {total_users}')
-        self.log_info(f'  - Total staff users: {total_staff}')
-        self.log_info(f'  - Staff mapped to {institution.code}: {institution_staff}')
-        self.log_info(f'  - Total users mapped to {institution.code}: {institution_users}')
-
-        # Warn about unmapped staff (shouldn't happen after our logic)
-        unmapped_after_setup = total_staff - institution_staff
-        if unmapped_after_setup > 0:
-            self.log_warning(f'Warning: {unmapped_after_setup} staff users still unmapped after setup!')
+        # Institution mapping and default-institution setup removed for single-tenant deployments.
+        # If you need to assign users to institutions, do this manually via the admin interface.
 
     def setup_system_kpis(self):
         """Create system performance KPIs for monitoring."""

@@ -217,9 +217,9 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Assessment Permissions -->
+                                <!-- CBT Permissions -->
                                 <div class="permission-group mb-4">
-                                    <h6 class="permission-group-title border-bottom pb-2">{% trans "Assessment & Grading" %}</h6>
+                                    <h6 class="permission-group-title border-bottom pb-2">{% trans "CBT & Grading" %}</h6>
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="permission-item mb-2">
@@ -235,9 +235,9 @@
                                         </div>
                                         <div class="col-md-6">
                                             <div class="permission-item mb-2">
-                                                <input class="form-check-input" type="checkbox" id="perm_manage_exams" 
-                                                       name="permissions" value="manage_exams" {% if 'manage_exams' in role_permissions %}checked{% endif %}>
-                                                <label class="form-check-label" for="perm_manage_exams">{% trans "Manage Exams" %}</label>
+                                                      <input class="form-check-input" type="checkbox" id="perm_manage_exams" 
+                                                          name="permissions" value="manage_exams" {% if 'manage_exams' in role_permissions %}checked{% endif %}>
+                                                      <label class="form-check-label" for="perm_manage_exams">{% trans "Manage CBTs" %}</label>
                                             </div>
                                             <div class="permission-item mb-2">
                                                 <input class="form-check-input" type="checkbox" id="perm_generate_reports" 

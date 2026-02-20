@@ -302,6 +302,18 @@
                 <span class="small">{% trans "Reports" %}</span>
               </a>
             </div>
+            <div class="col-6">
+              <a href="{% url 'finance:payment_list' %}" class="btn btn-outline-primary w-100 d-flex flex-column align-items-center py-3 gap-1">
+                <i class="bi bi-credit-card-2-front fs-4"></i>
+                <span class="small">{% trans "Payment History" %}</span>
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{% url 'finance:invoice_list' %}" class="btn btn-outline-success w-100 d-flex flex-column align-items-center py-3 gap-1">
+                <i class="bi bi-file-earmark-text fs-4"></i>
+                <span class="small">{% trans "All Invoices" %}</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>

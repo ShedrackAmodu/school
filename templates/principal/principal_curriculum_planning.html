@@ -64,7 +64,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                {% trans "Upcoming Exams" %}
+                                {% trans "Upcoming CBTs" %}
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ curriculum_data.exam_schedule|length }}</div>
                         </div>
@@ -118,7 +118,7 @@
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="exams-tab" data-bs-toggle="tab" data-bs-target="#exams" type="button" role="tab">
-                                <i class="fas fa-file-alt"></i> {% trans "Exam Schedule" %}
+                                <i class="fas fa-file-alt"></i> {% trans "CBT Schedule" %}
                             </button>
                         </li>
                     </ul>
@@ -383,9 +383,9 @@
                                 <div class="col-12">
                                     <div class="card">
                                         <div class="card-header d-flex justify-content-between align-items-center">
-                                            <h6 class="m-0 font-weight-bold text-primary">{% trans "Upcoming Examinations" %}</h6>
+                                            <h6 class="m-0 font-weight-bold text-primary">{% trans "Upcoming CBTs" %}</h6>
                                             <button class="btn btn-outline-primary btn-sm" onclick="scheduleNewExam()">
-                                                <i class="fas fa-plus"></i> {% trans "Schedule Exam" %}
+                                                <i class="fas fa-plus"></i> {% trans "Schedule CBT" %}
                                             </button>
                                         </div>
                                         <div class="card-body">
@@ -393,7 +393,7 @@
                                                 <table class="table table-bordered table-hover">
                                                     <thead class="table-dark">
                                                         <tr>
-                                                            <th>{% trans "Exam" %}</th>
+                                                            <th>{% trans "CBT" %}</th>
                                                             <th>{% trans "Subject" %}</th>
                                                             <th>{% trans "Class" %}</th>
                                                             <th>{% trans "Date" %}</th>
@@ -427,7 +427,7 @@
                                                         <tr>
                                                             <td colspan="7" class="text-center py-4">
                                                                 <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
-                                                                <h5>{% trans "No Upcoming Exams" %}</h5>
+                                                                <h5>{% trans "No Upcoming CBTs" %}</h5>
                                                                 <p class="text-muted">{% trans "No examinations are scheduled for the near future." %}</p>
                                                             </td>
                                                         </tr>
@@ -445,14 +445,14 @@
                                 <div class="col-12">
                                     <div class="card">
                                         <div class="card-header">
-                                            <h6 class="m-0 font-weight-bold text-primary">{% trans "Exam Calendar Overview" %}</h6>
+                                            <h6 class="m-0 font-weight-bold text-primary">{% trans "CBT Calendar Overview" %}</h6>
                                         </div>
                                         <div class="card-body">
                                             <div id="examCalendar" class="calendar-container">
                                                 <!-- Calendar will be rendered here -->
                                                 <div class="text-center py-5">
                                                     <i class="fas fa-calendar-alt fa-4x text-muted mb-3"></i>
-                                                    <p class="text-muted">{% trans "Exam calendar visualization would be displayed here." %}</p>
+                                                    <p class="text-muted">{% trans "CBT calendar visualization would be displayed here." %}</p>
                                                 </div>
                                             </div>
                                         </div>

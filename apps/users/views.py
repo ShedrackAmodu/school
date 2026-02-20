@@ -38,12 +38,13 @@ from .models import (
     User, UserProfile, Role, UserRole, LoginHistory,
     PasswordHistory, UserSession, ParentStudentRelationship,
     StudentApplication, StaffApplication, UserRoleActivity,
-    get_student_guardians, notify_guardians_profile_update
+    get_student_guardians, notify_guardians_profile_update,
+    ApplicationStatus
 )
 from .forms import (
     LoginForm, UserCreationForm, UserUpdateForm, UserProfileForm, RoleForm,
     UserRoleAssignmentForm, CustomPasswordChangeForm, ParentStudentRelationshipForm,
-    StudentApplicationForm, StaffApplicationForm, LoginHistorySearchForm,
+    StudentApplicationForm, StaffApplicationForm, SimplifiedStaffApplicationForm, LoginHistorySearchForm,
     UserBulkActionForm, UserImportForm
 )
 
@@ -190,7 +191,7 @@ def create_user_from_student_application(application, reviewed_by):
             profile.date_of_birth = application.date_of_birth
             profile.gender = application.gender
             profile.nationality = application.nationality
-            profile.address_line_1 = application.address
+            profile.address_line_1 = application.address_line_1
             profile.city = application.city
             profile.state = application.state
             profile.postal_code = application.postal_code
@@ -360,7 +361,7 @@ def create_user_from_staff_application(application, reviewed_by):
             profile.date_of_birth = application.date_of_birth
             profile.gender = application.gender
             profile.nationality = application.nationality
-            profile.address_line_1 = application.address
+            profile.address_line_1 = application.address_line_1
             profile.city = application.city
             profile.state = application.state
             profile.postal_code = application.postal_code
@@ -429,21 +430,25 @@ def create_user_from_staff_application(application, reviewed_by):
 
             elif position_role_type in ['support', 'librarian', 'accountant']:
                 # For support staff, create Attendant profile (can be used for various support roles)
-                from apps.transport.models import Attendant
-                attendant, attendant_created = Attendant.objects.get_or_create(
-                    user=user,
-                    defaults={
-                        'employee_id': employee_id,
-                        'date_of_birth': application.date_of_birth,
-                        'date_of_joining': timezone.now().date(),
-                        'responsibilities': f"{application.position_applied_for.name} responsibilities",
-                        'status': 'active'
-                    }
-                )
-                if not attendant_created:
-                    attendant.employee_id = employee_id
-                    attendant.responsibilities = f"{application.position_applied_for.name} responsibilities"
-                    attendant.save()
+                # Only create if date_of_birth is available, otherwise skip attendant profile
+                if application.date_of_birth:
+                    from apps.transport.models import Attendant
+                    attendant, attendant_created = Attendant.objects.get_or_create(
+                        user=user,
+                        defaults={
+                            'employee_id': employee_id,
+                            'date_of_birth': application.date_of_birth,
+                            'date_of_joining': timezone.now().date(),
+                            'responsibilities': f"{application.position_applied_for.name} responsibilities",
+                            'status': 'active'
+                        }
+                    )
+                    if not attendant_created:
+                        attendant.employee_id = employee_id
+                        attendant.responsibilities = f"{application.position_applied_for.name} responsibilities"
+                        attendant.save()
+                else:
+                    logger.info(f"Skipping Attendant profile creation for {user.email} - no date_of_birth provided")
 
             # Assign staff role if not already assigned
             existing_role = UserRole.objects.filter(
@@ -773,12 +778,14 @@ class StudentApplicationView(FormView):
             application = form.save(commit=False)
             
             # Set additional fields
-            application.application_status = StudentApplication.ApplicationStatus.PENDING
+            application.application_status = ApplicationStatus.PENDING
             
             # Handle academic_session - it's now required in the form
             academic_session = form.cleaned_data.get('academic_session')
             if academic_session:
                 application.academic_session = academic_session
+
+            # Institution assignment is handled explicitly; automatic default assignment removed.
             
             # Save the application
             application.save()
@@ -883,7 +890,7 @@ class StaffApplicationView(FormView):
     View for staff applications.
     """
     template_name = 'users/applications/staff_application.html'
-    form_class = StaffApplicationForm
+    form_class = SimplifiedStaffApplicationForm
     success_url = reverse_lazy('users:application_submitted')
     
     def get_context_data(self, **kwargs):
@@ -966,7 +973,7 @@ class StaffApplicationView(FormView):
             application = form.save(commit=False)
 
             # Set additional fields
-            application.application_status = StaffApplication.ApplicationStatus.PENDING
+            application.application_status = ApplicationStatus.PENDING
 
             # Save the application
             application.save()
@@ -2486,7 +2493,7 @@ def schedule_interview(request, application_id):
                     return redirect('users:pending_applications')
 
                 # Update application status and interview details
-                application.application_status = StaffApplication.ApplicationStatus.INTERVIEW_SCHEDULED
+                application.application_status = ApplicationStatus.INTERVIEW_SCHEDULED
                 application.interview_date = interview_date
                 application.review_notes = review_notes
                 application.reviewed_by = request.user
@@ -2765,7 +2772,7 @@ def parent_dashboard(request):
             )
             pending_fees = sum(float(invoice.balance_due) for invoice in pending_invoices)
 
-    # Get recent notifications for this child
+        # Get recent notifications for this child
         from apps.communication.models import RealTimeNotification
         child_notifications = RealTimeNotification.objects.filter(
             recipient=request.user,
@@ -2807,6 +2814,108 @@ def parent_dashboard(request):
 @login_required
 @user_passes_test(lambda u: u.user_roles.filter(role__role_type='parent').exists(), login_url=reverse_lazy('users:dashboard'))
 def child_academic_records(request, child_id):
+    """
+    View child's academic records.
+    """
+    # Verify parent has access to this child
+    try:
+        relationship = ParentStudentRelationship.objects.get(
+            parent=request.user,
+            student_id=child_id,
+            status='active'
+        )
+        child_user = relationship.student  # User object
+        try:
+            child = child_user.student_profile  # Student model
+        except AttributeError:
+            messages.error(request, _("Student profile not found."))
+            return redirect('users:parent_dashboard')
+    except ParentStudentRelationship.DoesNotExist:
+        messages.error(request, _("You don't have permission to view this child's records."))
+        return redirect('users:dashboard')
+
+    # Get academic records (same logic as student view)
+    academic_records = AcademicRecord.objects.filter(
+        student=child
+    ).select_related('class_enrolled', 'academic_session').order_by('-academic_session__start_date')
+
+    # Get detailed marks
+    from apps.assessment.models import Mark, Result, ResultSubject
+    marks = Mark.objects.filter(
+        student=child
+    ).select_related('exam', 'exam__subject', 'exam__exam_type').order_by('-exam__exam_date')
+
+    # Subject-wise performance analysis
+    subject_performance = {}
+    for mark in marks:
+        subject_name = mark.exam.subject.name
+        if subject_name not in subject_performance:
+            subject_performance[subject_name] = {
+                'marks': [],
+                'exams': 0,
+                'average': 0,
+                'highest': 0,
+                'lowest': 100,
+                'trend': []
+            }
+
+        subject_performance[subject_name]['marks'].append(mark.percentage)
+        subject_performance[subject_name]['exams'] += 1
+
+        if mark.percentage > subject_performance[subject_name]['highest']:
+            subject_performance[subject_name]['highest'] = mark.percentage
+        if mark.percentage < subject_performance[subject_name]['lowest']:
+            subject_performance[subject_name]['lowest'] = mark.percentage
+
+    # Calculate averages
+    for subject_name, data in subject_performance.items():
+        if data['marks']:
+            data['average'] = sum(data['marks']) / len(data['marks'])
+
+    # Results and report cards
+    results = Result.objects.filter(
+        student=child
+    ).select_related('academic_class', 'exam_type', 'grade').prefetch_related('subject_marks')
+
+    # Attendance summary
+    attendance_summary = None
+    current_session = AcademicSession.objects.filter(is_current=True).first()
+    if current_session:
+        from apps.attendance.models import DailyAttendance
+        attendance_records = DailyAttendance.objects.filter(
+            student=child,
+            academic_session=current_session
+        )
+
+        total_days = attendance_records.count()
+        if total_days > 0:
+            present_days = attendance_records.filter(attendance_status='present').count()
+            attendance_percentage = (present_days / total_days) * 100
+
+            attendance_summary = {
+                'total_days': total_days,
+                'present_days': present_days,
+                'attendance_percentage': round(attendance_percentage, 1),
+                'current_session': current_session
+            }
+
+    context = {
+        'child': child,
+        'academic_records': academic_records,
+        'subject_performance': subject_performance,
+        'marks': marks[:20],  # Recent marks
+        'results': results,
+        'attendance_summary': attendance_summary,
+        'total_exams': marks.count(),
+        'average_percentage': marks.aggregate(avg=Avg('percentage'))['avg'] if marks else 0,
+    }
+
+    return render(request, 'users/parent/child_records.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: u.user_roles.filter(role__role_type='parent').exists(), login_url=reverse_lazy('users:dashboard'))
+def child_attendance(request, child_id):
     """
     View child's academic records.
     """

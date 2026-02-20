@@ -8,7 +8,7 @@
 
 {% block breadcrumb_items %}
     <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'assessment:dashboard' %}">Assessment</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'assessment:dashboard' %}">CBT</a></li>
     <li class="breadcrumb-item active" aria-current="page">Report Cards</li>
 {% endblock %}
 
@@ -148,7 +148,7 @@
                             <th>Student</th>
                             {% endif %}
                             <th>Class</th>
-                            <th>Exam Type</th>
+                            <th>CBT Type</th>
                             <th>Overall Grade</th>
                             <th>Percentage</th>
                             <th>Rank</th>
@@ -370,9 +370,9 @@
                         </div>
                         
                         <div class="col-12">
-                            <label for="examTypeFilter" class="form-label">Exam Type</label>
+                            <label for="examTypeFilter" class="form-label">CBT Type</label>
                             <select class="form-select" id="examTypeFilter" name="exam_type_id">
-                                <option value="">All Exam Types</option>
+                                <option value="">All CBT Types</option>
                                 {% for exam_type in exam_types %}
                                 <option value="{{ exam_type.id }}" {% if request.GET.exam_type_id == exam_type.id|stringformat:"i" %}selected{% endif %}>
                                     {{ exam_type.name }}

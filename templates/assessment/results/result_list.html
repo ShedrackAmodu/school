@@ -8,7 +8,7 @@
 
 {% block breadcrumb_items %}
     <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'assessment:dashboard' %}">Assessment</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'assessment:dashboard' %}">CBT</a></li>
     <li class="breadcrumb-item active" aria-current="page">Results</li>
 {% endblock %}
 
@@ -36,7 +36,7 @@
         
         {% if user.student_profile %}
         <a href="{% url 'assessment:student_marks' %}" class="btn btn-outline-primary">
-            <i class="bi bi-award me-1"></i> View My Marks
+            <i class="bi bi-award me-1"></i> View My CBT Results
         </a>
         {% endif %}
     </div>
@@ -167,9 +167,9 @@
                 <h5 class="card-title mb-0">
                     <i class="bi bi-trophy me-2"></i>
                     {% if user.student_profile %}
-                    My Results
+                    My CBT Results
                     {% else %}
-                    All Results
+                    All CBT Results
                     {% endif %}
                 </h5>
                 
@@ -210,7 +210,7 @@
                             <th>Student</th>
                             {% endif %}
                             <th>Class</th>
-                            <th>Exam Type</th>
+                            <th>CBT Type</th>
                             <th>Total Marks</th>
                             <th>Percentage</th>
                             <th>Grade</th>
@@ -477,9 +477,9 @@
                         </div>
                         
                         <div class="col-12">
-                            <label for="examTypeFilter" class="form-label">Exam Type</label>
+                            <label for="examTypeFilter" class="form-label">CBT Type</label>
                             <select class="form-select" id="examTypeFilter" name="exam_type">
-                                <option value="">All Exam Types</option>
+                                <option value="">All CBT Types</option>
                                 {% for exam_type in exam_types %}
                                 <option value="{{ exam_type.id }}" {% if request.GET.exam_type == exam_type.id|stringformat:"i" %}selected{% endif %}>
                                     {{ exam_type.name }}
@@ -859,7 +859,7 @@ window.generateSelectedReports = function() {
     
     // Generate reports for selected results
     selectedResults.forEach(resultId => {
-        const reportUrl = "{% url 'assessment:generate_report_card' 0 %}".replace('0', resultId);
+        const reportUrl = `/assessment/results/${resultId}/generate-report/`;
         window.open(reportUrl, '_blank');
     });
     

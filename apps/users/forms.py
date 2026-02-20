@@ -1189,6 +1189,12 @@ class StudentApplicationForm(forms.ModelForm):
 
         # Make academic session optional
         self.fields['academic_session'].required = False
+        
+        # Make these fields optional (removed from template but still in form for backend compatibility)
+        self.fields['grade_applying_for'].required = False
+        self.fields['institution'].required = False
+        self.fields['confirm_email'].required = False
+        self.fields['confirm_parent_email'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -1214,18 +1220,22 @@ class StudentApplicationForm(forms.ModelForm):
 
         # Age validation
         if date_of_birth:
-            today = timezone.now().date()
-            age = today.year - date_of_birth.year - (
-                (today.month, today.day) < (date_of_birth.month, date_of_birth.day)
-            )
+            # Only enforce strict age limits when a grade is supplied
+            # (legacy forms require grade; our simplified application may omit it)
+            grade_value = cleaned_data.get('grade_applying_for')
+            if grade_value:
+                today = timezone.now().date()
+                age = today.year - date_of_birth.year - (
+                    (today.month, today.day) < (date_of_birth.month, date_of_birth.day)
+                )
 
-            # Validate minimum age for school (typically 3+)
-            if age < 3:
-                self.add_error('date_of_birth', _('Student must be at least 3 years old.'))
+                # Validate minimum age for school (typically 3+)
+                if age < 3:
+                    self.add_error('date_of_birth', _('Student must be at least 3 years old.'))
 
-            # Validate reasonable maximum age (typically 25 for high school)
-            if age > 25:
-                self.add_error('date_of_birth', _('Please contact admissions for applicants over 25 years old.'))
+                # Validate reasonable maximum age (typically 25 for high school)
+                if age > 25:
+                    self.add_error('date_of_birth', _('Please contact admissions for applicants over 25 years old.'))
 
         # Check for duplicate applications
         if email and not self.instance.pk:
@@ -1672,6 +1682,91 @@ class StaffApplicationForm(forms.ModelForm):
         self.cleaned_data.pop('confirm_email', None)
         return super().save(commit=commit)
 
-# apps/users/forms.py (ADD TO EXISTING forms.py)
+
+class SimplifiedStaffApplicationForm(forms.ModelForm):
+    """
+    Simplified form for staff applications with only essential fields.
+    Matches the simplified template.
+    """
+    
+    class Meta:
+        model = StaffApplication
+        fields = [
+            'first_name', 'last_name', 'email', 'phone', 'position_applied_for', 'cv'
+        ]
+
+        widgets = {
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('First name')
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('Last name')
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('applicant@nordalms.pythonanywhere.com')
+            }),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('+1234567890')
+            }),
+            'position_applied_for': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'cv': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.doc,.docx'
+            }),
+        }
+        help_texts = {
+            'cv': _('Upload your CV (PDF, DOC, DOCX, max 5MB)'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Populate position_applied_for with active staff roles
+        self.fields['position_applied_for'].queryset = Role.objects.filter(
+            role_type__in=Role.STAFF_ROLES,
+            status='active'
+        ).order_by('name')
+
+        # Make CV required
+        self.fields['cv'].required = True
+
+        # Add empty label for dropdowns
+        self.fields['position_applied_for'].empty_label = _("Select a position")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        email = cleaned_data.get('email')
+
+        # Check for duplicate applications
+        if email and not self.instance.pk:
+            existing_app = StaffApplication.objects.filter(
+                email=email,
+                application_status__in=['pending', 'under_review']
+            ).exists()
+            if existing_app:
+                self.add_error('email', _('An application with this email is already pending review.'))
+
+        return cleaned_data
+
+    def clean_cv(self):
+        cv = self.cleaned_data.get('cv')
+        if cv:
+            # File type validation
+            valid_types = ['application/pdf', 'application/msword', 
+                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+            if cv.content_type not in valid_types:
+                raise forms.ValidationError(_('Only PDF, DOC, and DOCX files are allowed for CV.'))
+            
+            # File size validation (5MB)
+            if cv.size > 5 * 1024 * 1024:
+                raise forms.ValidationError(_('CV file size must not exceed 5MB.'))
+        
+        return cv
 
 

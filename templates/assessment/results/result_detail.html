@@ -8,7 +8,7 @@
 
 {% block breadcrumb_items %}
     <li class="breadcrumb-item"><a href="{% url 'users:dashboard' %}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'assessment:dashboard' %}">Assessment</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'assessment:dashboard' %}">CBT</a></li>
     <li class="breadcrumb-item"><a href="{% url 'assessment:result_list' %}">Results</a></li>
     <li class="breadcrumb-item active" aria-current="page">{{ result.student.user.get_full_name }}</li>
 {% endblock %}
@@ -40,7 +40,7 @@
             <i class="bi bi-printer me-1"></i> Print
         </button>
         <a href="{% url 'assessment:student_marks' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-award me-1"></i> View All Marks
+            <i class="bi bi-award me-1"></i> View All CBT Results
         </a>
         {% endif %}
     </div>
@@ -280,7 +280,7 @@
                 <div class="card-body">
                     <div class="info-list">
                         <div class="info-item d-flex justify-content-between py-2 border-bottom">
-                            <span class="text-muted">Exam Type:</span>
+                            <span class="text-muted">CBT Type:</span>
                             <span class="fw-semibold">{{ result.exam_type.name }}</span>
                         </div>
                         <div class="info-item d-flex justify-content-between py-2 border-bottom">

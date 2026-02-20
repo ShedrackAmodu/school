@@ -39,12 +39,30 @@
             <a href="{% url 'finance:student_invoices' %}" class="btn btn-outline-secondary">
               <i class="bi bi-receipt me-2"></i>{% trans "View My Invoices" %}
             </a>
+            {% if invoice %}
+            <a href="{% url 'finance:pay_invoice' pk=invoice.pk %}" class="btn btn-outline-primary">
+              <i class="bi bi-credit-card me-2"></i>{% trans "Pay This Invoice" %}
+            </a>
+            {% endif %}
             <a href="{% url 'users:dashboard' %}" class="btn btn-link text-muted small">
               <i class="bi bi-house me-1"></i>{% trans "Go to Dashboard" %}
             </a>
           </div>
 
-          <p class="text-muted small mt-4 mb-0">
+          <!-- Information Note -->
+          <div class="mt-4 p-3 bg-light rounded-3">
+            <h6 class="fw-semibold mb-2">{% trans "Payment Information" %}</h6>
+            <p class="text-muted small mb-2">
+              {% trans "No charges were made to your account. You can try the payment again or choose a different payment method." %}
+            </p>
+            <ul class="small text-muted mb-0">
+              <li>{% trans "Your invoice remains active and payment is still required" %}</li>
+              <li>{% trans "You can pay the full amount or make a partial payment" %}</li>
+              <li>{% trans "Ensure you complete the payment before the due date to avoid late fees" %}</li>
+            </ul>
+          </div>
+
+          <p class="text-muted small mt-3 mb-0">
             {% trans "Need help? Contact the school's finance office or support team." %}
           </p>
 

@@ -345,7 +345,7 @@ def import_configs(request):
 
 class InstitutionDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
-    Detail view for Institution (Excellent Academy in single-tenant mode).
+    Detail view for Institution (single-tenant deployments use the primary active institution).
     """
     model = Institution
     template_name = 'core/institutions/detail.html'
@@ -353,11 +353,8 @@ class InstitutionDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailV
     permission_required = 'core.view_institution'
 
     def get_object(self, queryset=None):
-        """In single-tenant mode, always return Excellent Academy."""
-        try:
-            return Institution.objects.get(code='EXCELLENT_ACADEMY')
-        except Institution.DoesNotExist:
-            return Institution.objects.first()
+        """Return the primary active institution if available, otherwise first institution."""
+        return Institution.objects.filter(is_active=True).first() or Institution.objects.first()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -427,6 +424,16 @@ class SuperAdminDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View)
         from apps.audit.models import AuditLog
         recent_audits = AuditLog.objects.order_by('-timestamp')[:10]
 
+        # Recent Applications (pending staff applications for quick access)
+        from apps.users.models import StudentApplication, StaffApplication
+        pending_student_applications = StudentApplication.objects.filter(
+            application_status__in=['pending', 'under_review']
+        ).order_by('-application_date')[:5]
+
+        pending_staff_applications = StaffApplication.objects.filter(
+            application_status__in=['pending', 'under_review']
+        ).order_by('-application_date')[:5]
+
         context = {
             'total_institutions': total_institutions,
             'active_institutions': active_institutions,
@@ -438,6 +445,8 @@ class SuperAdminDashboardView(LoginRequiredMixin, PermissionRequiredMixin, View)
             'system_kpis': system_kpis,
             'kpi_data': kpi_data,
             'recent_audits': recent_audits,
+            'pending_student_applications': pending_student_applications,
+            'pending_staff_applications': pending_staff_applications,
             'dashboard_category': dashboard_category,
             'page_title': _('Super Administrator Dashboard'),
         }

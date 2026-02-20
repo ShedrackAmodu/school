@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Grade Exam Answers - {{ exam.name }}{% endblock %}
+{% block title %}Grade CBT Answers - {{ exam.name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -9,10 +9,10 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Grade Exam Answers: {{ exam.name }}</h3>
+                    <h3 class="card-title">Grade CBT Answers: {{ exam.name }}</h3>
                     <div class="card-tools">
                         <a href="{% url 'assessment:exam_detail' exam.id %}" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-arrow-left"></i> Back to Exam
+                            <i class="fas fa-arrow-left"></i> Back to CBT
                         </a>
                     </div>
                 </div>
@@ -178,8 +178,8 @@
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
                             <h4>All Answers Graded</h4>
                             <p>All student answers for this exam have been graded.</p>
-                            <a href="{% url 'assessment:exam_detail' exam.id %}" class="btn btn-primary">
-                                Back to Exam Details
+                                    <a href="{% url 'assessment:exam_detail' exam.id %}" class="btn btn-primary">
+                                Back to CBT Details
                             </a>
                         </div>
                     {% endif %}

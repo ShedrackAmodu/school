@@ -33,8 +33,15 @@
 
                     <form method="post" novalidate>
                         {% csrf_token %}
-                        
-                        <!-- Personal Information -->
+                        <!-- Hidden fields for backend compatibility -->
+                        <input type="hidden" name="nationality" id="id_nationality_hidden" value="{{ form.initial.nationality|default:'Not specified' }}">
+                        <input type="hidden" name="parent_first_name" id="id_parent_first_name_hidden" value="{{ form.initial.parent_first_name|default:'Parent' }}">
+                        <input type="hidden" name="parent_last_name" id="id_parent_last_name_hidden" value="{{ form.initial.parent_last_name|default:'Guardian' }}">
+                        <input type="hidden" name="parent_relationship" id="id_parent_relationship_hidden" value="{{ form.initial.parent_relationship|default:'guardian' }}">
+                        <input type="hidden" name="confirm_email" id="id_confirm_email_hidden" value="{{ form.initial.confirm_email|default:'' }}">
+                        <input type="hidden" name="confirm_parent_email" id="id_confirm_parent_email_hidden" value="{{ form.initial.confirm_parent_email|default:'' }}">
+
+                        <!-- Student Information -->
                         <div class="mb-4">
                             <h4 class="border-bottom pb-2">{% trans "Student Information" %}</h4>
                             <div class="row">
@@ -59,6 +66,16 @@
                                 </div>
                             </div>
 
+                            <div class="mb-3">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">
+                                    {% trans "Email" %} *
+                                </label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">
@@ -81,175 +98,6 @@
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.nationality.id_for_label }}" class="form-label">
-                                        {% trans "Nationality" %} *
-                                    </label>
-                                    {{ form.nationality }}
-                                    {% if form.nationality.errors %}
-                                        <div class="text-danger small mt-1">{{ form.nationality.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <!-- Institution field hidden in single-tenant mode (automatically set to Excellence Academy) -->
-                                <div class="col-md-6 mb-3" style="display: none;">
-                                    <label for="{{ form.institution.id_for_label }}" class="form-label">
-                                        {% trans "Institution to Apply To" %} *
-                                    </label>
-                                    {{ form.institution }}
-                                    {% if form.institution.errors %}
-                                        <div class="text-danger small mt-1">{{ form.institution.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <p class="form-text text-success"><i class="fas fa-check-circle"></i> {% trans "Applying to: Excellence Academy" %}</p>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.academic_session.id_for_label }}" class="form-label">
-                                        {% trans "Academic Session" %}
-                                    </label>
-                                    {{ form.academic_session }}
-                                    {% if form.academic_session.errors %}
-                                        <div class="text-danger small mt-1">{{ form.academic_session.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Contact Information -->
-                        <div class="mb-4">
-                            <h4 class="border-bottom pb-2">{% trans "Contact Information" %}</h4>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.email.id_for_label }}" class="form-label">
-                                        {% trans "Student Email" %} *
-                                    </label>
-                                    {{ form.email }}
-                                    {% if form.email.errors %}
-                                        <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.confirm_email.id_for_label }}" class="form-label">
-                                        {% trans "Confirm Student Email" %} *
-                                    </label>
-                                    {{ form.confirm_email }}
-                                    {% if form.confirm_email.errors %}
-                                        <div class="text-danger small mt-1">{{ form.confirm_email.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="{{ form.phone.id_for_label }}" class="form-label">
-                                    {% trans "Phone Number" %} *
-                                </label>
-                                {{ form.phone }}
-                                {% if form.phone.errors %}
-                                    <div class="text-danger small mt-1">{{ form.phone.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="{{ form.address.id_for_label }}" class="form-label">
-                                    {% trans "Address" %} *
-                                </label>
-                                {{ form.address }}
-                                {% if form.address.errors %}
-                                    <div class="text-danger small mt-1">{{ form.address.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="{{ form.city.id_for_label }}" class="form-label">
-                                        {% trans "City" %} *
-                                    </label>
-                                    {{ form.city }}
-                                    {% if form.city.errors %}
-                                        <div class="text-danger small mt-1">{{ form.city.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="{{ form.state.id_for_label }}" class="form-label">
-                                        {% trans "State/Province" %} *
-                                    </label>
-                                    {{ form.state }}
-                                    {% if form.state.errors %}
-                                        <div class="text-danger small mt-1">{{ form.state.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="{{ form.postal_code.id_for_label }}" class="form-label">
-                                        {% trans "Postal Code" %} *
-                                    </label>
-                                    {{ form.postal_code }}
-                                    {% if form.postal_code.errors %}
-                                        <div class="text-danger small mt-1">{{ form.postal_code.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="{{ form.country.id_for_label }}" class="form-label">
-                                    {% trans "Country" %} *
-                                </label>
-                                {{ form.country }}
-                                {% if form.country.errors %}
-                                    <div class="text-danger small mt-1">{{ form.country.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <!-- Academic Information -->
-                        <div class="mb-4">
-                            <h4 class="border-bottom pb-2">{% trans "Academic Information" %}</h4>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.grade_applying_for.id_for_label }}" class="form-label">
-                                        {% trans "Grade Applying For" %} *
-                                    </label>
-                                    {{ form.grade_applying_for }}
-                                    {% if form.grade_applying_for.errors %}
-                                        <div class="text-danger small mt-1">{{ form.grade_applying_for.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.previous_school.id_for_label }}" class="form-label">
-                                        {% trans "Previous School" %}
-                                    </label>
-                                    {{ form.previous_school }}
-                                    {% if form.previous_school.errors %}
-                                        <div class="text-danger small mt-1">{{ form.previous_school.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.previous_grade.id_for_label }}" class="form-label">
-                                        {% trans "Previous Grade Completed" %}
-                                    </label>
-                                    {{ form.previous_grade }}
-                                    {% if form.previous_grade.errors %}
-                                        <div class="text-danger small mt-1">{{ form.previous_grade.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="{{ form.academic_achievements.id_for_label }}" class="form-label">
-                                    {% trans "Academic Achievements" %}
-                                </label>
-                                {{ form.academic_achievements }}
-                                {% if form.academic_achievements.errors %}
-                                    <div class="text-danger small mt-1">{{ form.academic_achievements.errors.0 }}</div>
-                                {% endif %}
-                                <div class="form-text">{% trans "List any academic awards, honors, or special achievements" %}</div>
-                            </div>
                         </div>
 
                         <!-- Parent/Guardian Information -->
@@ -257,29 +105,8 @@
                             <h4 class="border-bottom pb-2">{% trans "Parent/Guardian Information" %}</h4>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="{{ form.parent_first_name.id_for_label }}" class="form-label">
-                                        {% trans "Parent First Name" %} *
-                                    </label>
-                                    {{ form.parent_first_name }}
-                                    {% if form.parent_first_name.errors %}
-                                        <div class="text-danger small mt-1">{{ form.parent_first_name.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.parent_last_name.id_for_label }}" class="form-label">
-                                        {% trans "Parent Last Name" %} *
-                                    </label>
-                                    {{ form.parent_last_name }}
-                                    {% if form.parent_last_name.errors %}
-                                        <div class="text-danger small mt-1">{{ form.parent_last_name.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
                                     <label for="{{ form.parent_email.id_for_label }}" class="form-label">
-                                        {% trans "Parent Email" %} *
+                                        {% trans "Parent/Guardian Email" %} *
                                     </label>
                                     {{ form.parent_email }}
                                     {% if form.parent_email.errors %}
@@ -287,72 +114,14 @@
                                     {% endif %}
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label for="{{ form.confirm_parent_email.id_for_label }}" class="form-label">
-                                        {% trans "Confirm Parent Email" %} *
-                                    </label>
-                                    {{ form.confirm_parent_email }}
-                                    {% if form.confirm_parent_email.errors %}
-                                        <div class="text-danger small mt-1">{{ form.confirm_parent_email.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
                                     <label for="{{ form.parent_phone.id_for_label }}" class="form-label">
-                                        {% trans "Parent Phone" %} *
+                                        {% trans "Parent/Guardian Phone" %} *
                                     </label>
                                     {{ form.parent_phone }}
                                     {% if form.parent_phone.errors %}
                                         <div class="text-danger small mt-1">{{ form.parent_phone.errors.0 }}</div>
                                     {% endif %}
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.parent_relationship.id_for_label }}" class="form-label">
-                                        {% trans "Relationship to Student" %} *
-                                    </label>
-                                    {{ form.parent_relationship }}
-                                    {% if form.parent_relationship.errors %}
-                                        <div class="text-danger small mt-1">{{ form.parent_relationship.errors.0 }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Additional Information -->
-                        <div class="mb-4">
-                            <h4 class="border-bottom pb-2">{% trans "Additional Information" %}</h4>
-                            <div class="mb-3">
-                                <label for="{{ form.medical_conditions.id_for_label }}" class="form-label">
-                                    {% trans "Medical Conditions" %}
-                                </label>
-                                {{ form.medical_conditions }}
-                                <div class="form-text">{% trans "Any medical conditions we should be aware of. This information will be kept confidential." %}</div>
-                                {% if form.medical_conditions.errors %}
-                                    <div class="text-danger small mt-1">{{ form.medical_conditions.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="{{ form.special_needs.id_for_label }}" class="form-label">
-                                    {% trans "Special Educational Needs" %}
-                                </label>
-                                {{ form.special_needs }}
-                                <div class="form-text">{% trans "Any special educational needs or accommodations required" %}</div>
-                                {% if form.special_needs.errors %}
-                                    <div class="text-danger small mt-1">{{ form.special_needs.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="{{ form.extracurricular_interests.id_for_label }}" class="form-label">
-                                    {% trans "Extracurricular Interests" %}
-                                </label>
-                                {{ form.extracurricular_interests }}
-                                <div class="form-text">{% trans "Sports, arts, clubs, or other interests" %}</div>
-                                {% if form.extracurricular_interests.errors %}
-                                    <div class="text-danger small mt-1">{{ form.extracurricular_interests.errors.0 }}</div>
-                                {% endif %}
                             </div>
                         </div>
 
@@ -405,59 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 event.preventDefault();
                 event.stopPropagation();
             }
-            
+
             form.classList.add('was-validated');
         });
+        
     });
-
-    // Real-time email confirmation validation
-    const emailField = document.getElementById('{{ form.email.id_for_label }}');
-    const confirmEmailField = document.getElementById('{{ form.confirm_email.id_for_label }}');
-    const parentEmailField = document.getElementById('{{ form.parent_email.id_for_label }}');
-    const confirmParentEmailField = document.getElementById('{{ form.confirm_parent_email.id_for_label }}');
-
-    function validateEmailConfirmation(emailField, confirmField) {
-        if (emailField.value && confirmField.value && emailField.value !== confirmField.value) {
-            confirmField.classList.add('is-invalid');
-            confirmField.classList.remove('is-valid');
-        } else if (confirmField.value) {
-            confirmField.classList.remove('is-invalid');
-            confirmField.classList.add('is-valid');
-        } else {
-            confirmField.classList.remove('is-invalid', 'is-valid');
-        }
-    }
-
-    if (emailField && confirmEmailField) {
-        emailField.addEventListener('input', () => validateEmailConfirmation(emailField, confirmEmailField));
-        confirmEmailField.addEventListener('input', () => validateEmailConfirmation(emailField, confirmEmailField));
-    }
-
-    if (parentEmailField && confirmParentEmailField) {
-        parentEmailField.addEventListener('input', () => validateEmailConfirmation(parentEmailField, confirmParentEmailField));
-        confirmParentEmailField.addEventListener('input', () => validateEmailConfirmation(parentEmailField, confirmParentEmailField));
-    }
-
-    // Date of birth validation
-    const dobField = document.getElementById('{{ form.date_of_birth.id_for_label }}');
-    if (dobField) {
-        dobField.addEventListener('change', function() {
-            const dob = new Date(this.value);
-            const today = new Date();
-            const age = today.getFullYear() - dob.getFullYear();
-            
-            if (age < 3) {
-                this.classList.add('is-invalid');
-                this.classList.remove('is-valid');
-            } else if (age > 25) {
-                this.classList.add('is-invalid');
-                this.classList.remove('is-valid');
-            } else {
-                this.classList.remove('is-invalid');
-                this.classList.add('is-valid');
-            }
-        });
-    }
 });
 </script>
 {% endblock %}

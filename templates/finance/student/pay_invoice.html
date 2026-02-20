@@ -106,6 +106,29 @@
         </div>
         {% else %}
 
+        <!-- Payment Instructions -->
+        <div class="alert alert-info border-0 bg-info bg-opacity-10 mb-4">
+          <div class="d-flex align-items-start">
+            <i class="bi bi-info-circle-fill text-info fs-4 me-3 mt-1"></i>
+            <div>
+              <h6 class="fw-semibold mb-1">How to Pay</h6>
+              <ol class="mb-0 small">
+                <li>Enter the amount you want to pay (minimum ₦1)</li>
+                <li>Click "Pay Now" to open the secure payment page</li>
+                <li>Enter your card details on Paystack's secure page</li>
+                <li>Complete the payment and you'll be redirected back here</li>
+                <li>Your payment status will update automatically</li>
+              </ol>
+              <div class="mt-2">
+                <small class="text-muted">
+                  <i class="bi bi-shield-check me-1"></i>
+                  Your payment is secured by Paystack. We never see your card details.
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Amount to Pay -->
         <div class="mb-4">
           <label class="form-label fw-semibold">Amount to Pay (₦)</label>
@@ -117,15 +140,20 @@
                    placeholder="Enter amount">
           </div>
           <div class="d-flex gap-2 mt-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary"
-                    onclick="setAmount({{ invoice.balance_due }})">Pay Full Balance</button>
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    onclick="setAmount({{ invoice.balance_due }})">
+              <i class="bi bi-check-circle me-1"></i>Pay Full Balance (₦{{ invoice.balance_due|floatformat:2 }})
+            </button>
             {% if invoice.balance_due > 5000 %}
             <button type="button" class="btn btn-sm btn-outline-secondary"
-                    onclick="setAmount({{ invoice.balance_due }} / 2)">Pay Half</button>
+                    onclick="setAmount({{ invoice.balance_due }} / 2)">
+              <i class="bi bi-cash me-1"></i>Pay Half (₦{{ invoice.balance_due|div:2|floatformat:2 }})
+            </button>
             {% endif %}
           </div>
           <div class="form-text text-muted">
             Balance due: <strong class="text-danger">₦{{ invoice.balance_due|floatformat:2 }}</strong>
+            <span class="ms-3 small">| Minimum payment: ₦1</span>
           </div>
         </div>
 
@@ -232,6 +260,136 @@
 
   </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Mobile responsive improvements */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-lg {
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+        width: 100%;
+    }
+    
+    .input-group-lg .form-control {
+        font-size: 1.1rem;
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+    
+    .card-header h5 {
+        font-size: 1.1rem;
+    }
+    
+    .amount-display {
+        font-size: 2rem;
+    }
+    
+    .invoice-meta {
+        font-size: 0.9rem;
+    }
+    
+    .payment-method-card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .alert {
+        font-size: 0.9rem;
+        padding: 1rem;
+    }
+    
+    .breadcrumb {
+        font-size: 0.9rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .sticky-top {
+        position: relative;
+        top: 0;
+    }
+}
+
+/* Tablet responsive */
+@media (max-width: 992px) and (min-width: 769px) {
+    .amount-display {
+        font-size: 2.5rem;
+    }
+}
+
+/* Accessibility improvements */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus styles for accessibility */
+.btn:focus, .form-control:focus, .input-group:focus-within {
+    outline: 3px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .btn {
+        border: 2px solid #000;
+    }
+    
+    .card {
+        border-width: 2px;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .btn, .card, .alert {
+        transition: none;
+    }
+    
+    .btn:hover {
+        transform: none;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    .btn {
+        min-height: 44px;
+        padding: 12px 24px;
+    }
+    
+    .form-control {
+        min-height: 44px;
+        padding: 12px;
+    }
+    
+    .input-group-text {
+        min-height: 44px;
+    }
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}

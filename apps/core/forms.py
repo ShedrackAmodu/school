@@ -17,7 +17,7 @@ from .middleware import get_user_accessible_institutions
 class InstitutionFormMixin:
     """
     Mixin for ModelForms for single-tenant mode.
-    In single-tenant mode (Excellent Academy), no filtering needed since all data
+    In single-tenant mode (Excellence Academy), no filtering needed since all data
     belongs to the same institution.
     """
 
@@ -26,7 +26,7 @@ class InstitutionFormMixin:
         super().__init__(*args, **kwargs)
         
         # In single-tenant mode, no institution filtering is needed
-        # All data belongs to Excellent Academy
+        # All data belongs to Excellence Academy
 
 class AcademicSessionForm(InstitutionFormMixin, forms.ModelForm):
     """

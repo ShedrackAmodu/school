@@ -12,6 +12,15 @@ from apps.core.models import CoreBaseModel, AddressModel, ContactModel
 
 logger = logging.getLogger(__name__)
 
+# Application Models
+
+class ApplicationStatus(models.TextChoices):
+    PENDING = 'pending', _('Pending')
+    UNDER_REVIEW = 'under_review', _('Under Review')
+    APPROVED = 'approved', _('Approved')
+    REJECTED = 'rejected', _('Rejected')
+    INTERVIEW_SCHEDULED = 'interview_scheduled', _('Interview Scheduled')
+
 
 
 
@@ -1022,16 +1031,6 @@ class InstitutionTransferRequest(CoreBaseModel):
         }
 
 
-# Application Models
-
-class ApplicationStatus(models.TextChoices):
-    PENDING = 'pending', _('Pending')
-    UNDER_REVIEW = 'under_review', _('Under Review')
-    APPROVED = 'approved', _('Approved')
-    REJECTED = 'rejected', _('Rejected')
-    INTERVIEW_SCHEDULED = 'interview_scheduled', _('Interview Scheduled')
-
-
 class StudentApplication(CoreBaseModel, AddressModel):
     """
     Model for student applications from public/guest users.
@@ -1042,7 +1041,7 @@ class StudentApplication(CoreBaseModel, AddressModel):
     last_name = models.CharField(_('last name'), max_length=50)
     email = models.EmailField(_('email address'), unique=True)
     phone = models.CharField(_('phone number'), max_length=20, blank=True)
-    date_of_birth = models.DateField(_('date of birth'))
+    date_of_birth = models.DateField(_('date of birth'), null=True, blank=True)
     gender = models.CharField(
         _('gender'),
         max_length=20,
@@ -1050,9 +1049,10 @@ class StudentApplication(CoreBaseModel, AddressModel):
             ('male', _('Male')),
             ('female', _('Female')),
             ('other', _('Other')),
-        ]
+        ],
+        blank=True
     )
-    nationality = models.CharField(_('nationality'), max_length=50)
+    nationality = models.CharField(_('nationality'), max_length=50, blank=True)
 
     # Academic Information
     grade_applying_for = models.CharField(_('grade applying for'), max_length=20)
@@ -1192,7 +1192,7 @@ class StaffApplication(CoreBaseModel, AddressModel):
     last_name = models.CharField(_('last name'), max_length=50)
     email = models.EmailField(_('email address'), unique=True)
     phone = models.CharField(_('phone number'), max_length=20, blank=True)
-    date_of_birth = models.DateField(_('date of birth'))
+    date_of_birth = models.DateField(_('date of birth'), null=True, blank=True)
     gender = models.CharField(
         _('gender'),
         max_length=20,
@@ -1200,9 +1200,10 @@ class StaffApplication(CoreBaseModel, AddressModel):
             ('male', _('Male')),
             ('female', _('Female')),
             ('other', _('Other')),
-        ]
+        ],
+        blank=True
     )
-    nationality = models.CharField(_('nationality'), max_length=50)
+    nationality = models.CharField(_('nationality'), max_length=50, blank=True)
 
     # Professional Information
     position_applied_for = models.ForeignKey(
@@ -1226,9 +1227,9 @@ class StaffApplication(CoreBaseModel, AddressModel):
     )
 
     # Educational Background
-    highest_qualification = models.CharField(_('highest qualification'), max_length=100)
-    institution = models.CharField(_('institution'), max_length=200, help_text=_('Institution where qualification was obtained'))
-    year_graduated = models.PositiveIntegerField(_('year graduated'))
+    highest_qualification = models.CharField(_('highest qualification'), max_length=100, blank=True)
+    institution = models.CharField(_('institution'), max_length=200, blank=True, help_text=_('Institution where qualification was obtained'))
+    year_graduated = models.PositiveIntegerField(_('year graduated'), null=True, blank=True)
 
     # Professional Experience
     years_of_experience = models.PositiveIntegerField(_('years of experience'), default=0)

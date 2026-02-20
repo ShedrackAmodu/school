@@ -179,7 +179,7 @@
                         </div>
                         
                         <div class="col-md-6">
-                            <h6 class="text-muted mb-3">{% trans "Assessment & Grading" %}</h6>
+                            <h6 class="text-muted mb-3">{% trans "CBT & Grading" %}</h6>
                             <div class="d-flex flex-wrap gap-2 mb-3">
                                 {% if 'view_grades' in effective_permissions %}
                                 <span class="badge bg-success">{% trans "View Grades" %}</span>
@@ -188,7 +188,7 @@
                                 <span class="badge bg-success">{% trans "Enter Grades" %}</span>
                                 {% endif %}
                                 {% if 'manage_exams' in effective_permissions %}
-                                <span class="badge bg-success">{% trans "Manage Exams" %}</span>
+                                <span class="badge bg-success">{% trans "Manage CBTs" %}</span>
                                 {% endif %}
                                 {% if 'generate_reports' in effective_permissions %}
                                 <span class="badge bg-success">{% trans "Generate Reports" %}</span>
@@ -694,7 +694,7 @@
         const permissionCategories = [
             ['Users', ['view_users', 'add_users', 'edit_users', 'delete_users']],
             ['Academics', ['view_classes', 'manage_classes', 'view_subjects', 'manage_subjects']],
-            ['Assessment', ['view_grades', 'enter_grades', 'manage_exams', 'generate_reports']],
+            ['CBT', ['view_grades', 'enter_grades', 'manage_exams', 'generate_reports']],
             ['Finance', ['view_finances', 'manage_fees', 'process_payments']]
         ];
 

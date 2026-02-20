@@ -51,7 +51,7 @@ class ContactModel(models.Model):
 
 class Institution(AddressModel, ContactModel):
     """
-    Model for managing multiple school institutions under one platform.
+    Model for managing the school institution for this deployment (Excellence Academy).
     """
     class Status(models.TextChoices):
         ACTIVE = 'active', _('Active')
@@ -130,7 +130,7 @@ class Institution(AddressModel, ContactModel):
     requires_parent_approval = models.BooleanField(_('requires parent approval'), default=True)
 
     # System Settings
-    database_schema = models.CharField(_('database schema'), max_length=50, blank=True, help_text=_('For multi-tenant database separation'))
+    database_schema = models.CharField(_('database schema'), max_length=50, blank=True, help_text=_('Database schema (unused for single-tenant deployment)'))
     api_key = models.CharField(_('API key'), max_length=100, blank=True, unique=True)
 
     # Relationships
@@ -244,7 +244,7 @@ class CoreBaseModel(models.Model):
     is_deleted = models.BooleanField(_('is deleted'), default=False, db_index=True)
     deleted_at = models.DateTimeField(_('deleted at'), null=True, blank=True)
 
-    # Multi-tenancy support
+    # Tenancy support (not used in single-tenant mode)
     institution = models.ForeignKey(
         Institution,
         on_delete=models.CASCADE,
@@ -271,22 +271,12 @@ class CoreBaseModel(models.Model):
                 pass
 
         # Set default institution if none is set and this is a new instance.
-        # In single-tenant mode this is always Excellent Academy.
+        # Do not assume a pre-created default institution code; use the first active
+        # institution if one exists.
         if self._state.adding and getattr(self, 'institution_id', None) is None:
-            try:
-                default_institution = Institution.objects.filter(
-                    code='EXCELLENT_ACADEMY',
-                    is_active=True
-                ).first()
-                if default_institution:
-                    self.institution = default_institution
-                else:
-                    # Fallback: get any active institution
-                    any_institution = Institution.objects.filter(is_active=True).first()
-                    if any_institution:
-                        self.institution = any_institution
-            except Institution.DoesNotExist:
-                pass  # Let it fail with a clear error message
+            any_institution = Institution.objects.filter(is_active=True).first()
+            if any_institution:
+                self.institution = any_institution
 
         super().save(*args, **kwargs)
 

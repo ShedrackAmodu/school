@@ -1,4 +1,4 @@
-# 🏫 Excellent Academy - School Management System
+# 🏫 Excellence Academy - School Management System
 
 <p align="center">
   <img src="https://img.shields.io/badge/Django-5.2+-092009?style=for-the-badge&logo=django&logoColor=white" alt="Django">
@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <strong>A comprehensive School Management System for Excellent Academy</strong><br>
+  <strong>A comprehensive School Management System for Excellence Academy</strong><br>
   Manage academics, finance, attendance, and more with ease
 </p>
 
@@ -35,8 +35,8 @@
 
 ## ✨ Features
 
-### 🔐 Single-Tenant Architecture
-- **Excellent Academy Focus**: Dedicated system for Excellent Academy
+- ### 🔐 Single-Tenant Architecture
+- **Excellence Academy Focus**: Dedicated system for Excellence Academy
 - **Data Security**: Secure data storage and user authentication
 - **Scalable Design**: Built to handle growing student and staff base
 - **Simplified Administration**: No multi-institution complexity
@@ -154,7 +154,7 @@
 ## 🏗️ Architecture
 
 ```
-Excellent Academy SMS/
+Excellence Academy SMS/
 ├── apps/                    # Django applications
 │   ├── academics/          # Academic management
 │   ├── activities/         # Extracurricular activities
@@ -178,7 +178,7 @@ Excellent Academy SMS/
 ```
 
 ### Database Schema Highlights
-- **Single Tenant**: All data belongs to Excellent Academy
+- **Single Tenant**: All data belongs to Excellence Academy
 - **UUID Primary Keys**: All models use UUID for global uniqueness
 - **Soft Deletes**: All core models support soft delete functionality
 - **Timestamp Tracking**: Created/updated/status change timestamps
@@ -237,7 +237,7 @@ Excellent Academy SMS/
 
 | Module | Purpose | Key Models |
 |--------|---------|------------|
-| `core` | Multi-institution, config | Institution, SystemConfig, SequenceGenerator |
+| `core` | Single-institution configuration and system settings | Institution, SystemConfig, SequenceGenerator |
 | `users` | Authentication, roles | User, Role, UserProfile, UserRole |
 | `academics` | Academic structure | Class, Section, Subject, Timetable |
 | `attendance` | Attendance tracking | DailyAttendance, PeriodAttendance |

@@ -12,7 +12,7 @@ from .middleware import (
 
 class InstitutionAccessMixin(AccessMixin):
     """
-    Mixin to ensure user has access to the current institution (Excellent Academy).
+    Mixin to ensure user has access to the current institution (Excellence Academy).
     In single-tenant mode, all authenticated users have access.
     """
 
@@ -27,7 +27,7 @@ class InstitutionAccessMixin(AccessMixin):
             # Redirect to dashboard with error instead of an institution-select page.
             messages.error(
                 request,
-                _("System configuration error: Excellent Academy institution not found. "
+                _("System configuration error: Excellence Academy institution not found. "
                   "Please run: python manage.py migrate")
             )
             return redirect('users:dashboard')
@@ -37,16 +37,16 @@ class InstitutionAccessMixin(AccessMixin):
 
 class InstitutionPermissionMixin(InstitutionAccessMixin):
     """
-    Mixin that filters querysets by the single institution (Excellent Academy).
+    Mixin that filters querysets by the single institution (Excellence Academy).
     """
 
     def get_queryset(self):
-        """Filter queryset to only show records from Excellent Academy."""
+        """Filter queryset to only show records from Excellence Academy."""
         queryset = super().get_queryset()
         return filter_queryset_by_institution(queryset, self.request.user)
 
     def form_valid(self, form):
-        """Ensure the form instance is saved with Excellent Academy as institution."""
+        """Ensure the form instance is saved with Excellence Academy as institution."""
         form.instance.institution = get_current_institution()
         return super().form_valid(form)
 
@@ -94,7 +94,7 @@ class SuperAdminMixin(AccessMixin):
 class InstitutionFormMixin:
     """
     Mixin for forms that need institution field handling.
-    In single-tenant mode, always assigns Excellent Academy.
+    In single-tenant mode, always assigns Excellence Academy.
     """
 
     def __init__(self, *args, **kwargs):
@@ -104,7 +104,7 @@ class InstitutionFormMixin:
     def save(self, commit=True):
         instance = super().save(commit=False)
 
-        # Always set institution to Excellent Academy for new instances
+        # Always set institution to Excellence Academy for new instances
         if not getattr(instance, 'institution_id', None):
             current_institution = get_current_institution()
             if current_institution:
@@ -118,7 +118,7 @@ class InstitutionFormMixin:
 class MultiInstitutionMixin:
     """
     Mixin for views that previously handled multiple institutions.
-    In single-tenant mode, always returns Excellent Academy only.
+    In single-tenant mode, always returns Excellence Academy only.
     Institution switching is always disabled.
     """
 
@@ -151,7 +151,7 @@ def institution_required(view_func):
         if not institution:
             messages.error(
                 request,
-                _("System configuration error: Excellent Academy institution not found.")
+                _("System configuration error: Excellence Academy institution not found.")
             )
             return redirect('users:dashboard')
 

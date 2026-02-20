@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Taking Exam - {{ exam.name }}{% endblock %}
+{% block title %}Taking CBT - {{ exam.name }}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -50,7 +50,7 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <!-- Exam Header -->
+            <!-- CBT Header -->
             <div class="card mb-4">
                 <div class="card-body">
                     <div class="row">
@@ -67,13 +67,13 @@
                             {% endif %}
                         </div>
                         <div class="col-md-4">
-                            <div class="exam-timer" id="examTimer">
+                                <div class="exam-timer" id="examTimer">
                                 <i class="fas fa-clock"></i>
                                 <span id="timeRemaining">--:--:--</span>
                             </div>
                             <div class="text-center">
                                 <button type="button" class="btn btn-warning" onclick="showExamSummary()">
-                                    <i class="fas fa-list"></i> Exam Summary
+                                    <i class="fas fa-list"></i> CBT Summary
                                 </button>
                             </div>
                         </div>
@@ -148,7 +148,7 @@
                 <!-- Submit Button -->
                 <div class="submit-btn">
                     <button type="submit" class="btn btn-success btn-lg" onclick="return confirmSubmission()">
-                        <i class="fas fa-paper-plane"></i> Submit Exam
+                        <i class="fas fa-paper-plane"></i> Submit CBT
                     </button>
                 </div>
             </form>
@@ -156,7 +156,7 @@
     </div>
 </div>
 
-<!-- Exam Summary Modal -->
+<!-- CBT Summary Modal -->
 <div class="modal fade" id="examSummaryModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
